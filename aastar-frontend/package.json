@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@aastar/airaccount": "^0.19.0",
+    "@aastar/core": "^0.18.0",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@simplewebauthn/browser": "^13.3.0",
