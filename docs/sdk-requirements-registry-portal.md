@@ -1,7 +1,7 @@
 # Registry 运营门户对 SDK 的业务诉求与能力差距
 
 > 视角:把 registry 仓库的 8 个核心运营业务流程,基于 `@aastar/*` SDK(而非直接调合约 ABI)在 YAA 内重建。本文从业务流程出发,列出对 SDK 的诉求与当前覆盖差距,作为 YAA↔SDK 协作凭证。
-> 关联:[CORE_FLOWS](../../registry/docs/CORE_FLOWS.md)(流程原始定义)、[sdk-current-survey-and-expectations.md](./sdk-current-survey-and-expectations.md)、[sdk-infra-upgrade-analysis-2026-06.md](./sdk-infra-upgrade-analysis-2026-06.md)
+> 关联:流程原始定义见 `AAStarCommunity/registry` 仓库的 `docs/CORE_FLOWS.md`(跨仓库,不在本仓库内);本仓库内:[sdk-current-survey-and-expectations.md](./sdk-current-survey-and-expectations.md)、[sdk-infra-upgrade-analysis-2026-06.md](./sdk-infra-upgrade-analysis-2026-06.md)
 
 ## 背景
 
