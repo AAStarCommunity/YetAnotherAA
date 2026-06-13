@@ -1,6 +1,12 @@
 import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createPublicClient, http, formatUnits } from "viem";
+import {
+  createPublicClient,
+  http,
+  formatUnits,
+  decodeAbiParameters,
+  parseAbiParameters,
+} from "viem";
 import {
   registryActions,
   tokenActions,
@@ -22,26 +28,25 @@ export class CommunityService implements OnModuleInit {
   private registryAddress: Address;
   private gtokenAddress: Address;
   private xpntsFactoryAddress: Address;
+  private chainId: number;
 
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    applyConfig({ chainId: CHAIN_SEPOLIA });
+    this.chainId = this.configService.get<number>("registryChainId") ?? CHAIN_SEPOLIA;
+    applyConfig({ chainId: this.chainId });
 
     const rpcUrl = this.configService.get<string>("ethRpcUrl");
     this.publicClient = createPublicClient({
       transport: http(rpcUrl),
     });
 
-    this.registryAddress = (
-      this.configService.get<string>("registryAddress") || CORE_REGISTRY_ADDRESS
-    ) as Address;
-    this.gtokenAddress = (
-      this.configService.get<string>("gtokenAddress") || CORE_GTOKEN_ADDRESS
-    ) as Address;
-    this.xpntsFactoryAddress = (
-      this.configService.get<string>("xpntsFactoryAddress") || CORE_XPNTS_FACTORY_ADDRESS
-    ) as Address;
+    this.registryAddress = (this.configService.get<string>("registryAddress") ||
+      CORE_REGISTRY_ADDRESS) as Address;
+    this.gtokenAddress = (this.configService.get<string>("gtokenAddress") ||
+      CORE_GTOKEN_ADDRESS) as Address;
+    this.xpntsFactoryAddress = (this.configService.get<string>("xpntsFactoryAddress") ||
+      CORE_XPNTS_FACTORY_ADDRESS) as Address;
 
     this.logger.log(`Registry: ${this.registryAddress}`);
     this.logger.log(`xPNTsFactory: ${this.xpntsFactoryAddress}`);
@@ -82,12 +87,9 @@ export class CommunityService implements OnModuleInit {
       if (!metadataHex || metadataHex === "0x") return null;
 
       // Decode: struct CommunityRoleData { string name; string ensName; string website; string description; string logoURI; uint256 stakeAmount; }
-      const { decodeAbiParameters, parseAbiParameters } = await import("viem");
       let dataToDecode = metadataHex;
       if (
-        metadataHex.startsWith(
-          "0x0000000000000000000000000000000000000000000000000000000000000020"
-        )
+        metadataHex.startsWith("0x0000000000000000000000000000000000000000000000000000000000000020")
       ) {
         dataToDecode = `0x${metadataHex.slice(66)}` as Hex;
       }

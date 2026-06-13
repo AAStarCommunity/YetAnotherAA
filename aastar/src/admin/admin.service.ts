@@ -33,40 +33,35 @@ export class AdminService implements OnModuleInit {
   private paymasterFactoryAddress: Address;
   private xpntsFactoryAddress: Address;
   private sbtAddress: Address;
+  private chainId: number;
 
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    applyConfig({ chainId: CHAIN_SEPOLIA });
+    this.chainId = this.configService.get<number>("registryChainId") ?? CHAIN_SEPOLIA;
+    applyConfig({ chainId: this.chainId });
 
     const rpcUrl = this.configService.get<string>("ethRpcUrl");
     this.publicClient = createPublicClient({
       transport: http(rpcUrl),
     });
 
-    this.registryAddress = (
-      this.configService.get<string>("registryAddress") || CORE_REGISTRY_ADDRESS
-    ) as Address;
-    this.gtokenAddress = (
-      this.configService.get<string>("gtokenAddress") || CORE_GTOKEN_ADDRESS
-    ) as Address;
-    this.stakingAddress = (
-      this.configService.get<string>("stakingAddress") || CORE_GTOKEN_STAKING_ADDRESS
-    ) as Address;
-    this.superPaymasterAddress = (
-      this.configService.get<string>("superPaymasterAddress") || CORE_SUPER_PAYMASTER_ADDRESS
-    ) as Address;
-    this.paymasterFactoryAddress = (
-      this.configService.get<string>("paymasterFactoryAddress") || CORE_PAYMASTER_FACTORY_ADDRESS
-    ) as Address;
-    this.xpntsFactoryAddress = (
-      this.configService.get<string>("xpntsFactoryAddress") || CORE_XPNTS_FACTORY_ADDRESS
-    ) as Address;
-    this.sbtAddress = (
-      this.configService.get<string>("mysbtAddress") || CORE_SBT_ADDRESS
-    ) as Address;
+    this.registryAddress = (this.configService.get<string>("registryAddress") ||
+      CORE_REGISTRY_ADDRESS) as Address;
+    this.gtokenAddress = (this.configService.get<string>("gtokenAddress") ||
+      CORE_GTOKEN_ADDRESS) as Address;
+    this.stakingAddress = (this.configService.get<string>("stakingAddress") ||
+      CORE_GTOKEN_STAKING_ADDRESS) as Address;
+    this.superPaymasterAddress = (this.configService.get<string>("superPaymasterAddress") ||
+      CORE_SUPER_PAYMASTER_ADDRESS) as Address;
+    this.paymasterFactoryAddress = (this.configService.get<string>("paymasterFactoryAddress") ||
+      CORE_PAYMASTER_FACTORY_ADDRESS) as Address;
+    this.xpntsFactoryAddress = (this.configService.get<string>("xpntsFactoryAddress") ||
+      CORE_XPNTS_FACTORY_ADDRESS) as Address;
+    this.sbtAddress = (this.configService.get<string>("mysbtAddress") ||
+      CORE_SBT_ADDRESS) as Address;
 
-    this.logger.log(`Admin service initialized for chain ${CHAIN_SEPOLIA}`);
+    this.logger.log(`Admin service initialized for chain ${this.chainId}`);
   }
 
   // ── Admin Role Check ─────────────────────────────────────────────────────────
@@ -125,21 +120,15 @@ export class AdminService implements OnModuleInit {
   async getRegistryStats() {
     try {
       const r = registryActions(this.registryAddress)(this.publicClient);
-      const [
-        communityCount,
-        spoCount,
-        v4Count,
-        endUserCount,
-        registryOwner,
-        registryVersion,
-      ] = await Promise.all([
-        r.getRoleUserCount({ roleId: ROLE_COMMUNITY }),
-        r.getRoleUserCount({ roleId: ROLE_PAYMASTER_AOA }),
-        r.getRoleUserCount({ roleId: ROLE_PAYMASTER_SUPER }),
-        r.getRoleUserCount({ roleId: ROLE_ENDUSER }),
-        r.owner(),
-        r.version().catch(() => "unknown"),
-      ]);
+      const [communityCount, spoCount, v4Count, endUserCount, registryOwner, registryVersion] =
+        await Promise.all([
+          r.getRoleUserCount({ roleId: ROLE_COMMUNITY }),
+          r.getRoleUserCount({ roleId: ROLE_PAYMASTER_AOA }),
+          r.getRoleUserCount({ roleId: ROLE_PAYMASTER_SUPER }),
+          r.getRoleUserCount({ roleId: ROLE_ENDUSER }),
+          r.owner(),
+          r.version().catch(() => "unknown"),
+        ]);
 
       return {
         registryAddress: this.registryAddress,
@@ -250,7 +239,7 @@ export class AdminService implements OnModuleInit {
         xpntsFactory: this.xpntsFactoryAddress,
         sbt: this.sbtAddress,
       },
-      chainId: CHAIN_SEPOLIA,
+      chainId: this.chainId,
     };
   }
 }

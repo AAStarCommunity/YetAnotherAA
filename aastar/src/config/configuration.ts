@@ -68,6 +68,11 @@ export default () => {
     defaultEntryPointVersion: process.env.DEFAULT_ENTRYPOINT_VERSION || "0.6",
     blsSeedNodes: process.env.BLS_SEED_NODES,
     chainId: parseInt(process.env.CHAIN_ID, 10) || 10,
+    // Single source for the operations-portal chain (registry/admin/operator/community).
+    // Override via REGISTRY_CHAIN_ID; services fall back to CHAIN_SEPOLIA from @aastar/core.
+    registryChainId: process.env.REGISTRY_CHAIN_ID
+      ? parseInt(process.env.REGISTRY_CHAIN_ID, 10)
+      : undefined,
     blsFallbackEndpoints: process.env.BLS_FALLBACK_ENDPOINTS,
     // KMS configuration
     kmsEnabled: process.env.KMS_ENABLED === "true",

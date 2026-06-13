@@ -104,8 +104,7 @@ export class SaleService implements OnModuleInit {
       const stage2 = stage2Limit as bigint;
 
       const soldPct = total > 0n ? Number((sold * 10000n) / total) / 100 : 0;
-      const currentStage =
-        sold < stage1 ? 1 : sold < stage2 ? 2 : sold < total ? 3 : 0; // 0 = ended
+      const currentStage = sold < stage1 ? 1 : sold < stage2 ? 2 : sold < total ? 3 : 0; // 0 = ended
 
       return {
         configured: true,
@@ -139,10 +138,19 @@ export class SaleService implements OnModuleInit {
   async getGTokenSaleEvents(fromBlock?: bigint) {
     if (!this.gTokenSaleAddress) return [];
     try {
+      // Bound the scan window: scanning from genesis times out / rate-limits on non-archive nodes.
+      // Default to the last SALE_EVENTS_BLOCK_LOOKBACK blocks (env-configurable) unless an explicit
+      // fromBlock is passed in.
+      const latestBlock = await this.publicClient.getBlockNumber();
+      const lookback = BigInt(process.env.SALE_EVENTS_BLOCK_LOOKBACK ?? "100000");
+      const defaultFromBlock = latestBlock > lookback ? latestBlock - lookback : BigInt(0);
       const logs = await this.publicClient.getLogs({
         address: this.gTokenSaleAddress,
-        event: SALE_CONTRACT_ABI[SALE_CONTRACT_ABI.length - 1] as any,
-        fromBlock: fromBlock || BigInt(0),
+        // Look up the event by name (ABI-order-independent) instead of by array position.
+        event: (SALE_CONTRACT_ABI as readonly any[]).find(
+          x => x.type === "event" && x.name === "TokensPurchased"
+        ) as any,
+        fromBlock: fromBlock ?? defaultFromBlock,
         toBlock: "latest",
       });
       return logs.map((log: any) => ({

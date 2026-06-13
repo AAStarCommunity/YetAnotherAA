@@ -10,41 +10,66 @@ and this project adheres to
 
 ### Fixed
 
-- **Backend**: Guard undefined `walletAddress` in community, operator, sale, and registry controllers — JWT payload lacks `walletAddress`, so endpoints now return safe defaults instead of 500 errors
-- **Frontend**: All portal pages (role, community, operator, admin, sale) now use `<Layout requireAuth>` — fixes redirect-to-dashboard bug caused by Layout's `!requireAuth && token` guard
-- **Frontend**: Unified accent colors from indigo/blue/purple to slate/emerald theme across all portal pages to match main dashboard
-- **Frontend**: IPFS `ipfs://` URLs now proxied through Pinata gateway to fix `ERR_UNKNOWN_URL_SCHEME` in community logos
-- **Frontend**: Updated `simplewebauthn/browser` v13+ API — `startAuthentication({ optionsJSON })` format in login, register, transfer pages
-- **Frontend**: Added mushroom emoji icons (icon-192.png, icon-512.png, apple-icon.png) to fix 404 errors
-- **Backend**: Updated `.env.example` to use M4 AirAccount factory address (`0x914db0...`) matching `@aastar/core` SDK constants
+- **Backend**: Guard undefined `walletAddress` in community, operator, sale, and
+  registry controllers — JWT payload lacks `walletAddress`, so endpoints now
+  return safe defaults instead of 500 errors
+- **Frontend**: All portal pages (role, community, operator, admin, sale) now
+  use `<Layout requireAuth>` — fixes redirect-to-dashboard bug caused by
+  Layout's `!requireAuth && token` guard
+- **Frontend**: Unified accent colors from indigo/blue/purple to slate/emerald
+  theme across all portal pages to match main dashboard
+- **Frontend**: IPFS `ipfs://` URLs now proxied through Pinata gateway to fix
+  `ERR_UNKNOWN_URL_SCHEME` in community logos
+- **Frontend**: Updated `simplewebauthn/browser` v13+ API — `optionsJSON`
+  wrapper format (`startRegistration` in register page; `startAuthentication` in
+  login and transfer pages)
+- **Frontend**: Added mushroom emoji icons (icon-192.png, icon-512.png,
+  apple-icon.png) to fix 404 errors
+- **Backend**: Updated `.env.example` to use M4 AirAccount factory address
+  (`0x914db0...`) matching `@aastar/core` SDK constants
 
 ## [0.7.0] - 2026-03-15
 
 ### Management Portal
 
-- **Role-Based Portal System**: Added `/role` page with role selection (Admin, Operator, Community, Sale)
-- **Admin Portal** (`/admin`): Protocol-level management — registry overview, role configurations, GToken stats, system addresses
-- **Operator Portal** (`/operator`): SPO/V4 operator status, paymaster deployment guides, operator lists
-- **Community Portal** (`/community`): Community dashboard, address lookup, community admin list with xPNTs token info
-- **Sale Portal** (`/sale`): GToken bonding curve sale status, aPNTs fixed-price sale, eligibility check, price calculator
+- **Role-Based Portal System**: Added `/role` page with role selection (Admin,
+  Operator, Community, Sale)
+- **Admin Portal** (`/admin`): Protocol-level management — registry overview,
+  role configurations, GToken stats, system addresses
+- **Operator Portal** (`/operator`): SPO/V4 operator status, paymaster
+  deployment guides, operator lists
+- **Community Portal** (`/community`): Community dashboard, address lookup,
+  community admin list with xPNTs token info
+- **Sale Portal** (`/sale`): GToken bonding curve sale status, aPNTs fixed-price
+  sale, eligibility check, price calculator
 
 ### Added
 
 - `@aastar/sdk` and `@aastar/core` integration for on-chain reads
 - Registry module with contract state queries via SDK
 - Unit tests for all management portal services (34 tests passing)
-- Dev/backend/frontend start-stop-restart scripts (`dev.sh`, `backend.sh`, `frontend.sh`)
+- Dev/backend/frontend start-stop-restart scripts (`dev.sh`, `backend.sh`,
+  `frontend.sh`)
 - Deployed sale contract addresses for Sepolia
 - `.env.sepolia.example` with full Sepolia configuration reference
 
 ### Fixed
 
-- **Critical**: Removed unnecessary SWC builder that caused circular dependency errors; fixed `ox` library TS compilation via `tsconfig.build.json` paths override redirecting imports to `_types/*.d.ts`
-- **High**: Replaced `private publicClient: any` with proper `PublicClient` typing across 5 service files; added try/catch error handling around contract calls; removed hardcoded `sepolia` chain from `createPublicClient`
-- **Medium**: Fixed Tailwind CSS dynamic class names (`bg-${color}-100`) with static `ROLE_COLOR_MAP` lookup; fixed entity circular imports using `import type` + string-based `@ManyToOne` references
-- **Low**: Separated `viewport` export from `metadata` per Next.js 16 requirements; removed non-existent `icon-192.png` reference
-- **Deps**: Pinned `viem` to `2.43.3` across all workspaces to prevent `ox@0.14.5`; added root-level `ox: 0.11.1` override
-- Fixed Swagger `@ApiQuery` enum serialization (`Object.values()` + `type: 'string'`)
+- **Critical**: Removed unnecessary SWC builder that caused circular dependency
+  errors; fixed `ox` library TS compilation via `tsconfig.build.json` paths
+  override redirecting imports to `_types/*.d.ts`
+- **High**: Replaced `private publicClient: any` with proper `PublicClient`
+  typing across 5 service files; added try/catch error handling around contract
+  calls; removed hardcoded `sepolia` chain from `createPublicClient`
+- **Medium**: Fixed Tailwind CSS dynamic class names (`bg-${color}-100`) with
+  static `ROLE_COLOR_MAP` lookup; fixed entity circular imports using
+  `import type` + string-based `@ManyToOne` references
+- **Low**: Separated `viewport` export from `metadata` per Next.js 16
+  requirements; removed non-existent `icon-192.png` reference
+- **Deps**: Pinned `viem` to `2.43.3` across all workspaces to prevent
+  `ox@0.14.5`; added root-level `ox: 0.11.1` override
+- Fixed Swagger `@ApiQuery` enum serialization (`Object.values()` +
+  `type: 'string'`)
 
 ### Documentation
 

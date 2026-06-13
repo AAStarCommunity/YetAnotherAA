@@ -28,32 +28,29 @@ export class OperatorService implements OnModuleInit {
   private stakingAddress: Address;
   private superPaymasterAddress: Address;
   private paymasterFactoryAddress: Address;
+  private chainId: number;
 
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    applyConfig({ chainId: CHAIN_SEPOLIA });
+    this.chainId = this.configService.get<number>("registryChainId") ?? CHAIN_SEPOLIA;
+    applyConfig({ chainId: this.chainId });
 
     const rpcUrl = this.configService.get<string>("ethRpcUrl");
     this.publicClient = createPublicClient({
       transport: http(rpcUrl),
     });
 
-    this.registryAddress = (
-      this.configService.get<string>("registryAddress") || CORE_REGISTRY_ADDRESS
-    ) as Address;
-    this.gtokenAddress = (
-      this.configService.get<string>("gtokenAddress") || CORE_GTOKEN_ADDRESS
-    ) as Address;
-    this.stakingAddress = (
-      this.configService.get<string>("stakingAddress") || CORE_GTOKEN_STAKING_ADDRESS
-    ) as Address;
-    this.superPaymasterAddress = (
-      this.configService.get<string>("superPaymasterAddress") || CORE_SUPER_PAYMASTER_ADDRESS
-    ) as Address;
-    this.paymasterFactoryAddress = (
-      this.configService.get<string>("paymasterFactoryAddress") || CORE_PAYMASTER_FACTORY_ADDRESS
-    ) as Address;
+    this.registryAddress = (this.configService.get<string>("registryAddress") ||
+      CORE_REGISTRY_ADDRESS) as Address;
+    this.gtokenAddress = (this.configService.get<string>("gtokenAddress") ||
+      CORE_GTOKEN_ADDRESS) as Address;
+    this.stakingAddress = (this.configService.get<string>("stakingAddress") ||
+      CORE_GTOKEN_STAKING_ADDRESS) as Address;
+    this.superPaymasterAddress = (this.configService.get<string>("superPaymasterAddress") ||
+      CORE_SUPER_PAYMASTER_ADDRESS) as Address;
+    this.paymasterFactoryAddress = (this.configService.get<string>("paymasterFactoryAddress") ||
+      CORE_PAYMASTER_FACTORY_ADDRESS) as Address;
 
     this.logger.log(`SuperPaymaster: ${this.superPaymasterAddress}`);
     this.logger.log(`PaymasterFactory: ${this.paymasterFactoryAddress}`);

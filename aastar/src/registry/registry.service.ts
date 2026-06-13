@@ -23,12 +23,15 @@ export class RegistryService implements OnModuleInit {
   private publicClient: any;
   private registryAddress: Address;
   private gtokenAddress: Address;
+  private chainId: number;
 
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    // Must be called before accessing any contract addresses
-    applyConfig({ chainId: CHAIN_SEPOLIA });
+    // Must be called before accessing any contract addresses.
+    // Single source for the portal chain — override via REGISTRY_CHAIN_ID env, defaults to Sepolia.
+    this.chainId = this.configService.get<number>("registryChainId") ?? CHAIN_SEPOLIA;
+    applyConfig({ chainId: this.chainId });
 
     const rpcUrl = this.configService.get<string>("ethRpcUrl");
     this.publicClient = createPublicClient({
@@ -36,13 +39,11 @@ export class RegistryService implements OnModuleInit {
     });
 
     // Env overrides canonical defaults; after applyConfig, CORE_* are defined
-    this.registryAddress = (
-      this.configService.get<string>("registryAddress") || CORE_REGISTRY_ADDRESS
-    ) as Address;
+    this.registryAddress = (this.configService.get<string>("registryAddress") ||
+      CORE_REGISTRY_ADDRESS) as Address;
 
-    this.gtokenAddress = (
-      this.configService.get<string>("gtokenAddress") || CORE_GTOKEN_ADDRESS
-    ) as Address;
+    this.gtokenAddress = (this.configService.get<string>("gtokenAddress") ||
+      CORE_GTOKEN_ADDRESS) as Address;
 
     this.logger.log(`Registry: ${this.registryAddress}`);
     this.logger.log(`GToken: ${this.gtokenAddress}`);
@@ -61,19 +62,27 @@ export class RegistryService implements OnModuleInit {
     try {
       const r = registryActions(this.registryAddress)(this.publicClient);
 
-      const [isAdmin, isCommunityAdmin, isSPO, isV4Operator, isEndUser, roleIds] = await Promise.all([
-        r.hasRole({ roleId: DEFAULT_ADMIN_ROLE, user: userAddress }),
-        r.hasRole({ roleId: ROLE_COMMUNITY, user: userAddress }),
-        r.hasRole({ roleId: ROLE_PAYMASTER_AOA, user: userAddress }),
-        r.hasRole({ roleId: ROLE_PAYMASTER_SUPER, user: userAddress }),
-        r.hasRole({ roleId: ROLE_ENDUSER, user: userAddress }),
-        r.getUserRoles({ user: userAddress }),
-      ]);
+      const [isAdmin, isCommunityAdmin, isSPO, isV4Operator, isEndUser, roleIds] =
+        await Promise.all([
+          r.hasRole({ roleId: DEFAULT_ADMIN_ROLE, user: userAddress }),
+          r.hasRole({ roleId: ROLE_COMMUNITY, user: userAddress }),
+          r.hasRole({ roleId: ROLE_PAYMASTER_AOA, user: userAddress }),
+          r.hasRole({ roleId: ROLE_PAYMASTER_SUPER, user: userAddress }),
+          r.hasRole({ roleId: ROLE_ENDUSER, user: userAddress }),
+          r.getUserRoles({ user: userAddress }),
+        ]);
 
       return { isAdmin, isCommunityAdmin, isSPO, isV4Operator, isEndUser, roleIds };
     } catch (error) {
       this.logger.error(`Failed to fetch user roles for ${userAddress}`, error);
-      return { isAdmin: false, isCommunityAdmin: false, isSPO: false, isV4Operator: false, isEndUser: false, roleIds: [] };
+      return {
+        isAdmin: false,
+        isCommunityAdmin: false,
+        isSPO: false,
+        isV4Operator: false,
+        isEndUser: false,
+        roleIds: [],
+      };
     }
   }
 
@@ -119,7 +128,7 @@ export class RegistryService implements OnModuleInit {
 
       return {
         registryAddress: this.registryAddress,
-        chainId: CHAIN_SEPOLIA,
+        chainId: this.chainId,
         roleCounts: {
           communityAdmin: communityCount.toString(),
           spo: spoCount.toString(),
@@ -131,7 +140,7 @@ export class RegistryService implements OnModuleInit {
       this.logger.error("Failed to fetch registry info", error);
       return {
         registryAddress: this.registryAddress,
-        chainId: CHAIN_SEPOLIA,
+        chainId: this.chainId,
         roleCounts: { communityAdmin: "0", spo: "0", v4Operator: "0", endUser: "0" },
       };
     }
