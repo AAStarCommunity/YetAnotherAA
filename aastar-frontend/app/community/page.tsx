@@ -63,7 +63,6 @@ function CommunityCard({ entry }: { entry: CommunityEntry }) {
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
       <div className="flex items-start gap-3">
         {entry.metadata?.logoURI ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={resolveImageUrl(entry.metadata.logoURI)} alt={name} className="w-10 h-10 rounded-full" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">

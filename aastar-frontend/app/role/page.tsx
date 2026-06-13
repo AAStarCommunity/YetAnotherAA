@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import { registryAPI } from "@/lib/api";
-import { getStoredAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 import {
   ShieldCheckIcon,
@@ -94,7 +93,7 @@ export default function RolePage() {
       ]);
       if (roleRes) setRoleInfo(roleRes.data);
       setRegistryInfo(infoRes.data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load registry data");
     } finally {
       setLoading(false);
@@ -107,7 +106,7 @@ export default function RolePage() {
     try {
       const res = await registryAPI.getRole(queryAddress);
       setRoleInfo(res.data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to query role for address");
     } finally {
       setQuerying(false);
