@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/lib/theme";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import { TaskProvider } from "@/contexts/TaskContext";
+import I18nProvider from "@/lib/i18n/I18nProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -46,14 +47,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThemeProvider>
-          <DashboardProvider>
-            <TaskProvider>
-              {children}
-              <Toaster position="top-right" />
-            </TaskProvider>
-          </DashboardProvider>
-        </ThemeProvider>
+        <I18nProvider>
+          <ThemeProvider>
+            <DashboardProvider>
+              <TaskProvider>
+                {children}
+                <Toaster position="top-right" />
+              </TaskProvider>
+            </DashboardProvider>
+          </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

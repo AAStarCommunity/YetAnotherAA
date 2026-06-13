@@ -1,0 +1,336 @@
+{
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "skip": "Skip",
+    "loading": "Loading...",
+    "refresh": "Refresh",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "get": "Get",
+    "retry": "Retry",
+    "close": "Close",
+    "save": "Save",
+    "submit": "Submit"
+  },
+  "header": {
+    "home": "Home",
+    "operators": "Operators",
+    "explorer": "Explorer",
+    "developers": "Developers",
+    "github": "GitHub",
+    "launchPaymaster": "Launch Wizard"
+  },
+  "portal": {
+    "wallet": {
+      "connect": "Connect Wallet",
+      "connecting": "Connecting...",
+      "connected": "Wallet Connected",
+      "disconnect": "Disconnect",
+      "notConnected": "Wallet not connected",
+      "wrongNetwork": "Wrong network",
+      "switchNetwork": "Switch Network",
+      "installMetaMask": "Please install MetaMask"
+    },
+    "resourceCheck": {
+      "title": "Resource Check",
+      "checking": "Checking resources...",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "sufficient": "Sufficient",
+      "insufficient": "Insufficient",
+      "recheck": "Re-check",
+      "balance": "Balance",
+      "required": "Required"
+    },
+    "deploy": {
+      "title": "Deploy",
+      "deploying": "Deploying...",
+      "deployed": "Deployed",
+      "notDeployed": "Not deployed",
+      "confirmInWallet": "Please confirm the transaction in your wallet",
+      "waitingConfirmation": "Waiting for on-chain confirmation...",
+      "viewTx": "View Transaction",
+      "viewExplorer": "View on Explorer"
+    },
+    "status": {
+      "success": "Success",
+      "failed": "Failed",
+      "pending": "Pending",
+      "submitted": "Transaction submitted"
+    },
+    "toast": {
+      "successTitle": "Success!",
+      "successMessage": "Operation completed successfully.",
+      "errorTitle": "Something went wrong",
+      "errorMessage": "The operation failed. Please try again.",
+      "txSubmitted": "Transaction submitted, waiting for confirmation."
+    }
+  },
+  "wizard": {
+    "title": "Deploy Your Paymaster",
+    "subtitle": "Complete {{totalSteps}}-step wizard to deploy and register your community Paymaster",
+    "selectNetwork": "Select Network:",
+    "chainId": "Chain ID",
+    "testnetBadge": "TESTNET",
+    "mainnetBadge": "MAINNET",
+    "needHelp": "Need Help?",
+    "deploymentGuide": "Read the Deployment Guide",
+    "steps": {
+      "connectAndSelect": "Connect & Select Mode",
+      "registerCommunity": "Register Community",
+      "resources": "Deploy Resources",
+      "config": "Configuration",
+      "deploy": "Deploy Paymaster",
+      "stake": "Stake",
+      "updateRegistry": "Update Registry",
+      "complete": "Complete"
+    },
+    "step2": {
+      "title": "Register Your Community",
+      "subtitle": "Lock GToken and register your community, then bind MySBT contract"
+    }
+  },
+  "step1": {
+    "substep1": {
+      "title": "Connect Your Wallet",
+      "description": "Please connect your MetaMask wallet to get started. Make sure you're on the correct network.",
+      "connectPrompt": "Please connect your MetaMask wallet to get started",
+      "connectButton": "Connect MetaMask",
+      "connecting": "Connecting...",
+      "connectHint": "Make sure you have MetaMask installed and are on the correct network"
+    },
+    "substep2": {
+      "title": "Choose Your Deployment Mode",
+      "description": "Select the deployment mode that best fits your needs.",
+      "modeNames": {
+        "standard": "Enhanced ERC-4337",
+        "standardSubtitle": "AOA (Asset Oriented Abstraction) optimizes traditional ERC-4337 by eliminating off-chain signature servers and on-chain verify cost.",
+        "super": "Super Mode: AOA+",
+        "superSubtitle": "Based on AOA, supports custom gas token and no individual contract deployment needed."
+      },
+      "selectButton": {
+        "standard": "Select Enhanced ERC-4337 (AOA)",
+        "super": "Select Super Mode (AOA+)"
+      }
+    },
+    "substep3": {
+      "title": "Verify Resource Requirements",
+      "description": "Based on your selection, verify that you have the necessary resources.",
+      "walletConnected": "Wallet Connected",
+      "selectedMode": "Selected Mode:",
+      "modeStandard": "Standard",
+      "modeSuper": "Super Mode",
+      "resourceCheck": "Resource Check",
+      "checkingWallet": "Checking wallet resources...",
+      "proceedButton": "Next → Configuration",
+      "notReady": "Please ensure all required resources are met"
+    }
+  },
+  "step2ResourceCheck": {
+    "header": {
+      "checking": "Check Resource Status",
+      "checkingSubtitle": "Detecting deployed resources...",
+      "failed": "Detection Failed",
+      "failedSubtitle": "Unable to detect resource status",
+      "title": "Resource Detection",
+      "aoaMode": "AOA Mode - Independent Paymaster",
+      "aoaPlusMode": "AOA+ Mode - SuperPaymaster"
+    },
+    "loading": {
+      "spinner": "Loading..."
+    },
+    "error": {
+      "button": "Retry Detection"
+    },
+    "resources": {
+      "community": {
+        "title": "Community Registration",
+        "registered": "Registered:",
+        "notRegistered": "Not Registered",
+        "action": "Register Now →"
+      },
+      "xpnts": {
+        "title": "xPNTs Token",
+        "deployed": "Deployed",
+        "address": "Address:",
+        "exchangeRate": "Rate: 1 xPNT =",
+        "exchangeRateSuffix": "aPNTs",
+        "notDeployed": "Not Deployed",
+        "action": "Deploy Now →"
+      },
+      "paymaster": {
+        "title": "Paymaster Deployment",
+        "deployed": "Deployed",
+        "address": "Address:",
+        "notDeployed": "Not Deployed",
+        "action": "Deploy Now →"
+      },
+      "sbt": {
+        "title": "MySBT Binding",
+        "requirePaymaster": "Deploy Paymaster first",
+        "bound": "Bound",
+        "notBound": "Not Bound",
+        "action": "Bind Now →"
+      },
+      "gtoken": {
+        "title": "GToken Balance",
+        "balance": "Balance:",
+        "suffix": "GT",
+        "required": "Required:",
+        "action": "Get GToken →"
+      },
+      "apnts": {
+        "title": "aPNTs Balance",
+        "balance": "Balance:",
+        "suffix": "aPNTs",
+        "required": "Required:",
+        "action": "Get aPNTs →"
+      },
+      "eth": {
+        "title": "ETH Balance",
+        "balance": "Balance:",
+        "suffix": "ETH",
+        "required": "Required:",
+        "requiredSuffix": "ETH (for gas)",
+        "faucetNote": "Please get Sepolia ETH from faucet"
+      }
+    },
+    "summary": {
+      "allReady": "All Resources Ready!",
+      "allReadyDescription": "You can proceed to the next step to complete the deployment.",
+      "notReady": "Some Resources Not Ready",
+      "notReadyDescription": "Please complete the missing resource deployments above, then click \"Re-detect\"."
+    },
+    "actions": {
+      "recheck": "Re-detect",
+      "back": "← Back",
+      "continue": "Continue →"
+    }
+  },
+  "registerCommunity": {
+    "title": "Register Community",
+    "subtitle": "Create and register your community on the AAstar Network",
+    "loading": "Loading...",
+    "connectWallet": "Connect Wallet",
+    "form": {
+      "basicInfo": "Basic Information",
+      "tokenSection": "Token",
+      "paymasterSection": "Paymaster",
+      "sbtSection": "MySBT",
+      "communityName": "Community Name",
+      "communityNamePlaceholder": "Enter community name",
+      "stakeAmount": "Stake Amount (GToken)",
+      "stakeAmountPlaceholder": "Minimum 30 GToken",
+      "stakeAmountHint": "Minimum stake",
+      "allowPermissionlessMint": "Allow Permissionless Mint",
+      "allowPermissionlessMintHint": "When enabled, users can mint community MySBT without invitation",
+      "deployXPNTs": "Deploy xPNTs Token →",
+      "deployPaymaster": "Deploy Paymaster →",
+      "unifiedMySBT": "All communities use unified MySBT white-label SBT"
+    },
+    "balance": {
+      "title": "Current Balance",
+      "gtoken": "GToken"
+    },
+    "insufficientBalance": {
+      "title": "Insufficient GToken Balance",
+      "required": "Required stake:",
+      "current": "Current balance:",
+      "message": "Please get enough GToken before registering community.",
+      "linkText": "Get GToken →"
+    },
+    "button": {
+      "registering": "Registering...",
+      "register": "Register"
+    },
+    "success": {
+      "title": "Transaction Submitted!",
+      "message": "Your community has been successfully registered!",
+      "txHash": "Transaction Hash",
+      "viewInExplorer": "View in Explorer",
+      "backToWizard": "Back to Wizard",
+      "viewTx": "View Transaction"
+    },
+    "errors": {
+      "walletNotConnected": "Please connect your wallet first",
+      "communityNameRequired": "Please enter community name",
+      "stakeAmountRequired": "Please enter stake amount",
+      "insufficientBalance": "Insufficient GToken balance!\nRequired: {{required}} GToken\nCurrent balance: {{current}} GToken",
+      "insufficientToStake": "Insufficient GToken balance! Need to stake {{need}} GToken, but you only have {{current}} GToken",
+      "alreadyRegistered": "This address is already registered as community: {{name}}",
+      "registrationFailed": "Community registration failed"
+    }
+  },
+  "getGToken": {
+    "title": "Get GToken",
+    "description": "Get protocol access permission GToken, become protocol member, join permissionless, quit anytime freely"
+  },
+  "getXPNTs": {
+    "title": "Deploy xPNTs",
+    "description": "Create your community gas token for payment abstraction",
+    "action": "Deploy"
+  },
+  "launchPaymaster": {
+    "title": "Launch Paymaster",
+    "description": "Deploy your Paymaster contract and start serving gasless transactions to your community",
+    "action": "Launch Paymaster →"
+  },
+  "operationGuide": {
+    "title": "Community Operator Guide",
+    "subtitle": "Master the SuperPaymaster ecosystem and build a thriving Web3 community economy",
+    "tabs": {
+      "overview": "Overview",
+      "gasToken": "Gas Token",
+      "revenue": "Revenue Model",
+      "tasks": "Task System",
+      "events": "Event Operations",
+      "analytics": "Data Analytics"
+    },
+    "overview": {
+      "title": "Community Operator Guide",
+      "description": "SuperPaymaster provides a complete toolset for community operators to build a prosperous Web3 community economy.",
+      "stats": {
+        "lowerBarrier": {
+          "title": "Lower Participation Barrier",
+          "description": "Members don't need to hold ETH to participate in on-chain activities, increasing community engagement"
+        },
+        "createValue": {
+          "title": "Create Economic Value",
+          "description": "Transform gas costs into community revenue, building a sustainable economic model"
+        },
+        "positiveCycle": {
+          "title": "Form Positive Cycle",
+          "description": "Task-points-consumption loop incentivizes continuous member contributions"
+        }
+      },
+      "quickStart": {
+        "title": "Quick Start",
+        "steps": {
+          "register": {
+            "title": "Register Community",
+            "description": "Register your community on-chain with basic information and governance tokens",
+            "link": "Register Now →"
+          },
+          "deploy": {
+            "title": "Deploy Tokens",
+            "description": "Issue community-exclusive xPNTs points tokens and MySBT identity tokens",
+            "link": "Issue Tokens →"
+          },
+          "launch": {
+            "title": "Launch Paymaster",
+            "description": "One-click deploy gas sponsorship contract and configure sponsorship rules",
+            "link": "Start Service →"
+          }
+        }
+      }
+    },
+    "footer": {
+      "title": "Need More Help?",
+      "description": "Contact our technical support team for professional community operation guidance",
+      "contactSupport": "Contact Support",
+      "viewDocs": "View Documentation"
+    }
+  }
+}

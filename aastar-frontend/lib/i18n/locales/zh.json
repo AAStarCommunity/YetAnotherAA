@@ -1,0 +1,336 @@
+{
+  "common": {
+    "back": "返回",
+    "next": "下一步",
+    "continue": "继续",
+    "skip": "跳过",
+    "loading": "加载中...",
+    "refresh": "刷新",
+    "cancel": "取消",
+    "confirm": "确认",
+    "get": "获取",
+    "retry": "重试",
+    "close": "关闭",
+    "save": "保存",
+    "submit": "提交"
+  },
+  "header": {
+    "home": "首页",
+    "operators": "运营商",
+    "explorer": "浏览器",
+    "developers": "开发者",
+    "github": "GitHub",
+    "launchPaymaster": "启动向导"
+  },
+  "portal": {
+    "wallet": {
+      "connect": "连接钱包",
+      "connecting": "连接中...",
+      "connected": "钱包已连接",
+      "disconnect": "断开连接",
+      "notConnected": "钱包未连接",
+      "wrongNetwork": "网络错误",
+      "switchNetwork": "切换网络",
+      "installMetaMask": "请安装 MetaMask"
+    },
+    "resourceCheck": {
+      "title": "资源检查",
+      "checking": "正在检查资源...",
+      "ready": "已就绪",
+      "notReady": "未就绪",
+      "sufficient": "充足",
+      "insufficient": "不足",
+      "recheck": "重新检查",
+      "balance": "余额",
+      "required": "需要"
+    },
+    "deploy": {
+      "title": "部署",
+      "deploying": "部署中...",
+      "deployed": "已部署",
+      "notDeployed": "未部署",
+      "confirmInWallet": "请在钱包中确认交易",
+      "waitingConfirmation": "等待链上确认...",
+      "viewTx": "查看交易",
+      "viewExplorer": "在浏览器中查看"
+    },
+    "status": {
+      "success": "成功",
+      "failed": "失败",
+      "pending": "处理中",
+      "submitted": "交易已提交"
+    },
+    "toast": {
+      "successTitle": "成功！",
+      "successMessage": "操作已成功完成。",
+      "errorTitle": "出错了",
+      "errorMessage": "操作失败，请重试。",
+      "txSubmitted": "交易已提交，等待确认。"
+    }
+  },
+  "wizard": {
+    "title": "部署您的 Paymaster",
+    "subtitle": "完成 {{totalSteps}} 步向导以部署和注册您的社区 Paymaster",
+    "selectNetwork": "选择网络：",
+    "chainId": "链 ID",
+    "testnetBadge": "测试网",
+    "mainnetBadge": "主网",
+    "needHelp": "需要帮助？",
+    "deploymentGuide": "阅读部署指南",
+    "steps": {
+      "connectAndSelect": "连接并选择模式",
+      "registerCommunity": "注册社区",
+      "resources": "部署资源",
+      "config": "配置",
+      "deploy": "部署 Paymaster",
+      "stake": "质押",
+      "updateRegistry": "更新 Registry",
+      "complete": "完成"
+    },
+    "step2": {
+      "title": "注册您的社区",
+      "subtitle": "锁定 GToken 并注册社区，然后绑定 MySBT 合约"
+    }
+  },
+  "step1": {
+    "substep1": {
+      "title": "连接您的钱包",
+      "description": "请连接您的 MetaMask 钱包以开始。确保您在正确的网络上。",
+      "connectPrompt": "请连接您的 MetaMask 钱包以开始",
+      "connectButton": "连接 MetaMask",
+      "connecting": "连接中...",
+      "connectHint": "确保您已安装 MetaMask 并且在正确的网络上"
+    },
+    "substep2": {
+      "title": "选择您的部署模式",
+      "description": "选择最适合您需求的部署模式。",
+      "modeNames": {
+        "standard": "增强型 ERC-4337",
+        "standardSubtitle": "AOA（资产导向抽象）通过消除离线签名服务器和链上验证成本来优化传统 ERC-4337。",
+        "super": "超级模式: AOA+",
+        "superSubtitle": "基于 AOA，支持自定义 gas token，无需单独合约部署。"
+      },
+      "selectButton": {
+        "standard": "选择增强型 ERC-4337（AOA）",
+        "super": "选择超级模式（AOA+）"
+      }
+    },
+    "substep3": {
+      "title": "验证资源要求",
+      "description": "基于您的选择，验证您拥有必需的资源。",
+      "walletConnected": "钱包已连接",
+      "selectedMode": "已选择模式：",
+      "modeStandard": "标准",
+      "modeSuper": "超级模式",
+      "resourceCheck": "资源检查",
+      "checkingWallet": "正在检查钱包资源...",
+      "proceedButton": "继续配置 →",
+      "notReady": "请确保满足所有必需资源"
+    }
+  },
+  "step2ResourceCheck": {
+    "header": {
+      "checking": "检查资源状态",
+      "checkingSubtitle": "正在检测已部署的资源...",
+      "failed": "检测失败",
+      "failedSubtitle": "无法检测资源状态",
+      "title": "资源检测",
+      "aoaMode": "AOA 模式 - 独立 Paymaster",
+      "aoaPlusMode": "AOA+ 模式 - SuperPaymaster"
+    },
+    "loading": {
+      "spinner": "加载中..."
+    },
+    "error": {
+      "button": "重新检测"
+    },
+    "resources": {
+      "community": {
+        "title": "社区注册",
+        "registered": "已注册:",
+        "notRegistered": "未注册",
+        "action": "立即注册 →"
+      },
+      "xpnts": {
+        "title": "xPNTs Token",
+        "deployed": "已部署",
+        "address": "地址:",
+        "exchangeRate": "汇率: 1 xPNT =",
+        "exchangeRateSuffix": "aPNTs",
+        "notDeployed": "未部署",
+        "action": "立即部署 →"
+      },
+      "paymaster": {
+        "title": "Paymaster 部署",
+        "deployed": "已部署",
+        "address": "地址:",
+        "notDeployed": "未部署",
+        "action": "立即部署 →"
+      },
+      "sbt": {
+        "title": "MySBT 绑定",
+        "requirePaymaster": "需先部署 Paymaster",
+        "bound": "已绑定",
+        "notBound": "未绑定",
+        "action": "立即绑定 →"
+      },
+      "gtoken": {
+        "title": "GToken 余额",
+        "balance": "余额:",
+        "suffix": "GT",
+        "required": "需要:",
+        "action": "获取 GToken →"
+      },
+      "apnts": {
+        "title": "aPNTs 余额",
+        "balance": "余额:",
+        "suffix": "aPNTs",
+        "required": "需要:",
+        "action": "获取 aPNTs →"
+      },
+      "eth": {
+        "title": "ETH 余额",
+        "balance": "余额:",
+        "suffix": "ETH",
+        "required": "需要:",
+        "requiredSuffix": "ETH (用于 gas)",
+        "faucetNote": "请从水龙头获取 Sepolia ETH"
+      }
+    },
+    "summary": {
+      "allReady": "所有资源已就绪！",
+      "allReadyDescription": "您可以继续下一步完成部署流程。",
+      "notReady": "还有资源未准备好",
+      "notReadyDescription": "请完成上述缺失的资源部署，然后点击\"重新检测\"。"
+    },
+    "actions": {
+      "recheck": "重新检测",
+      "back": "← 返回",
+      "continue": "继续 →"
+    }
+  },
+  "registerCommunity": {
+    "title": "注册社区",
+    "subtitle": "在 AAstar 网络上创建并注册您的社区",
+    "loading": "加载中...",
+    "connectWallet": "连接钱包",
+    "form": {
+      "basicInfo": "基本信息",
+      "tokenSection": "代币",
+      "paymasterSection": "Paymaster",
+      "sbtSection": "MySBT",
+      "communityName": "社区名称",
+      "communityNamePlaceholder": "请输入社区名称",
+      "stakeAmount": "质押金额 (GToken)",
+      "stakeAmountPlaceholder": "最少 30 GToken",
+      "stakeAmountHint": "最小质押",
+      "allowPermissionlessMint": "允许无许可铸造",
+      "allowPermissionlessMintHint": "启用后，用户无需邀请即可铸造社区 MySBT",
+      "deployXPNTs": "部署 xPNTs Token →",
+      "deployPaymaster": "去部署 Paymaster →",
+      "unifiedMySBT": "所有社区使用统一的 MySBT 白标 SBT"
+    },
+    "balance": {
+      "title": "当前余额",
+      "gtoken": "GToken"
+    },
+    "insufficientBalance": {
+      "title": "GToken 余额不足",
+      "required": "需要质押:",
+      "current": "当前余额:",
+      "message": "请先获取足够的 GToken 再注册社区。",
+      "linkText": "前往获取 GToken →"
+    },
+    "button": {
+      "registering": "注册中...",
+      "register": "注册"
+    },
+    "success": {
+      "title": "交易已提交!",
+      "message": "您的社区已成功注册！",
+      "txHash": "交易哈希",
+      "viewInExplorer": "在浏览器中查看",
+      "backToWizard": "返回向导",
+      "viewTx": "查看交易"
+    },
+    "errors": {
+      "walletNotConnected": "请先连接钱包",
+      "communityNameRequired": "请输入社区名称",
+      "stakeAmountRequired": "请输入质押金额",
+      "insufficientBalance": "GToken 余额不足！\n需要: {{required}} GToken\n当前余额: {{current}} GToken",
+      "insufficientToStake": "GToken 余额不足！需要质押 {{need}} GToken，但你只有 {{current}} GToken",
+      "alreadyRegistered": "该地址已作为社区注册: {{name}}",
+      "registrationFailed": "社区注册失败"
+    }
+  },
+  "getGToken": {
+    "title": "获取 GToken",
+    "description": "获得协议准入许可 GToken，成为协议成员，自由加入随时退出"
+  },
+  "getXPNTs": {
+    "title": "部署 xPNTs",
+    "description": "为您的社区创建用于支付抽象的 gas 代币",
+    "action": "部署"
+  },
+  "launchPaymaster": {
+    "title": "启动 Paymaster",
+    "description": "部署您的 Paymaster 合约并开始为您的社区提供无 Gas 交易服务",
+    "action": "启动 Paymaster →"
+  },
+  "operationGuide": {
+    "title": "社区运营商指南",
+    "subtitle": "掌握 SuperPaymaster 生态，构建繁荣的 Web3 社区经济",
+    "tabs": {
+      "overview": "概览",
+      "gasToken": "Gas 代币",
+      "revenue": "收入模型",
+      "tasks": "任务系统",
+      "events": "活动运营",
+      "analytics": "数据分析"
+    },
+    "overview": {
+      "title": "社区运营商指南",
+      "description": "SuperPaymaster 为社区运营商提供完整的工具栈，帮助您构建繁荣的 Web3 社区经济。",
+      "stats": {
+        "lowerBarrier": {
+          "title": "降低参与门槛",
+          "description": "成员无需持有 ETH 即可参与链上活动，提升社区活跃度"
+        },
+        "createValue": {
+          "title": "创造经济价值",
+          "description": "将 Gas 成本转化为社区收入，构建可持续经济模型"
+        },
+        "positiveCycle": {
+          "title": "形成正循环",
+          "description": "任务-积分-消费闭环，激励成员持续贡献"
+        }
+      },
+      "quickStart": {
+        "title": "快速开始",
+        "steps": {
+          "register": {
+            "title": "注册社区",
+            "description": "在链上注册您的社区，配置基本信息和治理代币",
+            "link": "立即注册 →"
+          },
+          "deploy": {
+            "title": "部署代币",
+            "description": "发行社区专属的 xPNTs 积分代币和 MySBT 身份代币",
+            "link": "发行代币 →"
+          },
+          "launch": {
+            "title": "启动 Paymaster",
+            "description": "一键部署 Gas 赞助合约，配置赞助规则",
+            "link": "启动服务 →"
+          }
+        }
+      }
+    },
+    "footer": {
+      "title": "需要更多帮助？",
+      "description": "联系我们的技术支持团队，获取专业的社区运营指导",
+      "contactSupport": "联系支持",
+      "viewDocs": "查看文档"
+    }
+  }
+}
