@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/lib/theme";
 import { DashboardProvider } from "@/contexts/DashboardContext";
+import { TaskProvider } from "@/contexts/TaskContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -47,8 +48,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <DashboardProvider>
-            {children}
-            <Toaster position="top-right" />
+            <TaskProvider>
+              {children}
+              <Toaster position="top-right" />
+            </TaskProvider>
           </DashboardProvider>
         </ThemeProvider>
       </body>

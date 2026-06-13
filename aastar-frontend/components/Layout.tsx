@@ -20,6 +20,7 @@ import {
   ShieldCheckIcon,
   UserGroupIcon,
   ServerStackIcon,
+  ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline";
 
 interface LayoutProps {
@@ -144,6 +145,18 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                   className={getNavButtonClass("/paymaster", pathname === "/paymaster")}
                 >
                   Paymasters
+                </button>
+                <button
+                  onClick={() => router.push("/tasks")}
+                  className={getNavButtonClass("/tasks", pathname.startsWith("/tasks"))}
+                >
+                  Tasks
+                </button>
+                <button
+                  onClick={() => router.push("/recovery")}
+                  className={getNavButtonClass("/recovery", pathname === "/recovery")}
+                >
+                  Recovery
                 </button>
                 {/* Settings Dropdown */}
                 <div className="relative">
@@ -291,6 +304,15 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
             >
               <ServerStackIcon className="h-6 w-6 mb-1" />
               <span className="text-xs font-medium">Operator</span>
+            </button>
+
+            {/* Tasks */}
+            <button
+              onClick={() => router.push("/tasks")}
+              className={getBottomNavButtonClass("/tasks", pathname.startsWith("/tasks"))}
+            >
+              <ClipboardDocumentListIcon className="h-6 w-6 mb-1" />
+              <span className="text-xs font-medium">Tasks</span>
             </button>
 
             {/* Transfer */}

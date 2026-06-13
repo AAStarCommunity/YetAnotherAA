@@ -68,6 +68,20 @@ export const accountAPI = {
 
   // fundAccount and sponsorAccount removed - not needed with Paymaster
   // All transactions are sponsored automatically
+
+  // Guardian setup flow (M7)
+  prepareGuardianSetup: (data: { entryPointVersion?: string; salt?: number }) =>
+    api.post("/account/guardian-setup/prepare", data),
+
+  createWithGuardians: (data: {
+    guardian1: string;
+    guardian1Sig: string;
+    guardian2: string;
+    guardian2Sig: string;
+    dailyLimit: string;
+    salt?: number;
+    entryPointVersion?: string;
+  }) => api.post("/account/create-with-guardians", data),
 };
 
 // Transfer API
@@ -189,6 +203,28 @@ export const userTokenAPI = {
 
   updateTokensOrder: (tokenOrders: { tokenId: string; sortOrder: number }[]) =>
     api.put("/user-tokens/reorder", { tokenOrders }),
+};
+
+// Guardian & Recovery API
+export const guardianAPI = {
+  getGuardians: (accountAddress: string) => api.get(`/guardian/${accountAddress}`),
+
+  addGuardian: (data: { guardianAddress: string }) => api.post("/guardian/add", data),
+
+  removeGuardian: (data: { guardianAddress: string }) => api.delete("/guardian/remove", { data }),
+
+  initiateRecovery: (data: { accountAddress: string; newSignerAddress: string }) =>
+    api.post("/guardian/recovery/initiate", data),
+
+  supportRecovery: (data: { accountAddress: string }) =>
+    api.post("/guardian/recovery/support", data),
+
+  executeRecovery: (data: { accountAddress: string }) =>
+    api.post("/guardian/recovery/execute", data),
+
+  cancelRecovery: (data: { accountAddress: string }) => api.post("/guardian/recovery/cancel", data),
+
+  getPendingRecovery: (accountAddress: string) => api.get(`/guardian/recovery/${accountAddress}`),
 };
 
 export const addressBookAPI = {

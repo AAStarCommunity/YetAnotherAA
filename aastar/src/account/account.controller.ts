@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagg
 import { AccountService } from "./account.service";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { RotateSignerDto } from "./dto/rotate-signer.dto";
+import { GuardianSetupPrepareDto, CreateWithGuardiansDto } from "./dto/guardian-setup.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 @ApiTags("account")
@@ -54,6 +55,29 @@ export class AccountController {
   @ApiOperation({ summary: "Get account nonce" })
   async getNonce(@Request() req) {
     return this.accountService.getAccountNonce(req.user.sub);
+  }
+
+  @Post("guardian-setup/prepare")
+  @ApiOperation({
+    summary: "Prepare guardian acceptance hash and QR payload for account creation",
+    description:
+      "Generates an acceptance hash and QR payload that guardian devices must scan and sign. " +
+      "Returns acceptanceHash and qrPayload. Encode qrPayload as a QR code for guardian scanning.",
+  })
+  async prepareGuardianSetup(@Request() req, @Body() dto: GuardianSetupPrepareDto) {
+    return this.accountService.prepareGuardianSetup(req.user.sub, dto);
+  }
+
+  @Post("create-with-guardians")
+  @ApiOperation({
+    summary: "Create account with guardian signatures collected via QR scan",
+    description:
+      "Creates an AirAccount with 3 on-chain guardians: guardian1 + guardian2 (user devices) " +
+      "and the team Safe as defaultCommunityGuardian. Both guardian sigs must be obtained first " +
+      "via guardian-setup/prepare + QR scan.",
+  })
+  async createWithGuardians(@Request() req, @Body() dto: CreateWithGuardiansDto) {
+    return this.accountService.createWithGuardians(req.user.sub, dto);
   }
 
   @Post("rotate-signer")

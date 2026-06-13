@@ -14,7 +14,6 @@ import {
   Guardian,
   RecoveryRequest,
 } from "../entities";
-import { EnvConfigService } from "../config/env.config";
 
 @Global()
 @Module({})

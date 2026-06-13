@@ -49,9 +49,7 @@ export default function LoginPage() {
       });
 
       // Step 3: Browser WebAuthn authentication ceremony
-      const credential = await startAuthentication({
-        optionsJSON: authResponse.Options as any,
-      });
+      const credential = await startAuthentication({ optionsJSON: authResponse.Options as any });
 
       // Step 4: Complete login via backend (backend calls KMS SignHash to verify)
       toast.dismiss(loadingToast);

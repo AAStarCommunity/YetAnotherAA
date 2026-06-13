@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ethers } from "ethers";
-import { YAAAServerClient } from "@yaaa/sdk/server";
+import { YAAAServerClient } from "@aastar/airaccount/server";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 
 @Injectable()

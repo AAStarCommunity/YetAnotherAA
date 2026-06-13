@@ -6,7 +6,6 @@ import { paymasterAPI } from "@/lib/api";
 import SwipeableListItem from "@/components/SwipeableListItem";
 import toast from "react-hot-toast";
 import { PlusIcon, CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
-
 interface Paymaster {
   name: string;
   address: string;
@@ -338,7 +337,7 @@ export default function PaymasterPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="mt-2">
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
                           {paymaster.configured ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                               API Configured

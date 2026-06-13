@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { ISignerAdapter, PasskeyAssertionContext } from "@yaaa/sdk/server";
+import { ISignerAdapter, PasskeyAssertionContext } from "@aastar/airaccount/server";
 import { AuthService } from "../auth/auth.service";
 import { ethers } from "ethers";
 

@@ -1,0 +1,4 @@
+# Axios DoS via __proto__ in mergeConfig (CVE-2026-25639)
+# Pinned to axios@1.13.2 by @ledgerhq/domain-service (exact version, not a range).
+# No non-breaking fix available until ledgerhq updates their internal dependency.
+CVE-2026-25639

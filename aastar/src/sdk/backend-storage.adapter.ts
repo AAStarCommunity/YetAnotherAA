@@ -5,7 +5,7 @@ import {
   TransferRecord,
   PaymasterRecord,
   BlsConfigRecord,
-} from "@yaaa/sdk/server";
+} from "@aastar/airaccount/server";
 import { DatabaseService } from "../database/database.service";
 import * as fs from "fs";
 import * as path from "path";

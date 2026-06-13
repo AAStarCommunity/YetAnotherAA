@@ -77,4 +77,15 @@ export class ExecuteTransferDto {
   @ValidateNested()
   @Type(() => PasskeyAssertionDto)
   passkeyAssertion: PasskeyAssertionDto;
+
+  @ApiProperty({
+    description:
+      "P-256 passkey signature (64 bytes hex, r||s). " +
+      "Required for AirAccount Tier 2/3 tiered signing. " +
+      "Extracted from WebAuthn assertion response.signature.",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  p256Signature?: string;
 }

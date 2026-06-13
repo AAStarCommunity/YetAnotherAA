@@ -32,4 +32,17 @@ export class CreateAccountDto {
   @IsOptional()
   @IsEnum(EntryPointVersionDto)
   entryPointVersion?: EntryPointVersionDto;
+
+  @ApiProperty({
+    description:
+      "Daily transfer limit in ETH. " +
+      "When set (> 0), the account is created with on-chain guard enforcement. " +
+      "Tier 3 transfers above this limit require guardian ECDSA approval. " +
+      "Default: 0 (no limit / no guard).",
+    example: "1.0",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  dailyLimit?: string;
 }

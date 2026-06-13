@@ -81,8 +81,8 @@ export class UserNFTService {
     try {
       const data = fs.readFileSync(filePath, "utf8");
       return JSON.parse(data);
-    } catch (error) {
-      console.error("Error loading user NFTs from file:", error);
+    } catch (_error) {
+      console.error("Error loading user NFTs from file:", _error);
       return [];
     }
   }
@@ -94,8 +94,8 @@ export class UserNFTService {
     const filePath = this.getUserNFTsFilePath(userId);
     try {
       fs.writeFileSync(filePath, JSON.stringify(nfts, null, 2));
-    } catch (error) {
-      console.error("Error saving user NFTs to file:", error);
+    } catch (_error) {
+      console.error("Error saving user NFTs to file:", _error);
       throw new Error("Failed to save user NFTs");
     }
   }
@@ -173,12 +173,12 @@ export class UserNFTService {
             this.provider
           );
           collectionName = await contract.name();
-        } catch (error) {
+        } catch (_error) {
           collectionName = "Unknown Collection";
         }
       }
-    } catch (error) {
-      console.error("Error fetching NFT metadata:", error);
+    } catch (_error) {
+      console.error("Error fetching NFT metadata:", _error);
       name = name || `#${nftData.tokenId}`;
       collectionName = collectionName || "Unknown Collection";
     }
@@ -276,8 +276,8 @@ export class UserNFTService {
         return balance > 0n;
       }
       return false;
-    } catch (error) {
-      console.error("Error verifying NFT ownership:", error);
+    } catch (_error) {
+      console.error("Error verifying NFT ownership:", _error);
       return false;
     }
   }
@@ -291,7 +291,7 @@ export class UserNFTService {
       const erc721Contract = new ethers.Contract(contractAddress, this.ERC721_ABI, this.provider);
       await erc721Contract.name();
       return NFTStandard.ERC721;
-    } catch (error) {
+    } catch (_error) {
       // Assume ERC1155 if ERC721 fails
       return NFTStandard.ERC1155;
     }
@@ -327,8 +327,8 @@ export class UserNFTService {
       });
 
       return response.data;
-    } catch (error) {
-      console.error("Error fetching NFT metadata:", error);
+    } catch (_error) {
+      console.error("Error fetching NFT metadata:", _error);
       return {};
     }
   }

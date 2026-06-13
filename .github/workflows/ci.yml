@@ -17,7 +17,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -40,6 +40,7 @@ jobs:
           scan-ref: "."
           format: "sarif"
           output: "trivy-results.sarif"
+          trivyignores: .trivyignore
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
@@ -52,6 +53,9 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+          # Temporary: axios high vuln in @ledgerhq optional deps (via @aastar/airaccount).
+          # No non-breaking fix available until ledgerhq updates their axios dependency.
+          allow-ghsas: GHSA-43fc-jf86-j433
 
   # Job 2: Code quality checks
   quality:
@@ -59,9 +63,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        project: [aastar, aastar-frontend, sdk]
+        project: [aastar, aastar-frontend]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -100,10 +104,8 @@ jobs:
             build-command: npm run build
           - project: aastar-frontend
             build-command: npm run build
-          - project: sdk
-            build-command: npm run build
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -112,11 +114,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # Build SDK first if this is not the SDK build itself
-      - name: Build SDK (dependency)
-        if: matrix.project != 'sdk'
-        run: npm run build --workspace=sdk
 
       - name: Build project
         run: npm run build --workspace=${{ matrix.project }}
@@ -131,7 +128,7 @@ jobs:
       matrix:
         project: [aastar]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -154,9 +151,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        project: [aastar, aastar-frontend, sdk]
+        project: [aastar, aastar-frontend]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
         uses: actions/setup-node@v6
@@ -165,11 +162,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # Build SDK first if this is not the SDK type check itself
-      - name: Build SDK (dependency)
-        if: matrix.project != 'sdk'
-        run: npm run build --workspace=sdk
 
       - name: Run TypeScript compiler
         run: |
@@ -192,7 +184,7 @@ jobs:
       matrix:
         language: ["javascript", "typescript"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4

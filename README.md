@@ -454,3 +454,8 @@ Issues and Pull Requests are welcome!
 ---
 
 **Status**: **Network**: Sepolia Testnet | **Security**: WebAuthn + KMS Enhanced
+
+## License
+
+Licensed under the [Apache License, Version 2.0](https://opensource.org/licenses/Apache-2.0). See [LICENSE](./LICENSE) for details.
+

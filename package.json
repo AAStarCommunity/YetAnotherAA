@@ -5,8 +5,7 @@
   "private": true,
   "workspaces": [
     "aastar",
-    "aastar-frontend",
-    "sdk"
+    "aastar-frontend"
   ],
   "scripts": {
     "format": "prettier --write .",
@@ -20,8 +19,8 @@
     "ci": "npm run format:check && npm run lint && npm run build && npm run test:ci"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "prettier-plugin-solidity": "^2.1.0"
+    "prettier": "^3.8.1",
+    "prettier-plugin-solidity": "^2.3.1"
   },
   "keywords": [
     "webauthn",

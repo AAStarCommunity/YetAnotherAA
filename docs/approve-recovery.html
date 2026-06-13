@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Approve Recovery</title>
+<style>
+  body { font-family: monospace; max-width: 600px; margin: 40px auto; padding: 20px; background: #1a1a1a; color: #eee; }
+  h2 { color: #60a5fa; }
+  .info { background: #2a2a2a; padding: 12px; border-radius: 6px; margin: 8px 0; word-break: break-all; }
+  .label { color: #888; font-size: 12px; }
+  button { background: #60a5fa; color: #000; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 16px; }
+  button:disabled { background: #555; color: #888; cursor: not-allowed; }
+  #status { margin-top: 16px; padding: 12px; border-radius: 6px; }
+  .pending { background: #2a2a00; color: #fbbf24; }
+  .success { background: #0a2a0a; color: #4ade80; }
+  .error { background: #2a0a0a; color: #f87171; }
+  a { color: #60a5fa; }
+</style>
+</head>
+<body>
+<h2>Step 3.4: Approve Recovery (Guardian 2)</h2>
+
+<div class="info">
+  <div class="label">Contract (SMART_ACCOUNT_B)</div>
+  <div>0x342B8048887815942fD06c95dBe5D27A5b5B6495</div>
+</div>
+<div class="info">
+  <div class="label">Must be called from (ADDR_G2)</div>
+  <div>0xe24b6f321B0140716a2b671ed0D983bb64E7DaFA</div>
+</div>
+
+<p>Switch MetaMask to <strong>ADDR_G2</strong> on <strong>Sepolia</strong>, then click:</p>
+
+<button id="btn" onclick="approve()">Connect MetaMask &amp; Approve Recovery</button>
+<div id="status"></div>
+
+<script>
+const CONTRACT = "0x342B8048887815942fD06c95dBe5D27A5b5B6495";
+const G2 = "0xe24b6f321B0140716a2b671ed0D983bb64E7DaFA";
+const SEPOLIA_CHAIN_ID = "0xaa36a7";
+
+// approveRecovery() selector: keccak256("approveRecovery()")[0:4] = 0xfcae8d38
+const APPROVE_RECOVERY_SELECTOR = "0xfcae8d38";
+
+function setStatus(msg, type) {
+  const el = document.getElementById("status");
+  el.className = type;
+  el.innerHTML = msg;
+}
+
+async function approve() {
+  const btn = document.getElementById("btn");
+  btn.disabled = true;
+
+  if (!window.ethereum) {
+    setStatus("MetaMask not found. Please open via http://localhost:8888/approve-recovery.html", "error");
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    setStatus("Requesting accounts...", "pending");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const from = accounts[0].toLowerCase();
+
+    if (from !== G2.toLowerCase()) {
+      setStatus(`Wrong account: <b>${from}</b><br>Please switch MetaMask to <b>${G2}</b> (ADDR_G2) on Sepolia.`, "error");
+      btn.disabled = false;
+      return;
+    }
+
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      setStatus(`Wrong network (chainId: ${chainId}). Please switch to Sepolia (0xaa36a7).`, "error");
+      btn.disabled = false;
+      return;
+    }
+
+    setStatus("Sending transaction... Please confirm in MetaMask.", "pending");
+
+    const txHash = await window.ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: from,
+        to: CONTRACT,
+        data: APPROVE_RECOVERY_SELECTOR,
+        gas: "0x30000",
+      }]
+    });
+
+    setStatus(
+      `Transaction sent! Hash: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a><br><br>Waiting for confirmation...`,
+      "pending"
+    );
+
+    let receipt = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      receipt = await window.ethereum.request({
+        method: "eth_getTransactionReceipt",
+        params: [txHash]
+      });
+      if (receipt) break;
+    }
+
+    if (receipt && receipt.status === "0x1") {
+      setStatus(
+        `✅ approveRecovery() succeeded!<br>Block: ${parseInt(receipt.blockNumber, 16)}<br>Tx: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`,
+        "success"
+      );
+    } else if (receipt && receipt.status === "0x0") {
+      setStatus(`❌ Transaction reverted. Hash: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`, "error");
+    } else {
+      setStatus(`Timed out waiting for receipt. Tx: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`, "pending");
+    }
+  } catch (err) {
+    setStatus(`Error: ${err.message || err}`, "error");
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

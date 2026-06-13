@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { YAAAServerClient } from "@yaaa/sdk/server";
+import { YAAAServerClient } from "@aastar/airaccount/server";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
-import { BLSSignatureData as BlsSignatureData } from "@yaaa/sdk/server";
+import { BLSSignatureData as BlsSignatureData } from "@aastar/airaccount/server";
 
 @Injectable()
 export class BlsService {

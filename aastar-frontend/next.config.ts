@@ -13,11 +13,6 @@ const nextConfig: NextConfig = {
     output: "standalone",
     outputFileTracingRoot: path.join(__dirname, ".."),
   }),
-  // Fix for monorepo setup with Next.js 16+
-  // Point to monorepo root where node_modules/next is located
-  turbopack: {
-    root: path.join(__dirname, ".."),
-  },
   async rewrites() {
     const backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:3000";
     const kmsUrl = process.env.KMS_PROXY_URL || "https://kms1.aastar.io";

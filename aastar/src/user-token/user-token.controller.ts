@@ -66,7 +66,7 @@ export class UserTokenController {
           return this.userTokenService.getUserTokens(userId, activeOnly !== false);
         }
         return this.userTokenService.getUserTokensWithBalances(userId, accountAddress);
-      } catch (error) {
+      } catch (_error) {
         // If account service fails, still return tokens without balances
         return this.userTokenService.getUserTokens(userId, activeOnly !== false);
       }

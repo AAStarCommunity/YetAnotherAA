@@ -28,6 +28,11 @@ export interface Account {
   balance?: string;
   nonce?: string;
   createdAt: string;
+  /**
+   * Daily transfer limit in wei (decimal string). Present only when the account
+   * was created with on-chain guard enforcement via dailyLimit option.
+   */
+  dailyLimit?: string;
 }
 
 export interface Transfer {

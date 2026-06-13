@@ -64,8 +64,8 @@ export class UserTokenService {
     try {
       const data = fs.readFileSync(filePath, "utf8");
       return JSON.parse(data);
-    } catch (error) {
-      console.error("Error loading user tokens from file:", error);
+    } catch (_error) {
+      console.error("Error loading user tokens from file:", _error);
       return [];
     }
   }
@@ -77,8 +77,8 @@ export class UserTokenService {
     const filePath = this.getUserTokensFilePath(userId);
     try {
       fs.writeFileSync(filePath, JSON.stringify(tokens, null, 2));
-    } catch (error) {
-      console.error("Error saving user tokens to file:", error);
+    } catch (_error) {
+      console.error("Error saving user tokens to file:", _error);
       throw new Error("Failed to save user tokens");
     }
   }
@@ -158,7 +158,7 @@ export class UserTokenService {
           ...userToken,
           balance,
         });
-      } catch (error) {
+      } catch (_error) {
         // If balance fetch fails, still include the token without balance
         tokensWithBalances.push({
           ...userToken,
@@ -197,7 +197,7 @@ export class UserTokenService {
         tokenData.symbol = tokenData.symbol || tokenInfo.symbol;
         tokenData.name = tokenData.name || tokenInfo.name;
         tokenData.decimals = tokenData.decimals || tokenInfo.decimals;
-      } catch (error) {
+      } catch (_error) {
         throw new BadRequestException("Could not fetch token information from blockchain");
       }
     }
@@ -297,7 +297,7 @@ export class UserTokenService {
         name: name.toString(),
         decimals: Number(decimals),
       };
-    } catch (error) {
+    } catch (_error) {
       throw new BadRequestException("Invalid token contract address");
     }
   }

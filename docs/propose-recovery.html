@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Propose Recovery</title>
+<style>
+  body { font-family: monospace; max-width: 600px; margin: 40px auto; padding: 20px; background: #1a1a1a; color: #eee; }
+  h2 { color: #4ade80; }
+  .info { background: #2a2a2a; padding: 12px; border-radius: 6px; margin: 8px 0; word-break: break-all; }
+  .label { color: #888; font-size: 12px; }
+  button { background: #4ade80; color: #000; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 16px; }
+  button:disabled { background: #555; color: #888; cursor: not-allowed; }
+  #status { margin-top: 16px; padding: 12px; border-radius: 6px; }
+  .pending { background: #2a2a00; color: #fbbf24; }
+  .success { background: #0a2a0a; color: #4ade80; }
+  .error { background: #2a0a0a; color: #f87171; }
+  a { color: #60a5fa; }
+</style>
+</head>
+<body>
+<h2>Step 3.2: Propose Recovery</h2>
+
+<div class="info">
+  <div class="label">Contract (SMART_ACCOUNT_B)</div>
+  <div>0x342B8048887815942fD06c95dBe5D27A5b5B6495</div>
+</div>
+<div class="info">
+  <div class="label">New Owner (ADDR_A)</div>
+  <div>0x6c4ac776bb9714eedb7d9a354e89e6b83538d4ee</div>
+</div>
+<div class="info">
+  <div class="label">Must be called from (ADDR_G1)</div>
+  <div>0x075F227E25a63417Bf66F6e751b376B09Fd43928</div>
+</div>
+
+<p>Switch MetaMask to <strong>ADDR_G1</strong> on <strong>Sepolia</strong>, then click:</p>
+
+<button id="btn" onclick="propose()">Connect MetaMask &amp; Propose Recovery</button>
+<div id="status"></div>
+
+<script>
+const CONTRACT = "0x342B8048887815942fD06c95dBe5D27A5b5B6495";
+const NEW_OWNER = "0x6c4ac776bb9714eedb7d9a354e89e6b83538d4ee";
+const G1 = "0x075F227E25a63417Bf66F6e751b376B09Fd43928";
+const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
+
+// proposeRecovery(address _newOwner) selector:
+// keccak256("proposeRecovery(address)")[0:4] = 0x7ee76082
+const PROPOSE_RECOVERY_SELECTOR = "0x7ee76082";
+
+function setStatus(msg, type) {
+  const el = document.getElementById("status");
+  el.className = type;
+  el.innerHTML = msg;
+}
+
+async function propose() {
+  const btn = document.getElementById("btn");
+  btn.disabled = true;
+
+  if (!window.ethereum) {
+    setStatus("MetaMask not found. Please install MetaMask.", "error");
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    setStatus("Requesting accounts...", "pending");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const from = accounts[0].toLowerCase();
+
+    if (from !== G1.toLowerCase()) {
+      setStatus(`Wrong account: <b>${from}</b><br>Please switch MetaMask to <b>${G1}</b> (ADDR_G1) on Sepolia.`, "error");
+      btn.disabled = false;
+      return;
+    }
+
+    // Check network
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      setStatus(`Wrong network (chainId: ${chainId}). Please switch to Sepolia (0xaa36a7).`, "error");
+      btn.disabled = false;
+      return;
+    }
+
+    // Encode proposeRecovery(address newOwner)
+    // selector + padded address (32 bytes)
+    const paddedOwner = NEW_OWNER.toLowerCase().replace("0x", "").padStart(64, "0");
+    const data = PROPOSE_RECOVERY_SELECTOR + paddedOwner;
+
+    setStatus("Sending transaction... Please confirm in MetaMask.", "pending");
+
+    const txHash = await window.ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: from,
+        to: CONTRACT,
+        data: data,
+        gas: "0x30000",
+      }]
+    });
+
+    setStatus(
+      `Transaction sent! Hash: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a><br><br>Waiting for confirmation...`,
+      "pending"
+    );
+
+    // Poll for receipt
+    let receipt = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      receipt = await window.ethereum.request({
+        method: "eth_getTransactionReceipt",
+        params: [txHash]
+      });
+      if (receipt) break;
+    }
+
+    if (receipt && receipt.status === "0x1") {
+      setStatus(
+        `✅ proposeRecovery() succeeded!<br>Block: ${parseInt(receipt.blockNumber, 16)}<br>Tx: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`,
+        "success"
+      );
+    } else if (receipt && receipt.status === "0x0") {
+      setStatus(`❌ Transaction reverted. Hash: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`, "error");
+    } else {
+      setStatus(`Timed out waiting for receipt. Tx: <a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>`, "pending");
+    }
+  } catch (err) {
+    setStatus(`Error: ${err.message || err}`, "error");
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

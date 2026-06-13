@@ -2,7 +2,6 @@ import { Controller, Get, Post, Body, UseGuards, Param, Delete, Request } from "
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { PaymasterService } from "./paymaster.service";
-import { AnalyzeTransactionDto } from "./dto/analyze-transaction.dto";
 
 @ApiTags("paymaster")
 @Controller("paymaster")

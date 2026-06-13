@@ -7,8 +7,10 @@ import CopyButton from "@/components/CopyButton";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
 import ReceiveModal from "@/components/ReceiveModal";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { useTask } from "@/contexts/TaskContext";
 import { User } from "@/lib/types";
 import { getStoredAuth } from "@/lib/auth";
+import { DEFAULT_REWARD_TOKEN_SYMBOL, isContractsConfigured } from "@/lib/contracts/task-config";
 import toast from "react-hot-toast";
 import {
   WalletIcon,
@@ -30,6 +32,7 @@ function DashboardContent() {
     refreshBalance: contextRefreshBalance,
   } = useDashboard();
   const { account, transfers, paymasters, tokenBalances, lastUpdated } = data;
+  const { taskTokenBalance, taskTokenBalanceFormatted, loadTaskTokenBalance } = useTask();
 
   const [user, setUser] = useState<User | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -51,6 +54,13 @@ function DashboardContent() {
       loadDashboardData();
     }
   }, [loadDashboardData]);
+
+  // T01: load task token balance when account is available
+  useEffect(() => {
+    if (account?.address && isContractsConfigured()) {
+      loadTaskTokenBalance(account.address);
+    }
+  }, [account?.address, loadTaskTokenBalance]);
 
   const handleAccountCreated = () => {
     // Reload data to get updated balance
@@ -549,6 +559,39 @@ function DashboardContent() {
                       </p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* T01: Task Reward Token Balance */}
+            {isContractsConfigured() && taskTokenBalance !== null && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-emerald-200 dark:border-emerald-800 mb-6">
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Task Reward Balance
+                      </p>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                          {parseFloat(taskTokenBalanceFormatted ?? "0").toFixed(4)}
+                        </span>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {DEFAULT_REWARD_TOKEN_SYMBOL}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        ERC-20 balance of your smart account
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => account?.address && loadTaskTokenBalance(account.address)}
+                      className="p-2 rounded-lg text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      title="Refresh task balance"
+                    >
+                      <ArrowPathIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

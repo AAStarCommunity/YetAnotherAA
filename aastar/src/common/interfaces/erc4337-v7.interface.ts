@@ -1,4 +1,4 @@
-import { ERC4337Utils, PackedUserOperation } from "@yaaa/sdk";
+import { ERC4337Utils, PackedUserOperation } from "@aastar/airaccount";
 
 // Export type from SDK
 export { PackedUserOperation };

@@ -7,7 +7,7 @@ import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { transferAPI, tokenAPI, paymasterAPI, addressBookAPI } from "@/lib/api";
-import { kmsClient } from "@/lib/yaaa";
+import { kmsClient, extractLegacyAssertion } from "@/lib/yaaa";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
 import toast from "react-hot-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -268,12 +268,10 @@ export default function TransferPage() {
       // Step 2: Browser WebAuthn authentication ceremony
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Please verify with your passkey...");
-      const credential = await startAuthentication({
-        optionsJSON: authResponse.Options as any,
-      });
+      const credential = await startAuthentication({ optionsJSON: authResponse.Options as any });
 
       // Step 3: Extract Legacy assertion (reusable for BLS dual-signing)
-      const passkeyAssertion = await kmsClient.extractLegacyAssertion(credential);
+      const passkeyAssertion = await extractLegacyAssertion(credential);
 
       // Step 4: Execute transfer with Legacy assertion
       toast.dismiss(loadingToast);
@@ -998,6 +996,61 @@ export default function TransferPage() {
                         );
                       }
                       return null;
+                    })()}
+
+                  {/* AirAccount guard indicator — only for ETH transfers when a daily limit is set */}
+                  {formData.amount &&
+                    (!selectedToken || selectedToken.address === "ETH") &&
+                    account?.dailyLimit &&
+                    (() => {
+                      const inputAmount = parseFloat(formData.amount);
+                      if (isNaN(inputAmount) || inputAmount <= 0) return null;
+
+                      // dailyLimit is stored in wei (decimal string) — convert to ETH for comparison.
+                      const dailyLimitEth = parseFloat(account.dailyLimit) / 1e18;
+                      // Tier 3 is triggered when a single transfer exceeds the on-chain daily limit guard.
+                      // Tier 1 vs Tier 2 thresholds (tier1Limit / tier2Limit) are separate contract-level
+                      // storage variables not available client-side — do not approximate them from dailyLimit.
+                      const exceedsDailyLimit = inputAmount > dailyLimitEth;
+
+                      return (
+                        <div
+                          className={`mt-3 p-3 border rounded-xl text-sm ${
+                            exceedsDailyLimit
+                              ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-700 dark:text-red-400"
+                              : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 font-semibold">
+                            {exceedsDailyLimit ? (
+                              <>
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200">
+                                  3
+                                </span>
+                                Tier 3 — Guardian approval required
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200">
+                                  ✓
+                                </span>
+                                Tiered signing active
+                              </>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs opacity-80">
+                            {exceedsDailyLimit
+                              ? `Transfer exceeds daily limit (${dailyLimitEth} ETH). Passkey + BLS + guardian ECDSA triple signature required.`
+                              : `Passkey + BLS signing active. Daily limit: ${dailyLimitEth} ETH. Exact tier (1 or 2) is determined by contract-level thresholds.`}
+                          </p>
+                          {exceedsDailyLimit && (
+                            <p className="mt-2 text-xs font-medium">
+                              Guardian at <span className="font-mono">0x51eD...2E114</span> must
+                              co-sign this transaction.
+                            </p>
+                          )}
+                        </div>
+                      );
                     })()}
                 </div>
 
