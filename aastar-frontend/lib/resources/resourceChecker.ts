@@ -2,9 +2,12 @@
  * Operations-portal resource pre-check — ported from the registry app, rebuilt
  * on the `@aastar/core` SDK (viem read actions) instead of raw ethers contracts.
  *
- * Client-side only. Concurrently checks operator onboarding prerequisites and
- * caches positive on-chain lookups for 60 min (balances are always refreshed via
- * a short TTL). See registry docs/CORE_FLOWS.md (flow 8) for the original logic.
+ * Client-side only. Concurrently checks operator onboarding prerequisites.
+ * Positive on-chain *lookups* (registered / token-deployed / paymaster-deployed)
+ * are cached 60 min; *balances* are always fetched fresh (they gate the
+ * "enough GT/aPNTs/ETH" decision and must not go stale). Cache keys are scoped
+ * by chainId so switching chains never reuses another chain's state.
+ * See registry docs/CORE_FLOWS.md (flow 8) for the original logic.
  *
  * @module lib/resources/resourceChecker
  */
@@ -22,24 +25,30 @@ import {
   PAYMASTER_FACTORY_ADDRESS,
   SUPER_PAYMASTER_ADDRESS,
   APNTS_ADDRESS,
+  CHAIN_SEPOLIA,
 } from "@aastar/core";
 import type { Address } from "viem";
 import { ensureSdkConfig, getPublicClient } from "../sdk/client";
-import { loadFromCache, saveToCache } from "./cache";
+import { clearCache, loadFromCache, saveToCache } from "./cache";
 
-const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 min (positive lookups)
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 min (positive lookups only)
 const POSITIVE_TTL = 3600; // 60 min, seconds
+
+// Chain the portal currently operates on (also drives ensureSdkConfig). Included
+// in every cache key so a chain switch can never read another chain's cache.
+const PORTAL_CHAIN = CHAIN_SEPOLIA;
+const cacheKey = (type: string, addr: string) => `resource_${type}_${PORTAL_CHAIN}_${addr}`;
 
 /** Cache positive results long; never cache a negative (so it re-checks next time). */
 async function getCachedOrFetch<T>(
-  cacheKey: string,
+  key: string,
   fetchFn: () => Promise<T>,
   isSuccess: (value: T) => boolean
 ): Promise<T> {
-  const cached = loadFromCache<T>(cacheKey);
+  const cached = loadFromCache<T>(key);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) return cached.data;
   const result = await fetchFn();
-  if (isSuccess(result)) saveToCache(cacheKey, result, POSITIVE_TTL);
+  if (isSuccess(result)) saveToCache(key, result, POSITIVE_TTL);
   return result;
 }
 
@@ -85,7 +94,8 @@ async function isCommunityRegistered(address: Address): Promise<boolean> {
       roleId: ROLE_COMMUNITY,
       user: address,
     });
-  } catch {
+  } catch (err) {
+    console.warn("[resourceChecker] community registration read failed:", err);
     return false;
   }
 }
@@ -97,7 +107,8 @@ async function checkXPNTs(address: Address): Promise<{ hasToken: boolean; tokenA
     if (!hasToken) return { hasToken: false };
     const tokenAddress = await factory.getTokenAddress({ community: address });
     return { hasToken: true, tokenAddress };
-  } catch {
+  } catch (err) {
+    console.warn("[resourceChecker] xPNTs read failed:", err);
     return { hasToken: false };
   }
 }
@@ -111,7 +122,8 @@ async function checkPaymaster(
     if (!hasPaymaster) return { hasPaymaster: false };
     const paymasterAddress = await factory.getPaymasterByOperator({ operator: address });
     return { hasPaymaster: true, paymasterAddress };
-  } catch {
+  } catch (err) {
+    console.warn("[resourceChecker] paymaster read failed:", err);
     return { hasPaymaster: false };
   }
 }
@@ -123,16 +135,19 @@ async function isSuperPaymasterRegistered(address: Address): Promise<boolean> {
     });
     // `isConfigured` is the v5 SuperPaymaster operator-registration flag.
     return Boolean(config?.isConfigured);
-  } catch {
+  } catch (err) {
+    console.warn("[resourceChecker] SuperPaymaster read failed:", err);
     return false;
   }
 }
 
+// Balances are always read fresh (never cached) — see module doc.
 async function tokenBalance(token: Address, account: Address): Promise<string> {
   try {
     const balance = await tokenActions(token)(pc()).balanceOf({ token, account });
     return formatEther(balance);
-  } catch {
+  } catch (err) {
+    console.warn(`[resourceChecker] token balance read failed (${token}):`, err);
     return "0";
   }
 }
@@ -140,34 +155,21 @@ async function tokenBalance(token: Address, account: Address): Promise<string> {
 async function ethBalance(address: Address): Promise<string> {
   try {
     return formatEther(await pc().getBalance({ address }));
-  } catch {
+  } catch (err) {
+    console.warn("[resourceChecker] ETH balance read failed:", err);
     return "0";
   }
 }
 
 // ── Cache management ──────────────────────────────────────────────────────────
 
-const RESOURCE_KEYS = [
-  "community",
-  "xpnts",
-  "paymaster",
-  "aoa_paymaster",
-  "superpaymaster",
-  "gtoken",
-  "apnts",
-  "eth",
-];
-
-/** Clear all cached resource lookups for a wallet (used by the manual refresh button). */
+/**
+ * Clear cached resource lookups for one wallet (manual refresh button).
+ * Pattern-clears every cache key containing this address (across chainIds and
+ * resource types) via the cache module — no prefix duplicated here.
+ */
 export function clearResourceCaches(walletAddress: string): void {
-  const addr = walletAddress.toLowerCase();
-  for (const k of RESOURCE_KEYS) {
-    try {
-      localStorage.removeItem(`spm_resource_${k}_${addr}`);
-    } catch {
-      /* ignore */
-    }
-  }
+  clearCache(walletAddress.toLowerCase());
 }
 
 // ── Main entry points ─────────────────────────────────────────────────────────
@@ -181,11 +183,11 @@ async function checkAOAResources(walletAddress: string): Promise<ResourceStatus>
   const addr = walletAddress.toLowerCase();
 
   const [registered, xpnts, paymaster, gToken, eth] = await Promise.all([
-    getCachedOrFetch(`resource_community_${addr}`, () => isCommunityRegistered(address), r => r),
-    getCachedOrFetch(`resource_xpnts_${addr}`, () => checkXPNTs(address), r => r.hasToken),
-    getCachedOrFetch(`resource_paymaster_${addr}`, () => checkPaymaster(address), r => r.hasPaymaster),
-    getCachedOrFetch(`resource_gtoken_${addr}`, () => tokenBalance(GTOKEN_ADDRESS, address), () => true),
-    getCachedOrFetch(`resource_eth_${addr}`, () => ethBalance(address), () => true),
+    getCachedOrFetch(cacheKey("community", addr), () => isCommunityRegistered(address), r => r),
+    getCachedOrFetch(cacheKey("xpnts", addr), () => checkXPNTs(address), r => r.hasToken),
+    getCachedOrFetch(cacheKey("paymaster", addr), () => checkPaymaster(address), r => r.hasPaymaster),
+    tokenBalance(GTOKEN_ADDRESS, address), // fresh, never cached
+    ethBalance(address), // fresh, never cached
   ]);
 
   const requiredGToken = registered ? "30" : "60";
@@ -222,14 +224,14 @@ async function checkAOAPlusResources(walletAddress: string): Promise<ResourceSta
   const addr = walletAddress.toLowerCase();
 
   const [registered, xpnts, aoaPaymaster, superRegistered, gToken, aPNTs, eth] = await Promise.all([
-    getCachedOrFetch(`resource_community_${addr}`, () => isCommunityRegistered(address), r => r),
-    getCachedOrFetch(`resource_xpnts_${addr}`, () => checkXPNTs(address), r => r.hasToken),
+    getCachedOrFetch(cacheKey("community", addr), () => isCommunityRegistered(address), r => r),
+    getCachedOrFetch(cacheKey("xpnts", addr), () => checkXPNTs(address), r => r.hasToken),
     // Only cache when there is NO conflict (no AOA paymaster / not yet registered).
-    getCachedOrFetch(`resource_aoa_paymaster_${addr}`, () => checkPaymaster(address), r => !r.hasPaymaster),
-    getCachedOrFetch(`resource_superpaymaster_${addr}`, () => isSuperPaymasterRegistered(address), r => !r),
-    getCachedOrFetch(`resource_gtoken_${addr}`, () => tokenBalance(GTOKEN_ADDRESS, address), () => true),
-    getCachedOrFetch(`resource_apnts_${addr}`, () => tokenBalance(APNTS_ADDRESS, address), () => true),
-    getCachedOrFetch(`resource_eth_${addr}`, () => ethBalance(address), () => true),
+    getCachedOrFetch(cacheKey("aoa_paymaster", addr), () => checkPaymaster(address), r => !r.hasPaymaster),
+    getCachedOrFetch(cacheKey("superpaymaster", addr), () => isSuperPaymasterRegistered(address), r => !r),
+    tokenBalance(GTOKEN_ADDRESS, address), // fresh, never cached
+    tokenBalance(APNTS_ADDRESS, address), // fresh, never cached
+    ethBalance(address), // fresh, never cached
   ]);
 
   const requiredGToken = registered ? "50" : "80";

@@ -11,7 +11,15 @@
  * now only injected EOAs are wired. Kept intentionally framework-light and
  * client-only (no SSR), consistent with the static-export direction.
  */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Address, WalletClient } from "viem";
 import { connectWallet, getInjectedProvider } from "@/lib/sdk/client";
 
@@ -31,23 +39,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasInjectedWallet, setHasInjectedWallet] = useState(false);
+  // Monotonic token guarding against stale connect() resolutions: a late
+  // connectWallet() promise that resolves after a disconnect (or a newer
+  // connect) must not write back state. disconnect() bumps it to invalidate
+  // any in-flight connect.
+  const connectSeq = useRef(0);
+  const connectedRef = useRef(false);
 
   useEffect(() => {
     setHasInjectedWallet(!!getInjectedProvider());
   }, []);
 
   const connect = useCallback(async () => {
+    const seq = ++connectSeq.current;
     setIsConnecting(true);
     try {
       const { address: addr, walletClient: wc } = await connectWallet();
+      if (seq !== connectSeq.current) return; // superseded by a newer connect/disconnect
       setAddress(addr);
       setWalletClient(wc);
+      connectedRef.current = true;
     } finally {
-      setIsConnecting(false);
+      if (seq === connectSeq.current) setIsConnecting(false);
     }
   }, []);
 
   const disconnect = useCallback(() => {
+    connectSeq.current++; // invalidate any in-flight connect
+    connectedRef.current = false;
     setAddress(null);
     setWalletClient(null);
   }, []);
@@ -61,13 +80,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const onAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
         disconnect();
-      } else if (address) {
+      } else if (connectedRef.current) {
+        // Reflect an account switch only while connected; the viem WalletClient
+        // (unpinned account) follows the provider's active account at send time.
         setAddress(accounts[0] as Address);
       }
     };
     provider.on("accountsChanged", onAccountsChanged);
     return () => provider.removeListener?.("accountsChanged", onAccountsChanged);
-  }, [address, disconnect]);
+  }, [disconnect]);
 
   return (
     <WalletContext.Provider
