@@ -10,6 +10,7 @@
  * @module app/operator/deploy/steps/Step2ResourceCheck
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -36,6 +37,7 @@ function Row({ label, ok, detail }: { label: string; ok: boolean; detail?: strin
 }
 
 export default function Step2ResourceCheck({ address, data, update, onNext, onBack }: StepProps) {
+  const { t } = useTranslation();
   const mode = data.mode!;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -54,12 +56,12 @@ export default function Step2ResourceCheck({ address, data, update, onNext, onBa
           paymasterAddress: (status.paymasterAddress as `0x${string}` | undefined) ?? undefined,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Resource check failed");
+        setError(err instanceof Error ? err.message : t("operatorDeploy.step2.checkFailed"));
       } finally {
         setLoading(false);
       }
     },
-    [address, mode, update]
+    [address, mode, update, t]
   );
 
   useEffect(() => {
@@ -71,22 +73,22 @@ export default function Step2ResourceCheck({ address, data, update, onNext, onBa
 
   return (
     <StepCard
-      title="Resource pre-check"
-      description={`Verifying prerequisites for ${mode.toUpperCase()} onboarding.`}
+      title={t("operatorDeploy.step2.title")}
+      description={t("operatorDeploy.step2.description", { mode: mode.toUpperCase() })}
       icon={<ClipboardDocumentCheckIcon className="h-6 w-6" />}
       error={error}
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           <div className="flex items-center gap-2">
             <WizardButton variant="secondary" onClick={() => run(true)} loading={loading}>
               <ArrowPathIcon className="h-4 w-4" />
-              Refresh
+              {t("operatorDeploy.step2.refresh")}
             </WizardButton>
             <WizardButton onClick={onNext} disabled={!balancesOk || loading}>
-              Continue
+              {t("operatorDeploy.common.continue")}
             </WizardButton>
           </div>
         </>
@@ -95,46 +97,49 @@ export default function Step2ResourceCheck({ address, data, update, onNext, onBa
       {loading && !res ? (
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-6 justify-center">
           <ArrowPathIcon className="h-5 w-5 animate-spin" />
-          Checking on-chain resources…
+          {t("operatorDeploy.step2.checking")}
         </div>
       ) : res ? (
         <div className="space-y-4">
           <div className="rounded-xl bg-gray-50 dark:bg-gray-900 p-4">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Balances</p>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+              {t("operatorDeploy.step2.balances")}
+            </p>
             <Row
-              label={`GToken (need ${res.requiredGToken})`}
+              label={t("operatorDeploy.step2.gtokenNeed", { amount: res.requiredGToken })}
               ok={res.hasEnoughGToken}
               detail={`${parseFloat(res.gTokenBalance).toFixed(2)} GT`}
             />
             {mode === "aoa+" && (
               <Row
-                label={`aPNTs (need ${res.requiredAPNTs})`}
+                label={t("operatorDeploy.step2.apntsNeed", { amount: res.requiredAPNTs })}
                 ok={res.hasEnoughAPNTs}
                 detail={`${parseFloat(res.aPNTsBalance).toFixed(2)} aPNTs`}
               />
             )}
             <Row
-              label={`ETH (need ${res.requiredETH})`}
+              label={t("operatorDeploy.step2.ethNeed", { amount: res.requiredETH })}
               ok={res.hasEnoughETH}
               detail={`${parseFloat(res.ethBalance).toFixed(4)} ETH`}
             />
           </div>
 
           <div className="rounded-xl bg-gray-50 dark:bg-gray-900 p-4">
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">On-chain state</p>
-            <Row label="Community registered (ROLE_COMMUNITY)" ok={res.isCommunityRegistered} />
-            <Row label="xPNTs token deployed" ok={res.hasXPNTs} />
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+              {t("operatorDeploy.step2.onChainState")}
+            </p>
+            <Row label={t("operatorDeploy.step2.communityRegistered")} ok={res.isCommunityRegistered} />
+            <Row label={t("operatorDeploy.step2.xpntsDeployed")} ok={res.hasXPNTs} />
             {mode === "aoa" ? (
-              <Row label="AOA Paymaster deployed" ok={res.hasAOAPaymaster} />
+              <Row label={t("operatorDeploy.step2.aoaPaymasterDeployed")} ok={res.hasAOAPaymaster} />
             ) : (
-              <Row label="Registered on SuperPaymaster" ok={res.hasSuperPaymasterRegistered} />
+              <Row label={t("operatorDeploy.step2.registeredOnSuper")} ok={res.hasSuperPaymasterRegistered} />
             )}
           </div>
 
           {!balancesOk && (
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              Top up the missing balances, then click Refresh. On-chain state that is already satisfied will be
-              skipped automatically in the next steps.
+              {t("operatorDeploy.step2.topUpHint")}
             </p>
           )}
         </div>

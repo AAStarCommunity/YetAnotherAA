@@ -7,6 +7,7 @@
  * @module app/operator/deploy/components/StepCard
  */
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
@@ -47,6 +48,7 @@ export default function StepCard({
   error,
   footer,
 }: StepCardProps) {
+  const { t } = useTranslation();
   return (
     <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
       <div className="flex items-start gap-3">
@@ -67,7 +69,7 @@ export default function StepCard({
             <CheckCircleIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           )}
           <span className="text-emerald-700 dark:text-emerald-300">
-            {status === "pending" ? "Pending" : "Confirmed"}
+            {status === "pending" ? t("operatorDeploy.tx.pending") : t("operatorDeploy.tx.confirmedLabel")}
           </span>
           <a
             href={explorerTx(txHash)}

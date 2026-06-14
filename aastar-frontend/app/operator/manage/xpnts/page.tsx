@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { formatEther, isAddress, parseEther } from "viem";
 import type { Address } from "viem";
 import toast from "react-hot-toast";
@@ -60,6 +61,7 @@ interface TokenInfo {
 }
 
 function XPNTsManager() {
+  const { t } = useTranslation();
   const { address, walletClient } = useWallet();
   const operator = address as Address;
 
@@ -107,11 +109,11 @@ function XPNTsManager() {
         return;
       }
       const tokenAddress = (await factory.getTokenAddress({ community: operator })) as Address;
-      const t = xPNTsTokenActions(tokenAddress)(reader());
+      const tokenRead = xPNTsTokenActions(tokenAddress)(reader());
       const [meta, rate, balance] = await Promise.all([
-        t.getMetadata({ token: tokenAddress }),
-        t.exchangeRate({ token: tokenAddress }),
-        t.balanceOf({ token: tokenAddress, account: operator }),
+        tokenRead.getMetadata({ token: tokenAddress }),
+        tokenRead.exchangeRate({ token: tokenAddress }),
+        tokenRead.balanceOf({ token: tokenAddress, account: operator }),
       ]);
       setToken({
         address: tokenAddress,
@@ -137,16 +139,16 @@ function XPNTsManager() {
   const handleDeploy = async () => {
     if (!walletClient) return;
     if (!name || !symbol) {
-      toast.error("Name and symbol are required.");
+      toast.error(t("operatorManage.xpnts.errNameSymbolRequired"));
       return;
     }
     if (paymasterAOA && !isAddress(paymasterAOA)) {
-      toast.error("Invalid AOA paymaster address.");
+      toast.error(t("operatorManage.xpnts.errInvalidPaymaster"));
       return;
     }
     setDeploying(true);
     setDeployTx("");
-    const tid = toast.loading("Confirm deployment in your wallet…");
+    const tid = toast.loading(t("operatorManage.xpnts.toastConfirmDeploy"));
     try {
       ensureSdkConfig();
       const factory = xPNTsFactoryActions(XPNTS_FACTORY_ADDRESS)(walletClient as never);
@@ -160,7 +162,7 @@ function XPNTsManager() {
         paymasterAOA: (paymasterAOA || "0x0000000000000000000000000000000000000000") as Address,
       });
       setDeployTx(hash);
-      toast.success("xPNTs token deployment submitted.", { id: tid });
+      toast.success(t("operatorManage.xpnts.toastDeploySubmitted"), { id: tid });
       // Re-read so the UI flips to the deployed view once mined.
       setTimeout(() => void load(), 4000);
     } catch (e) {
@@ -173,26 +175,28 @@ function XPNTsManager() {
   const handleMint = async () => {
     if (!walletClient || !token) return;
     if (!isAddress(mintTo)) {
-      toast.error("Invalid recipient address.");
+      toast.error(t("operatorManage.xpnts.errInvalidRecipient"));
       return;
     }
     if (!mintAmount || parseFloat(mintAmount) <= 0) {
-      toast.error("Enter a positive amount.");
+      toast.error(t("operatorManage.xpnts.errPositiveAmount"));
       return;
     }
     setMinting(true);
     setMintTx("");
-    const tid = toast.loading("Confirm mint in your wallet…");
+    const tid = toast.loading(t("operatorManage.xpnts.toastConfirmMint"));
     try {
       ensureSdkConfig();
-      const t = xPNTsTokenActions(token.address)(walletClient as never);
-      const hash = await t.mint({
+      const tokenWrite = xPNTsTokenActions(token.address)(walletClient as never);
+      const hash = await tokenWrite.mint({
         token: token.address,
         to: mintTo as Address,
         amount: parseEther(mintAmount),
       });
       setMintTx(hash);
-      toast.success(`Minted ${mintAmount} ${token.symbol}.`, { id: tid });
+      toast.success(t("operatorManage.xpnts.toastMinted", { amount: mintAmount, symbol: token.symbol }), {
+        id: tid,
+      });
       setMintTo("");
       setMintAmount("");
       setTimeout(() => void load(), 4000);
@@ -213,36 +217,36 @@ function XPNTsManager() {
 
       {!token ? (
         /* ── Not deployed → deploy form ─────────────────────────────────── */
-        <Section title="Deploy xPNTs Token">
+        <Section title={t("operatorManage.xpnts.deployTitle")}>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Your community has no xPNTs token yet. Deploy one to start issuing points.
+            {t("operatorManage.xpnts.deployPrompt")}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Token Name" value={name} onChange={setName} placeholder="My Community Points" />
-            <Field label="Symbol" value={symbol} onChange={setSymbol} placeholder="MCP" />
+            <Field label={t("operatorManage.xpnts.tokenName")} value={name} onChange={setName} placeholder={t("operatorManage.xpnts.tokenNamePlaceholder")} />
+            <Field label={t("operatorManage.xpnts.symbol")} value={symbol} onChange={setSymbol} placeholder={t("operatorManage.xpnts.symbolPlaceholder")} />
             <Field
-              label="Community Name"
+              label={t("operatorManage.xpnts.communityName")}
               value={communityName}
               onChange={setCommunityName}
-              placeholder="My Community"
+              placeholder={t("operatorManage.xpnts.communityNamePlaceholder")}
             />
             <Field
-              label="Community ENS (optional)"
+              label={t("operatorManage.xpnts.communityENS")}
               value={communityENS}
               onChange={setCommunityENS}
-              placeholder="mycommunity.eth"
+              placeholder={t("operatorManage.xpnts.communityENSPlaceholder")}
             />
             <Field
-              label="Exchange Rate (xPNTs per aPNTs)"
+              label={t("operatorManage.xpnts.exchangeRateField")}
               value={exchangeRate}
               onChange={setExchangeRate}
-              placeholder="1"
+              placeholder={t("operatorManage.xpnts.exchangeRatePlaceholder")}
             />
             <Field
-              label="AOA Paymaster (optional)"
+              label={t("operatorManage.xpnts.aoaPaymaster")}
               value={paymasterAOA}
               onChange={setPaymasterAOA}
-              placeholder="0x… (auto-approved spender)"
+              placeholder={t("operatorManage.xpnts.aoaPaymasterPlaceholder")}
               mono
             />
           </div>
@@ -256,7 +260,7 @@ function XPNTsManager() {
             ) : (
               <RocketLaunchIcon className="h-4 w-4" />
             )}
-            {deploying ? "Deploying…" : "Deploy Token"}
+            {deploying ? t("operatorManage.xpnts.deploying") : t("operatorManage.xpnts.deployToken")}
           </button>
           {deployTx && (
             <div className="mt-3">
@@ -268,26 +272,26 @@ function XPNTsManager() {
         /* ── Deployed → info + mint ─────────────────────────────────────── */
         <>
           <Section
-            title="xPNTs Token"
+            title={t("operatorManage.xpnts.tokenInfoTitle")}
             action={
               <button
                 onClick={() => void load()}
                 className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-emerald-600"
               >
-                <ArrowPathIcon className="h-4 w-4" /> Refresh
+                <ArrowPathIcon className="h-4 w-4" /> {t("operatorManage.shared.refresh")}
               </button>
             }
           >
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <MetricCard label="Name" value={token.name} mono />
-              <MetricCard label="Symbol" value={token.symbol} mono />
-              <MetricCard label="Exchange Rate" value={token.exchangeRate} unit="xPNTs / aPNTs" />
-              <MetricCard label="Community" value={token.communityName} mono />
-              <MetricCard label="Your Balance" value={token.balance} unit={token.symbol} />
-              <MetricCard label="Owner" value={shortAddr(token.communityOwner)} mono />
+              <MetricCard label={t("operatorManage.xpnts.name")} value={token.name} mono />
+              <MetricCard label={t("operatorManage.xpnts.symbolLabel")} value={token.symbol} mono />
+              <MetricCard label={t("operatorManage.xpnts.exchangeRate")} value={token.exchangeRate} unit={t("operatorManage.xpnts.exchangeRateUnit")} />
+              <MetricCard label={t("operatorManage.xpnts.community")} value={token.communityName} mono />
+              <MetricCard label={t("operatorManage.xpnts.yourBalance")} value={token.balance} unit={token.symbol} />
+              <MetricCard label={t("operatorManage.xpnts.owner")} value={shortAddr(token.communityOwner)} mono />
             </div>
             <p className="mt-3 text-xs text-gray-400 font-mono break-all">
-              Token:{" "}
+              {t("operatorManage.xpnts.tokenLabel")}{" "}
               <a
                 href={addrUrl(token.address)}
                 target="_blank"
@@ -299,17 +303,19 @@ function XPNTsManager() {
             </p>
           </Section>
 
-          <Section title="Mint Points">
+          <Section title={t("operatorManage.xpnts.mintTitle")}>
             {!isOwner && (
               <div className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-300">
-                Only the token owner ({shortAddr(token.communityOwner)}) can mint. Your wallet is{" "}
-                {shortAddr(operator)}.
+                {t("operatorManage.xpnts.onlyOwnerCanMint", {
+                  owner: shortAddr(token.communityOwner),
+                  wallet: shortAddr(operator),
+                })}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Recipient" value={mintTo} onChange={setMintTo} placeholder="0x…" mono />
+              <Field label={t("operatorManage.xpnts.recipient")} value={mintTo} onChange={setMintTo} placeholder="0x…" mono />
               <Field
-                label={`Amount (${token.symbol})`}
+                label={t("operatorManage.xpnts.amountWithSymbol", { symbol: token.symbol })}
                 value={mintAmount}
                 onChange={setMintAmount}
                 placeholder="100"
@@ -325,7 +331,7 @@ function XPNTsManager() {
               ) : (
                 <PaperAirplaneIcon className="h-4 w-4" />
               )}
-              {minting ? "Minting…" : "Mint"}
+              {minting ? t("operatorManage.xpnts.minting") : t("operatorManage.xpnts.mint")}
             </button>
             {mintTx && (
               <div className="mt-3">
@@ -365,6 +371,7 @@ function Field({ label, value, onChange, placeholder, mono }: FieldProps) {
 }
 
 export default function XPNTsPage() {
+  const { t } = useTranslation();
   return (
     <Layout requireAuth>
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -373,11 +380,11 @@ export default function XPNTsPage() {
             href="/operator/manage"
             className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-emerald-600"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> Manage
+            <ArrowLeftIcon className="h-4 w-4" /> {t("operatorManage.xpnts.breadcrumb")}
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <CurrencyDollarIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-            xPNTs Token
+            {t("operatorManage.xpnts.title")}
             <span className="text-sm font-normal text-gray-400">Flow 3</span>
           </h1>
         </div>

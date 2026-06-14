@@ -16,6 +16,7 @@
  * @module app/operator/manage/_components/shared
  */
 import { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowPathIcon, CheckBadgeIcon, XCircleIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { useWallet } from "@/contexts/WalletContext";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
@@ -157,6 +158,7 @@ export function TxLink({ hash }: TxLinkProps) {
  * Renders a Connect button (or a "no wallet" notice) otherwise.
  */
 export function ConnectGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const { address, isConnecting, hasInjectedWallet, connect } = useWallet();
 
   if (address) return <>{children}</>;
@@ -165,7 +167,7 @@ export function ConnectGate({ children }: { children: ReactNode }) {
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 text-center space-y-4">
       <WalletIcon className="h-10 w-10 mx-auto text-slate-400 dark:text-emerald-400" />
       <p className="text-sm text-gray-600 dark:text-gray-300">
-        Connect your operator wallet to manage on-chain resources.
+        {t("operatorManage.shared.connectPrompt")}
       </p>
       {hasInjectedWallet ? (
         <button
@@ -178,11 +180,11 @@ export function ConnectGate({ children }: { children: ReactNode }) {
           ) : (
             <WalletIcon className="h-4 w-4" />
           )}
-          {isConnecting ? "Connecting…" : "Connect Wallet"}
+          {isConnecting ? t("operatorManage.shared.connecting") : t("operatorManage.shared.connectWallet")}
         </button>
       ) : (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          No injected wallet found. Install MetaMask or a compatible wallet.
+          {t("operatorManage.shared.noWallet")}
         </p>
       )}
     </div>

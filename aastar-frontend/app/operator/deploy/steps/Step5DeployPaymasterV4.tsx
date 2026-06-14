@@ -11,6 +11,7 @@
  *
  * @module app/operator/deploy/steps/Step5DeployPaymasterV4
  */
+import { useTranslation } from "react-i18next";
 import { ServerStackIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { parseEther, type Address } from "viem";
 import { buildPaymasterOperatorClient } from "@/lib/sdk/operator";
@@ -27,6 +28,7 @@ export default function Step5DeployPaymasterV4({
   onBack,
   refreshResources,
 }: StepProps) {
+  const { t } = useTranslation();
   const already = !!data.resources?.hasAOAPaymaster;
   const tx = useTxStep();
   const paymaster = data.paymasterAddress;
@@ -39,15 +41,18 @@ export default function Step5DeployPaymasterV4({
         update({ paymasterAddress: result.paymasterAddress as Address });
         return result.registerHash;
       },
-      { loadingMsg: "Deploying & registering Paymaster V4…", successMsg: "Paymaster V4 deployed & registered" }
+      {
+        loadingMsg: t("operatorDeploy.tx.deployingPaymaster"),
+        successMsg: t("operatorDeploy.tx.paymasterDeployed"),
+      }
     );
     await refreshResources?.();
   };
 
   return (
     <StepCard
-      title="Deploy & register Paymaster V4"
-      description="Deploy your own AOA paymaster node and register ROLE_PAYMASTER_AOA."
+      title={t("operatorDeploy.step5Paymaster.title")}
+      description={t("operatorDeploy.step5Paymaster.description")}
       icon={<ServerStackIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -55,13 +60,15 @@ export default function Step5DeployPaymasterV4({
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {already || tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Continue</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.continue")}</WizardButton>
           ) : (
             <WizardButton onClick={deploy} loading={tx.isBusy}>
-              {tx.status === "error" ? "Retry" : "Deploy Paymaster"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step5Paymaster.deployPaymaster")}
             </WizardButton>
           )}
         </>
@@ -71,7 +78,7 @@ export default function Step5DeployPaymasterV4({
         <div className="space-y-1 text-sm text-emerald-600 dark:text-emerald-400">
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="h-5 w-5" />
-            AOA paymaster already deployed — skipping.
+            {t("operatorDeploy.step5Paymaster.alreadyDeployed")}
           </div>
           {paymaster && (
             <a href={explorerAddr(paymaster)} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline break-all">
@@ -81,8 +88,7 @@ export default function Step5DeployPaymasterV4({
         </div>
       ) : (
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          One-stop deploy: predicts the paymaster address, deploys the V4 proxy via the factory, and registers it
-          on the Registry with a 30 GT stake.
+          {t("operatorDeploy.step5Paymaster.explainer")}
         </p>
       )}
     </StepCard>

@@ -12,6 +12,7 @@
  * @module app/operator/deploy/steps/Step1ConnectSelect
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ServerStackIcon, BoltIcon, WalletIcon } from "@heroicons/react/24/outline";
 import { useWallet } from "@/contexts/WalletContext";
 import type { StakeMode, WizardData } from "./types";
@@ -26,40 +27,17 @@ interface Step1Props {
 
 interface ModeMeta {
   id: StakeMode;
-  title: string;
-  subtitle: string;
-  bullets: string[];
+  ns: string;
   icon: typeof ServerStackIcon;
 }
 
 const MODES: ModeMeta[] = [
-  {
-    id: "aoa",
-    title: "AOA — Self-hosted Paymaster",
-    subtitle: "Run your own Paymaster V4 node",
-    bullets: [
-      "Deploy & register a dedicated Paymaster V4",
-      "Stake 30 GT (+30 GT to register community)",
-      "Fund the paymaster on EntryPoint with ETH",
-      "Full control, you maintain the node",
-    ],
-    icon: ServerStackIcon,
-  },
-  {
-    id: "aoa+",
-    title: "AOA+ — Shared SuperPaymaster",
-    subtitle: "Use the protocol SuperPaymaster",
-    bullets: [
-      "No node to deploy or maintain",
-      "Stake 50 GT (+30 GT to register community)",
-      "Deposit aPNTs collateral (≥ 1000)",
-      "Lower entry barrier, protocol-managed",
-    ],
-    icon: BoltIcon,
-  },
+  { id: "aoa", ns: "operatorDeploy.step1.aoa", icon: ServerStackIcon },
+  { id: "aoa+", ns: "operatorDeploy.step1.aoaPlus", icon: BoltIcon },
 ];
 
 export default function Step1ConnectSelect({ data, update, onNext }: Step1Props) {
+  const { t } = useTranslation();
   const { address, isConnecting, hasInjectedWallet, connect } = useWallet();
   const [selected, setSelected] = useState<StakeMode | null>(data.mode);
 
@@ -71,8 +49,8 @@ export default function Step1ConnectSelect({ data, update, onNext }: Step1Props)
 
   return (
     <StepCard
-      title="Connect wallet & choose mode"
-      description="Operator transactions are signed in your own browser wallet on Sepolia."
+      title={t("operatorDeploy.step1.title")}
+      description={t("operatorDeploy.step1.description")}
       icon={<WalletIcon className="h-6 w-6" />}
       footer={
         <>
@@ -82,16 +60,18 @@ export default function Step1ConnectSelect({ data, update, onNext }: Step1Props)
                 {address.slice(0, 6)}…{address.slice(-4)}
               </span>
             ) : (
-              "Wallet not connected"
+              t("operatorDeploy.step1.walletNotConnected")
             )}
           </span>
           {address ? (
             <WizardButton onClick={handleContinue} disabled={!selected}>
-              Continue
+              {t("operatorDeploy.common.continue")}
             </WizardButton>
           ) : (
             <WizardButton onClick={connect} loading={isConnecting} disabled={!hasInjectedWallet}>
-              {hasInjectedWallet ? "Connect Wallet" : "No wallet found"}
+              {hasInjectedWallet
+                ? t("operatorDeploy.step1.connectWallet")
+                : t("operatorDeploy.step1.noWalletFound")}
             </WizardButton>
           )}
         </>
@@ -114,14 +94,14 @@ export default function Step1ConnectSelect({ data, update, onNext }: Step1Props)
             >
               <div className="flex items-center gap-2 mb-2">
                 <Icon className="h-5 w-5 text-slate-700 dark:text-emerald-400" />
-                <span className="font-semibold text-gray-900 dark:text-white">{m.title}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{t(`${m.ns}.title`)}</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{m.subtitle}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t(`${m.ns}.subtitle`)}</p>
               <ul className="space-y-1">
-                {m.bullets.map(b => (
-                  <li key={b} className="text-xs text-gray-600 dark:text-gray-300 flex gap-1.5">
+                {[1, 2, 3, 4].map(n => (
+                  <li key={n} className="text-xs text-gray-600 dark:text-gray-300 flex gap-1.5">
                     <span className="text-slate-400 dark:text-emerald-500">•</span>
-                    {b}
+                    {t(`${m.ns}.bullet${n}`)}
                   </li>
                 ))}
               </ul>

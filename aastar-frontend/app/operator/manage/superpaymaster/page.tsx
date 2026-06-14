@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { formatEther, parseEther } from "viem";
 import type { Address } from "viem";
 import toast from "react-hot-toast";
@@ -61,6 +62,7 @@ interface SPState {
 }
 
 function SuperPaymasterManager() {
+  const { t } = useTranslation();
   const { address, walletClient } = useWallet();
   const operator = address as Address;
 
@@ -110,13 +112,13 @@ function SuperPaymasterManager() {
   const handleDeposit = async () => {
     if (!walletClient) return;
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
-      toast.error("Enter a positive aPNTs amount.");
+      toast.error(t("operatorManage.super.errPositiveApnts"));
       return;
     }
     setDepositing(true);
     setLastTx("");
     const amount = parseEther(depositAmount);
-    const tid = toast.loading("Checking aPNTs allowance…");
+    const tid = toast.loading(t("operatorManage.super.toastCheckingAllowance"));
     try {
       ensureSdkConfig();
       const apntsRead = tokenActions(APNTS_ADDRESS)(reader());
@@ -126,7 +128,7 @@ function SuperPaymasterManager() {
         spender: SUPER_PAYMASTER_ADDRESS,
       });
       if (allowance < amount) {
-        toast.loading("Approve aPNTs in your wallet…", { id: tid });
+        toast.loading(t("operatorManage.super.toastApprove"), { id: tid });
         const apntsWrite = tokenActions(APNTS_ADDRESS)(walletClient as never);
         await apntsWrite.approve({
           token: APNTS_ADDRESS,
@@ -134,11 +136,11 @@ function SuperPaymasterManager() {
           amount,
         });
       }
-      toast.loading("Confirm deposit in your wallet…", { id: tid });
+      toast.loading(t("operatorManage.super.toastConfirmDeposit"), { id: tid });
       const sp = superPaymasterActions(SUPER_PAYMASTER_ADDRESS)(walletClient as never);
       const hash = await sp.deposit({ amount });
       setLastTx(hash);
-      toast.success(`Deposited ${depositAmount} aPNTs.`, { id: tid });
+      toast.success(t("operatorManage.super.toastDeposited", { amount: depositAmount }), { id: tid });
       setDepositAmount("");
       setTimeout(() => void load(), 4000);
     } catch (e) {
@@ -149,7 +151,7 @@ function SuperPaymasterManager() {
   };
 
   if (loading) return <Spinner />;
-  if (!state) return <ErrorBox message={loadError || "Failed to load operator account."} />;
+  if (!state) return <ErrorBox message={loadError || t("operatorManage.super.loadFailed")} />;
 
   const lowBalance = parseFloat(state.aPNTsBalance) < 100;
 
@@ -158,48 +160,55 @@ function SuperPaymasterManager() {
       <ErrorBox message={loadError} />
 
       <Section
-        title="SuperPaymaster Account"
+        title={t("operatorManage.super.accountTitle")}
         action={
           <div className="flex items-center gap-2">
-            <StatusBadge active={state.isConfigured} label={state.isConfigured ? "Configured" : "Not configured"} />
-            <StatusBadge active={!state.isPaused} label={state.isPaused ? "Paused" : "Active"} />
+            <StatusBadge
+              active={state.isConfigured}
+              label={state.isConfigured ? t("operatorManage.super.configured") : t("operatorManage.super.notConfigured")}
+            />
+            <StatusBadge
+              active={!state.isPaused}
+              label={state.isPaused ? t("operatorManage.super.paused") : t("operatorManage.super.active")}
+            />
             <button
               onClick={() => void load()}
               className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-emerald-600"
             >
-              <ArrowPathIcon className="h-4 w-4" /> Refresh
+              <ArrowPathIcon className="h-4 w-4" /> {t("operatorManage.shared.refresh")}
             </button>
           </div>
         }
       >
         {!state.isConfigured && (
           <div className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300">
-            This operator is not yet configured on the SuperPaymaster. Complete AOA+ registration
-            (deploy flow) first; this page manages the account once configured.
+            {t("operatorManage.super.notConfiguredNotice")}
           </div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <MetricCard
-            label="aPNTs Collateral"
+            label={t("operatorManage.super.apntsCollateral")}
             value={state.aPNTsBalance}
             unit="aPNTs"
-            sub={lowBalance ? "⚠ Low — top up" : undefined}
+            sub={lowBalance ? t("operatorManage.super.lowTopUp") : undefined}
           />
-          <MetricCard label="Exchange Rate" value={state.exchangeRate} unit="xPNTs / aPNTs" />
-          <MetricCard label="Reputation" value={state.reputation.toString()} />
-          <MetricCard label="Total Spent" value={state.totalSpent} unit="aPNTs" />
-          <MetricCard label="Tx Sponsored" value={state.totalTxSponsored} />
-          <MetricCard label="Treasury" value={shortAddr(state.treasury)} mono />
+          <MetricCard label={t("operatorManage.super.exchangeRate")} value={state.exchangeRate} unit={t("operatorManage.super.exchangeRateUnit")} />
+          <MetricCard label={t("operatorManage.super.reputation")} value={state.reputation.toString()} />
+          <MetricCard label={t("operatorManage.super.totalSpent")} value={state.totalSpent} unit="aPNTs" />
+          <MetricCard label={t("operatorManage.super.txSponsored")} value={state.totalTxSponsored} />
+          <MetricCard label={t("operatorManage.super.treasury")} value={shortAddr(state.treasury)} mono />
         </div>
         <p className="mt-3 text-xs text-gray-400 font-mono break-all">
-          xPNTs token: {shortAddr(state.xPNTsToken)} · Wallet aPNTs: {state.walletAPNTs}
+          {t("operatorManage.super.tokenAndWallet", {
+            token: shortAddr(state.xPNTsToken),
+            wallet: state.walletAPNTs,
+          })}
         </p>
       </Section>
 
-      <Section title="Top up aPNTs Collateral">
+      <Section title={t("operatorManage.super.topUpTitle")}>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-          Approve (if needed) and deposit aPNTs collateral so the SuperPaymaster can keep sponsoring
-          your community&apos;s gas. Wallet balance: {state.walletAPNTs} aPNTs.
+          {t("operatorManage.super.topUpPrompt", { balance: state.walletAPNTs })}
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <input
@@ -219,7 +228,7 @@ function SuperPaymasterManager() {
             ) : (
               <PlusCircleIcon className="h-4 w-4" />
             )}
-            {depositing ? "Depositing…" : "Deposit aPNTs"}
+            {depositing ? t("operatorManage.super.depositing") : t("operatorManage.super.depositApnts")}
           </button>
         </div>
         {lastTx && (
@@ -233,6 +242,7 @@ function SuperPaymasterManager() {
 }
 
 export default function SuperPaymasterPage() {
+  const { t } = useTranslation();
   return (
     <Layout requireAuth>
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -241,11 +251,11 @@ export default function SuperPaymasterPage() {
             href="/operator/manage"
             className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-emerald-600"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> Manage
+            <ArrowLeftIcon className="h-4 w-4" /> {t("operatorManage.super.breadcrumb")}
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <ServerStackIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-            AOA+ SuperPaymaster
+            {t("operatorManage.super.title")}
             <span className="text-sm font-normal text-gray-400">Flow 7</span>
           </h1>
         </div>

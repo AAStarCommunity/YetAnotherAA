@@ -5,6 +5,7 @@
  *
  * @module app/operator/deploy/steps/StepComplete
  */
+import { useTranslation } from "react-i18next";
 import { CheckBadgeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
 import type { WizardData } from "./types";
 import StepCard, { explorerAddr } from "../components/StepCard";
@@ -35,28 +36,31 @@ function AddrRow({ label, addr }: { label: string; addr?: string }) {
 }
 
 export default function StepComplete({ data, onDone, onRestart }: StepCompleteProps) {
+  const { t } = useTranslation();
   return (
     <StepCard
-      title="Onboarding complete"
-      description={`Your ${data.mode?.toUpperCase()} operator setup is live on Sepolia.`}
+      title={t("operatorDeploy.complete.title")}
+      description={t("operatorDeploy.complete.description", { mode: data.mode?.toUpperCase() })}
       icon={<CheckBadgeIcon className="h-6 w-6" />}
       footer={
         <>
           <WizardButton variant="secondary" onClick={onRestart}>
-            Start over
+            {t("operatorDeploy.complete.startOver")}
           </WizardButton>
-          <WizardButton onClick={onDone}>Go to Operator Portal</WizardButton>
+          <WizardButton onClick={onDone}>{t("operatorDeploy.complete.goToPortal")}</WizardButton>
         </>
       }
     >
       <div className="rounded-xl bg-gray-50 dark:bg-gray-900 p-4">
-        <AddrRow label="xPNTs token" addr={data.xPNTsAddress} />
-        {data.mode === "aoa" && <AddrRow label="Paymaster V4" addr={data.paymasterAddress} />}
+        <AddrRow label={t("operatorDeploy.complete.xpntsToken")} addr={data.xPNTsAddress} />
+        {data.mode === "aoa" && (
+          <AddrRow label={t("operatorDeploy.complete.paymasterV4")} addr={data.paymasterAddress} />
+        )}
       </div>
       <p className="text-sm text-gray-600 dark:text-gray-300">
         {data.mode === "aoa"
-          ? "Your paymaster is funded on the EntryPoint and ready to sponsor gas."
-          : "Your SuperPaymaster collateral is funded and your operator is configured."}
+          ? t("operatorDeploy.complete.aoaSummary")
+          : t("operatorDeploy.complete.aoaPlusSummary")}
       </p>
     </StepCard>
   );

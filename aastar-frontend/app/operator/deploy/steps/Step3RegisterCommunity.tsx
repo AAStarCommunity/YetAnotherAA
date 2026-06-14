@@ -12,6 +12,7 @@
  *
  * @module app/operator/deploy/steps/Step3RegisterCommunity
  */
+import { useTranslation } from "react-i18next";
 import { UserPlusIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import {
   registryActions,
@@ -35,6 +36,7 @@ export default function Step3RegisterCommunity({
   onBack,
   refreshResources,
 }: StepProps) {
+  const { t } = useTranslation();
   const already = !!data.resources?.isCommunityRegistered;
   const tx = useTxStep();
 
@@ -75,15 +77,18 @@ export default function Step3RegisterCommunity({
           data: "0x",
         });
       },
-      { loadingMsg: "Registering community…", successMsg: "Community registered" }
+      {
+        loadingMsg: t("operatorDeploy.tx.registeringCommunity"),
+        successMsg: t("operatorDeploy.tx.communityRegistered"),
+      }
     );
     await refreshResources?.();
   };
 
   return (
     <StepCard
-      title="Register community"
-      description="Stake GToken and register ROLE_COMMUNITY on the Registry."
+      title={t("operatorDeploy.step3.title")}
+      description={t("operatorDeploy.step3.description")}
       icon={<UserPlusIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -91,13 +96,15 @@ export default function Step3RegisterCommunity({
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {already || tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Continue</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.continue")}</WizardButton>
           ) : (
             <WizardButton onClick={register} loading={tx.isBusy}>
-              {tx.status === "error" ? "Retry" : "Register Community"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step3.registerCommunity")}
             </WizardButton>
           )}
         </>
@@ -106,13 +113,13 @@ export default function Step3RegisterCommunity({
       {already ? (
         <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <CheckCircleIcon className="h-5 w-5" />
-          This wallet already holds ROLE_COMMUNITY — skipping.
+          {t("operatorDeploy.step3.alreadyHolds")}
         </div>
       ) : (
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Approves GToken to GTokenStaking (only if needed) then calls{" "}
-          <code className="px-1 rounded bg-gray-100 dark:bg-gray-700 text-xs">registerRole(ROLE_COMMUNITY)</code>.
-          Stake amount is read from the role config on-chain.
+          {t("operatorDeploy.step3.explainerPrefix")}{" "}
+          <code className="px-1 rounded bg-gray-100 dark:bg-gray-700 text-xs">registerRole(ROLE_COMMUNITY)</code>
+          {t("operatorDeploy.step3.explainerSuffix")}
         </p>
       )}
     </StepCard>

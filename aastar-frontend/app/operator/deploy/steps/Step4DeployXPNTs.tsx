@@ -13,6 +13,7 @@
  * @module app/operator/deploy/steps/Step4DeployXPNTs
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CurrencyDollarIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { parseEther, zeroAddress, type Address } from "viem";
 import { xPNTsFactoryActions, XPNTS_FACTORY_ADDRESS } from "@aastar/core";
@@ -32,6 +33,7 @@ export default function Step4DeployXPNTs({
   onBack,
   refreshResources,
 }: StepProps) {
+  const { t } = useTranslation();
   const already = !!data.resources?.hasXPNTs;
   const existing = data.xPNTsAddress;
   const tx = useTxStep();
@@ -65,7 +67,10 @@ export default function Step4DeployXPNTs({
           paymasterAOA: zeroAddress,
         });
       },
-      { loadingMsg: "Deploying xPNTs token…", successMsg: "xPNTs token deployed" }
+      {
+        loadingMsg: t("operatorDeploy.tx.deployingXpnts"),
+        successMsg: t("operatorDeploy.tx.xpntsDeployed"),
+      }
     );
     if (hash) {
       ensureSdkConfig();
@@ -83,8 +88,8 @@ export default function Step4DeployXPNTs({
 
   return (
     <StepCard
-      title="Deploy xPNTs token"
-      description="Your community's gas token, deployed through the protocol factory."
+      title={t("operatorDeploy.step4.title")}
+      description={t("operatorDeploy.step4.description")}
       icon={<CurrencyDollarIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -92,13 +97,15 @@ export default function Step4DeployXPNTs({
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {already || tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Continue</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.continue")}</WizardButton>
           ) : (
             <WizardButton onClick={deploy} loading={tx.isBusy} disabled={!valid}>
-              {tx.status === "error" ? "Retry" : "Deploy Token"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step4.deployToken")}
             </WizardButton>
           )}
         </>
@@ -108,7 +115,7 @@ export default function Step4DeployXPNTs({
         <div className="space-y-1 text-sm text-emerald-600 dark:text-emerald-400">
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="h-5 w-5" />
-            xPNTs token already deployed — skipping.
+            {t("operatorDeploy.step4.alreadyDeployed")}
           </div>
           {existing && (
             <a
@@ -123,11 +130,11 @@ export default function Step4DeployXPNTs({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Token Name" value={local.name} onChange={v => setLocal(s => ({ ...s, name: v }))} placeholder="My Community Points" />
-          <FormField label="Token Symbol" value={local.symbol} onChange={v => setLocal(s => ({ ...s, symbol: v.toUpperCase() }))} placeholder="MCP" />
-          <FormField label="Community Name" value={local.communityName} onChange={v => setLocal(s => ({ ...s, communityName: v }))} placeholder="My Community" />
-          <FormField label="Community ENS (optional)" value={local.communityENS} onChange={v => setLocal(s => ({ ...s, communityENS: v }))} placeholder="mycommunity.aastar.eth" mono />
-          <FormField label="Exchange Rate (1 aPNTs = ? xPNTs)" type="number" value={local.rate} onChange={v => setLocal(s => ({ ...s, rate: v }))} hint="Default 1:1" />
+          <FormField label={t("operatorDeploy.step4.tokenName")} value={local.name} onChange={v => setLocal(s => ({ ...s, name: v }))} placeholder={t("operatorDeploy.step4.tokenNamePlaceholder")} />
+          <FormField label={t("operatorDeploy.step4.tokenSymbol")} value={local.symbol} onChange={v => setLocal(s => ({ ...s, symbol: v.toUpperCase() }))} placeholder={t("operatorDeploy.step4.tokenSymbolPlaceholder")} />
+          <FormField label={t("operatorDeploy.step4.communityName")} value={local.communityName} onChange={v => setLocal(s => ({ ...s, communityName: v }))} placeholder={t("operatorDeploy.step4.communityNamePlaceholder")} />
+          <FormField label={t("operatorDeploy.step4.communityENS")} value={local.communityENS} onChange={v => setLocal(s => ({ ...s, communityENS: v }))} placeholder={t("operatorDeploy.step4.communityENSPlaceholder")} mono />
+          <FormField label={t("operatorDeploy.step4.exchangeRate")} type="number" value={local.rate} onChange={v => setLocal(s => ({ ...s, rate: v }))} hint={t("operatorDeploy.step4.exchangeRateHint")} />
         </div>
       )}
     </StepCard>

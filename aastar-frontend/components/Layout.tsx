@@ -6,6 +6,7 @@ import { clearStoredAuth, getStoredAuth } from "@/lib/auth";
 import { User } from "@/lib/types";
 import { useTheme } from "@/lib/theme";
 import ServiceStatus from "@/components/ServiceStatus";
+import LanguageSwitcher from "@/lib/i18n/LanguageSwitcher";
 import {
   SunIcon,
   MoonIcon,
@@ -224,6 +225,8 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                     </>
                   )}
                 </div>
+                {/* Language Switcher */}
+                <LanguageSwitcher />
                 {/* Theme Toggle Button */}
                 <button
                   onClick={toggleTheme}
@@ -420,6 +423,12 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                 </div>
                 <ChevronRightIcon className="w-5 h-5" />
               </button>
+
+              {/* Language Switcher */}
+              <div className="flex items-center justify-between w-full px-4 py-3 text-base font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 rounded-lg">
+                <span>Language</span>
+                <LanguageSwitcher />
+              </div>
 
               {/* Theme Toggle */}
               <button

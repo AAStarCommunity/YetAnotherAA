@@ -8,6 +8,7 @@
  * @module app/operator/deploy/steps/Step7DepositAPNTs
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
 import { parseEther } from "viem";
 import { buildPaymasterOperatorClient } from "@/lib/sdk/operator";
@@ -18,6 +19,7 @@ import WizardButton from "../components/WizardButton";
 import FormField from "../components/FormField";
 
 export default function Step7DepositAPNTs({ walletClient, data, update, onNext, onBack, refreshResources }: StepProps) {
+  const { t } = useTranslation();
   const tx = useTxStep();
   const [amount, setAmount] = useState(data.aPNTsDeposit);
   const valid = parseFloat(amount || "0") > 0;
@@ -29,15 +31,18 @@ export default function Step7DepositAPNTs({ walletClient, data, update, onNext, 
         const client = buildPaymasterOperatorClient(walletClient);
         return client.depositCollateral(parseEther(amount || "0"));
       },
-      { loadingMsg: "Depositing aPNTs collateral…", successMsg: "aPNTs collateral deposited" }
+      {
+        loadingMsg: t("operatorDeploy.tx.depositingApnts"),
+        successMsg: t("operatorDeploy.tx.apntsDeposited"),
+      }
     );
     if (hash) await refreshResources?.();
   };
 
   return (
     <StepCard
-      title="Deposit aPNTs collateral"
-      description="Fund your SuperPaymaster balance so you can sponsor user operations."
+      title={t("operatorDeploy.step7Apnts.title")}
+      description={t("operatorDeploy.step7Apnts.description")}
       icon={<BanknotesIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -45,19 +50,21 @@ export default function Step7DepositAPNTs({ walletClient, data, update, onNext, 
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Finish</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.finish")}</WizardButton>
           ) : (
             <WizardButton onClick={deposit} loading={tx.isBusy} disabled={!valid}>
-              {tx.status === "error" ? "Retry" : "Deposit aPNTs"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step7Apnts.depositApnts")}
             </WizardButton>
           )}
         </>
       }
     >
-      <FormField label="Deposit amount (aPNTs)" type="number" value={amount} onChange={setAmount} hint="Minimum 1000 aPNTs" />
+      <FormField label={t("operatorDeploy.step7Apnts.depositAmount")} type="number" value={amount} onChange={setAmount} hint={t("operatorDeploy.step7Apnts.depositHint")} />
     </StepCard>
   );
 }

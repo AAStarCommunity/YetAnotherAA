@@ -8,6 +8,7 @@
  * @module app/operator/deploy/steps/Step6EntryPointDeposit
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
 import { parseEther } from "viem";
 import { entryPointActions, ENTRY_POINT_ADDRESS } from "@aastar/core";
@@ -19,6 +20,7 @@ import WizardButton from "../components/WizardButton";
 import FormField from "../components/FormField";
 
 export default function Step6EntryPointDeposit({ data, walletClient, update, onNext, onBack }: StepProps) {
+  const { t } = useTranslation();
   const paymaster = data.paymasterAddress;
   const tx = useTxStep();
   const [eth, setEth] = useState(data.ethDeposit);
@@ -34,14 +36,17 @@ export default function Step6EntryPointDeposit({ data, walletClient, update, onN
           amount: parseEther(eth || "0"),
         });
       },
-      { loadingMsg: "Depositing to EntryPoint…", successMsg: "Paymaster funded on EntryPoint" }
+      {
+        loadingMsg: t("operatorDeploy.tx.depositingEntrypoint"),
+        successMsg: t("operatorDeploy.tx.entrypointFunded"),
+      }
     );
   };
 
   return (
     <StepCard
-      title="Fund paymaster on EntryPoint"
-      description="Deposit ETH so your paymaster can sponsor user operations."
+      title={t("operatorDeploy.step6Entrypoint.title")}
+      description={t("operatorDeploy.step6Entrypoint.description")}
       icon={<BanknotesIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -49,13 +54,15 @@ export default function Step6EntryPointDeposit({ data, walletClient, update, onN
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Finish</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.finish")}</WizardButton>
           ) : (
             <WizardButton onClick={deposit} loading={tx.isBusy} disabled={!valid}>
-              {tx.status === "error" ? "Retry" : "Deposit ETH"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step6Entrypoint.depositEth")}
             </WizardButton>
           )}
         </>
@@ -63,14 +70,14 @@ export default function Step6EntryPointDeposit({ data, walletClient, update, onN
     >
       {!paymaster ? (
         <p className="text-sm text-amber-600 dark:text-amber-400">
-          No paymaster address available. Complete the deploy step first.
+          {t("operatorDeploy.step6Entrypoint.noPaymaster")}
         </p>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Paymaster: <span className="font-mono">{paymaster}</span>
+            {t("operatorDeploy.step6Entrypoint.paymaster")} <span className="font-mono">{paymaster}</span>
           </p>
-          <FormField label="Deposit amount (ETH)" type="number" value={eth} onChange={setEth} hint="Recommended ≥ 0.05 ETH" />
+          <FormField label={t("operatorDeploy.step6Entrypoint.depositAmount")} type="number" value={eth} onChange={setEth} hint={t("operatorDeploy.step6Entrypoint.depositHint")} />
         </div>
       )}
     </StepCard>

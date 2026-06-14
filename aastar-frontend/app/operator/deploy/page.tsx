@@ -17,6 +17,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { RocketLaunchIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import Layout from "@/components/Layout";
 import { useWallet } from "@/contexts/WalletContext";
@@ -37,20 +38,21 @@ import Step6ConfigureOperator from "./steps/Step6ConfigureOperator";
 import Step7DepositAPNTs from "./steps/Step7DepositAPNTs";
 import StepComplete from "./steps/StepComplete";
 
-const LABELS: Record<string, string> = {
-  connect: "Connect",
-  resources: "Resources",
-  community: "Community",
-  xpnts: "xPNTs",
-  paymaster: "Paymaster",
-  entrypoint: "EntryPoint",
-  "register-super": "SuperPaymaster",
-  configure: "Configure",
-  "deposit-apnts": "aPNTs",
-  done: "Done",
+const LABEL_KEYS: Record<string, string> = {
+  connect: "operatorDeploy.labels.connect",
+  resources: "operatorDeploy.labels.resources",
+  community: "operatorDeploy.labels.community",
+  xpnts: "operatorDeploy.labels.xpnts",
+  paymaster: "operatorDeploy.labels.paymaster",
+  entrypoint: "operatorDeploy.labels.entrypoint",
+  "register-super": "operatorDeploy.labels.registerSuper",
+  configure: "operatorDeploy.labels.configure",
+  "deposit-apnts": "operatorDeploy.labels.depositApnts",
+  done: "operatorDeploy.labels.done",
 };
 
 export default function OperatorDeployPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { address, walletClient } = useWallet();
   const [step, setStep] = useState(0);
@@ -106,12 +108,12 @@ export default function OperatorDeployPage() {
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <ExclamationTriangleIcon className="h-6 w-6" />
-            <span className="font-semibold">Wallet disconnected</span>
+            <span className="font-semibold">{t("operatorDeploy.page.walletDisconnected")}</span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            Reconnect your wallet to continue onboarding.
+            {t("operatorDeploy.page.reconnectPrompt")}
           </p>
-          <WizardButton onClick={restart}>Back to start</WizardButton>
+          <WizardButton onClick={restart}>{t("operatorDeploy.page.backToStart")}</WizardButton>
         </section>
       );
     }
@@ -145,14 +147,14 @@ export default function OperatorDeployPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <RocketLaunchIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-            Operator Onboarding
+            {t("operatorDeploy.page.title")}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Become a gas sponsor on the AAStar network — choose self-hosted (AOA) or shared (AOA+).
+            {t("operatorDeploy.page.subtitle")}
           </p>
         </div>
 
-        <WizardProgress labels={stepKeys.map(k => LABELS[k])} current={step} />
+        <WizardProgress labels={stepKeys.map(k => t(LABEL_KEYS[k]))} current={step} />
 
         {renderStep()}
       </div>

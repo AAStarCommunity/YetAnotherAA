@@ -12,6 +12,7 @@
  *
  * @module app/operator/deploy/steps/Step5RegisterSuper
  */
+import { useTranslation } from "react-i18next";
 import { BoltIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { parseEther } from "viem";
 import { buildPaymasterOperatorClient } from "@/lib/sdk/operator";
@@ -21,6 +22,7 @@ import StepCard from "../components/StepCard";
 import WizardButton from "../components/WizardButton";
 
 export default function Step5RegisterSuper({ walletClient, data, onNext, onBack, refreshResources }: StepProps) {
+  const { t } = useTranslation();
   const already = !!data.resources?.hasSuperPaymasterRegistered;
   const tx = useTxStep();
 
@@ -30,15 +32,18 @@ export default function Step5RegisterSuper({ walletClient, data, onNext, onBack,
         const client = buildPaymasterOperatorClient(walletClient);
         return client.registerAsSuperPaymasterOperator({ stakeAmount: parseEther("50") });
       },
-      { loadingMsg: "Registering on SuperPaymaster…", successMsg: "Registered as SuperPaymaster operator" }
+      {
+        loadingMsg: t("operatorDeploy.tx.registeringSuper"),
+        successMsg: t("operatorDeploy.tx.superRegistered"),
+      }
     );
     await refreshResources?.();
   };
 
   return (
     <StepCard
-      title="Register on SuperPaymaster"
-      description="Stake 50 GT and register ROLE_PAYMASTER_SUPER on the shared SuperPaymaster."
+      title={t("operatorDeploy.step5Super.title")}
+      description={t("operatorDeploy.step5Super.description")}
       icon={<BoltIcon className="h-6 w-6" />}
       status={tx.status}
       txHash={tx.txHash}
@@ -46,13 +51,15 @@ export default function Step5RegisterSuper({ walletClient, data, onNext, onBack,
       footer={
         <>
           <WizardButton variant="secondary" onClick={onBack} disabled={tx.isBusy}>
-            Back
+            {t("operatorDeploy.common.back")}
           </WizardButton>
           {already || tx.status === "success" ? (
-            <WizardButton onClick={onNext}>Continue</WizardButton>
+            <WizardButton onClick={onNext}>{t("operatorDeploy.common.continue")}</WizardButton>
           ) : (
             <WizardButton onClick={register} loading={tx.isBusy}>
-              {tx.status === "error" ? "Retry" : "Register Operator"}
+              {tx.status === "error"
+                ? t("operatorDeploy.common.retry")
+                : t("operatorDeploy.step5Super.registerOperator")}
             </WizardButton>
           )}
         </>
@@ -61,12 +68,11 @@ export default function Step5RegisterSuper({ walletClient, data, onNext, onBack,
       {already ? (
         <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <CheckCircleIcon className="h-5 w-5" />
-          Already registered on SuperPaymaster — skipping.
+          {t("operatorDeploy.step5Super.alreadyRegistered")}
         </div>
       ) : (
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          One-stop API: verifies ROLE_COMMUNITY, approves GToken to GTokenStaking, and registers
-          ROLE_PAYMASTER_SUPER with the 50 GT stake.
+          {t("operatorDeploy.step5Super.explainer")}
         </p>
       )}
     </StepCard>

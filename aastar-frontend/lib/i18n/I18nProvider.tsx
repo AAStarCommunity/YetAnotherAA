@@ -23,10 +23,28 @@
  * i18next instance is initialized only on the client to avoid hydration drift.
  */
 
+import { useEffect } from "react";
 import { I18nextProvider } from "react-i18next";
 
 import i18n from "./config";
 
 export default function I18nProvider({ children }: { children: React.ReactNode }) {
+  // Keep <html lang> in sync with the active i18next language. The root
+  // app/layout.tsx renders <html lang="en"> for SSR; here we update it on the
+  // client once i18next resolves the stored/detected language, and on every
+  // languageChanged event thereafter.
+  useEffect(() => {
+    const syncHtmlLang = (lng: string) => {
+      document.documentElement.lang = lng?.startsWith("zh") ? "zh" : "en";
+    };
+
+    syncHtmlLang(i18n.resolvedLanguage || i18n.language);
+    i18n.on("languageChanged", syncHtmlLang);
+
+    return () => {
+      i18n.off("languageChanged", syncHtmlLang);
+    };
+  }, []);
+
   return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>;
 }

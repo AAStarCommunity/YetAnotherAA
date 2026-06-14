@@ -9,6 +9,7 @@
  * All transactions are signed by the operator's own injected EOA via WalletContext.
  */
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   Cog6ToothIcon,
   CurrencyDollarIcon,
@@ -50,6 +51,7 @@ function FlowCard({ href, title, description, flow, icon }: FlowCardProps) {
 }
 
 export default function OperatorManagePage() {
+  const { t } = useTranslation();
   const { address } = useWallet();
 
   return (
@@ -58,14 +60,14 @@ export default function OperatorManagePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Cog6ToothIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-            Operator Management
+            {t("operatorManage.hub.title")}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage your community xPNTs token and run day-to-day paymaster operations.
+            {t("operatorManage.hub.subtitle")}
           </p>
           {address && (
             <p className="mt-2 text-xs text-gray-400">
-              Operator:{" "}
+              {t("operatorManage.hub.operator")}{" "}
               <a
                 href={addrUrl(address)}
                 target="_blank"
@@ -82,22 +84,22 @@ export default function OperatorManagePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <FlowCard
               href="/operator/manage/xpnts"
-              title="xPNTs Token"
-              description="Deploy your community points token or mint points to users."
+              title={t("operatorManage.hub.xpntsTitle")}
+              description={t("operatorManage.hub.xpntsDescription")}
               flow="Flow 3"
               icon={<CurrencyDollarIcon className="h-6 w-6" />}
             />
             <FlowCard
               href="/operator/manage/paymaster"
-              title="AOA Paymaster"
-              description="PaymasterV4 status, EntryPoint top-up and configuration."
+              title={t("operatorManage.hub.paymasterTitle")}
+              description={t("operatorManage.hub.paymasterDescription")}
               flow="Flow 6"
               icon={<CreditCardIcon className="h-6 w-6" />}
             />
             <FlowCard
               href="/operator/manage/superpaymaster"
-              title="AOA+ SuperPaymaster"
-              description="Shared SuperPaymaster operator account and aPNTs collateral."
+              title={t("operatorManage.hub.superTitle")}
+              description={t("operatorManage.hub.superDescription")}
               flow="Flow 7"
               icon={<ServerStackIcon className="h-6 w-6" />}
             />
