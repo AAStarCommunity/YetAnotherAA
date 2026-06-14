@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import Layout from "@/components/Layout";
 import { registryAPI } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -74,6 +75,7 @@ function truncate(addr: string) {
 
 export default function RolePage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [roleInfo, setRoleInfo] = useState<RoleInfo | null>(null);
   const [registryInfo, setRegistryInfo] = useState<RegistryInfo | null>(null);
   const [queryAddress, setQueryAddress] = useState("");
@@ -94,7 +96,7 @@ export default function RolePage() {
       if (roleRes) setRoleInfo(roleRes.data);
       setRegistryInfo(infoRes.data);
     } catch {
-      toast.error("Failed to load registry data");
+      toast.error(t("rolePage.loadError"));
     } finally {
       setLoading(false);
     }
@@ -107,7 +109,7 @@ export default function RolePage() {
       const res = await registryAPI.getRole(queryAddress);
       setRoleInfo(res.data);
     } catch {
-      toast.error("Failed to query role for address");
+      toast.error(t("rolePage.queryError"));
     } finally {
       setQuerying(false);
     }
@@ -120,9 +122,11 @@ export default function RolePage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Role Portal</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t("rolePage.title")}
+          </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            View your role in the AAStar ecosystem and navigate to role-specific dashboards
+            {t("rolePage.subtitle")}
           </p>
         </div>
 
@@ -132,15 +136,15 @@ export default function RolePage() {
             <div className="flex items-center gap-2 mb-4">
               <InformationCircleIcon className="h-5 w-5 text-blue-500" />
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Registry Overview (Sepolia)
+                {t("rolePage.registryOverview")}
               </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: "Community Admins", value: registryInfo.roleCounts.communityAdmin },
-                { label: "SPO Operators", value: registryInfo.roleCounts.spo },
-                { label: "V4 Operators", value: registryInfo.roleCounts.v4Operator },
-                { label: "End Users", value: registryInfo.roleCounts.endUser },
+                { label: t("rolePage.communityAdmins"), value: registryInfo.roleCounts.communityAdmin },
+                { label: t("rolePage.spoOperators"), value: registryInfo.roleCounts.spo },
+                { label: t("rolePage.v4Operators"), value: registryInfo.roleCounts.v4Operator },
+                { label: t("rolePage.endUsers"), value: registryInfo.roleCounts.endUser },
               ].map(item => (
                 <div key={item.label} className="text-center">
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -151,7 +155,7 @@ export default function RolePage() {
               ))}
             </div>
             <div className="mt-3 text-xs text-gray-400 font-mono">
-              Registry: {truncate(registryInfo.registryAddress)}
+              {t("rolePage.registryLabel", { address: truncate(registryInfo.registryAddress) })}
             </div>
           </div>
         )}
@@ -159,12 +163,12 @@ export default function RolePage() {
         {/* Address Query */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            Query Role for Address
+            {t("rolePage.queryTitle")}
           </h2>
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="0x... (defaults to your wallet)"
+              placeholder={t("rolePage.queryPlaceholder")}
               value={queryAddress}
               onChange={e => setQueryAddress(e.target.value)}
               className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -174,19 +178,19 @@ export default function RolePage() {
               disabled={querying}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm rounded-lg disabled:opacity-50"
             >
-              {querying ? "..." : "Query"}
+              {querying ? t("rolePage.querying") : t("rolePage.query")}
             </button>
           </div>
         </div>
 
         {/* Current Role Info */}
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Loading...</div>
+          <div className="text-center py-10 text-gray-500">{t("common.loading")}</div>
         ) : roleInfo ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Role Status for {truncate(roleInfo.address)}
+                {t("rolePage.roleStatusFor", { address: truncate(roleInfo.address) })}
               </h2>
               <span className="text-xs text-gray-500">
                 {formatGToken(roleInfo.gtokenBalance)} GT
@@ -194,11 +198,11 @@ export default function RolePage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-5">
-              <RoleBadge label="Protocol Admin" active={roleInfo.isAdmin} color="purple" />
-              <RoleBadge label="Community Admin" active={roleInfo.isCommunityAdmin} color="green" />
-              <RoleBadge label="SPO Operator" active={roleInfo.isSPO} color="orange" />
-              <RoleBadge label="V4 Operator" active={roleInfo.isV4Operator} color="blue" />
-              <RoleBadge label="End User" active={roleInfo.isEndUser} color="gray" />
+              <RoleBadge label={t("rolePage.badge.protocolAdmin")} active={roleInfo.isAdmin} color="purple" />
+              <RoleBadge label={t("rolePage.badge.communityAdmin")} active={roleInfo.isCommunityAdmin} color="green" />
+              <RoleBadge label={t("rolePage.badge.spoOperator")} active={roleInfo.isSPO} color="orange" />
+              <RoleBadge label={t("rolePage.badge.v4Operator")} active={roleInfo.isV4Operator} color="blue" />
+              <RoleBadge label={t("rolePage.badge.endUser")} active={roleInfo.isEndUser} color="gray" />
             </div>
 
             {/* Navigation Cards */}
@@ -211,10 +215,10 @@ export default function RolePage() {
                   <UserGroupIcon className="h-8 w-8 text-green-600 dark:text-green-400 shrink-0" />
                   <div>
                     <div className="font-medium text-green-900 dark:text-green-200">
-                      Community Admin
+                      {t("rolePage.nav.communityAdminTitle")}
                     </div>
                     <div className="text-xs text-green-600 dark:text-green-400">
-                      Deploy xPNTs, manage community
+                      {t("rolePage.nav.communityAdminDesc")}
                     </div>
                   </div>
                 </button>
@@ -228,10 +232,10 @@ export default function RolePage() {
                   <CpuChipIcon className="h-8 w-8 text-blue-600 dark:text-blue-400 shrink-0" />
                   <div>
                     <div className="font-medium text-blue-900 dark:text-blue-200">
-                      Paymaster Operator
+                      {t("rolePage.nav.operatorTitle")}
                     </div>
                     <div className="text-xs text-blue-600 dark:text-blue-400">
-                      Configure SPO / V4 paymaster
+                      {t("rolePage.nav.operatorDesc")}
                     </div>
                   </div>
                 </button>
@@ -245,10 +249,10 @@ export default function RolePage() {
                   <ShieldCheckIcon className="h-8 w-8 text-purple-600 dark:text-purple-400 shrink-0" />
                   <div>
                     <div className="font-medium text-purple-900 dark:text-purple-200">
-                      Protocol Admin
+                      {t("rolePage.nav.adminTitle")}
                     </div>
                     <div className="text-xs text-purple-600 dark:text-purple-400">
-                      Manage roles, configure protocol
+                      {t("rolePage.nav.adminDesc")}
                     </div>
                   </div>
                 </button>
@@ -261,9 +265,11 @@ export default function RolePage() {
                 >
                   <KeyIcon className="h-8 w-8 text-gray-600 dark:text-gray-400 shrink-0" />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-200">End User</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-200">
+                      {t("rolePage.nav.endUserTitle")}
+                    </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
-                      Wallet, transfers, gasless TX
+                      {t("rolePage.nav.endUserDesc")}
                     </div>
                   </div>
                 </button>
@@ -272,8 +278,8 @@ export default function RolePage() {
               {!roleInfo.isAdmin && !roleInfo.isCommunityAdmin && !roleInfo.isSPO && !roleInfo.isV4Operator && !roleInfo.isEndUser && (
                 <div className="col-span-full text-center py-6 text-gray-500 dark:text-gray-400">
                   <ShieldCheckIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No roles found for this address</p>
-                  <p className="text-xs mt-1">Purchase GToken to register a role</p>
+                  <p className="text-sm">{t("rolePage.noRolesTitle")}</p>
+                  <p className="text-xs mt-1">{t("rolePage.noRolesHint")}</p>
                 </div>
               )}
             </div>
