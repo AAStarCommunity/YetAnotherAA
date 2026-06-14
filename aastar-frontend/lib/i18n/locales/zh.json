@@ -770,5 +770,43 @@
       "title": "运营管理",
       "desc": "管理 xPNTs、为 Paymaster 充值、查看运营者状态。"
     }
+  },
+  "operatorDashboard": {
+    "title": "运营者门户",
+    "loadError": "加载运营者数据失败",
+    "myStatusTitle": "我的运营者状态",
+    "spoBadge": "SPO",
+    "v4OperatorBadge": "V4 运营商",
+    "gtokenBalance": "GToken 余额",
+    "spoStake": "SPO 质押",
+    "spBalance": "SP 余额",
+    "configured": "已配置 ✓",
+    "notConfigured": "未配置",
+    "exchangeRate": "兑换比率",
+    "v4PaymasterEth": "V4 Paymaster ETH",
+    "registerSpoTitle": "注册为 SPO（SuperPaymaster 运营商）",
+    "registerSpoStep1": "向 GTokenStaking 合约授权 GToken",
+    "registerSpoStep2Prefix": "调用",
+    "registerSpoStep2Suffix": "在 Registry 上以 ROLE_PAYMASTER_AOA 注册",
+    "registerSpoStep3": "通过 depositFor 向 SuperPaymaster 存入 aPNTs",
+    "registerSpoStep4": "调用 configureOperator 设置 xPNTs 代币 + 国库 + 兑换比率",
+    "deployV4Title": "部署 V4 Paymaster",
+    "deployV4Step1Prefix": "调用",
+    "deployV4Step1Suffix": "在 PaymasterFactory 上部署",
+    "deployV4Step2Prefix": "注册",
+    "deployV4Step2Suffix": "在 Registry 上注册",
+    "contractAddresses": "合约地址",
+    "spoOperatorsTitle": "SPO 运营商",
+    "v4OperatorsTitle": "V4 运营商",
+    "noneRegistered": "暂无注册"
+  },
+  "roleNames": {
+    "Community Admin": "社区管理员",
+    "SPO": "SPO 运营商",
+    "SPO Operator": "SPO 运营商",
+    "V4 Operator": "V4 运营商",
+    "End User": "终端用户",
+    "Admin": "协议管理员",
+    "Protocol Admin": "协议管理员"
   }
 }

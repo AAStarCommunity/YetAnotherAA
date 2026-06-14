@@ -178,7 +178,9 @@ export default function AdminPage() {
               className="rounded-xl border border-gray-100 dark:border-gray-700 p-4"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="font-medium text-gray-900 dark:text-white text-sm">{role.name}</p>
+                <p className="font-medium text-gray-900 dark:text-white text-sm">
+                  {t(`roleNames.${role.name}`, { defaultValue: role.name })}
+                </p>
                 <div className="flex items-center gap-2">
                   <span
                     className={`px-2 py-0.5 rounded text-xs ${

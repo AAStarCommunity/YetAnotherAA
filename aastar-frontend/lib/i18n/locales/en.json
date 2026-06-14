@@ -770,5 +770,43 @@
       "title": "Manage Operations",
       "desc": "Manage xPNTs, top up your Paymaster, and view operator status."
     }
+  },
+  "operatorDashboard": {
+    "title": "Operator Portal",
+    "loadError": "Failed to load operator data",
+    "myStatusTitle": "My Operator Status",
+    "spoBadge": "SPO",
+    "v4OperatorBadge": "V4 Operator",
+    "gtokenBalance": "GToken Balance",
+    "spoStake": "SPO Stake",
+    "spBalance": "SP Balance",
+    "configured": "Configured ✓",
+    "notConfigured": "Not configured",
+    "exchangeRate": "Exchange Rate",
+    "v4PaymasterEth": "V4 Paymaster ETH",
+    "registerSpoTitle": "Register as SPO (SuperPaymaster Operator)",
+    "registerSpoStep1": "Approve GToken to GTokenStaking contract",
+    "registerSpoStep2Prefix": "Call",
+    "registerSpoStep2Suffix": "on Registry with ROLE_PAYMASTER_AOA",
+    "registerSpoStep3": "Deposit aPNTs to SuperPaymaster via depositFor",
+    "registerSpoStep4": "Call configureOperator with xPNTs token + treasury + exchange rate",
+    "deployV4Title": "Deploy V4 Paymaster",
+    "deployV4Step1Prefix": "Call",
+    "deployV4Step1Suffix": "on PaymasterFactory",
+    "deployV4Step2Prefix": "Register with",
+    "deployV4Step2Suffix": "on Registry",
+    "contractAddresses": "Contract Addresses",
+    "spoOperatorsTitle": "SPO Operators",
+    "v4OperatorsTitle": "V4 Operators",
+    "noneRegistered": "None registered"
+  },
+  "roleNames": {
+    "Community Admin": "Community Admin",
+    "SPO": "SPO Operator",
+    "SPO Operator": "SPO Operator",
+    "V4 Operator": "V4 Operator",
+    "End User": "End User",
+    "Admin": "Protocol Admin",
+    "Protocol Admin": "Protocol Admin"
   }
 }

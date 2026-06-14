@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   ServerStackIcon,
   CheckBadgeIcon,
@@ -10,7 +11,6 @@ import {
   RocketLaunchIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { useTranslation } from "react-i18next";
 import Layout from "@/components/Layout";
 import { operatorAPI } from "@/lib/api";
 
@@ -105,7 +105,7 @@ export default function OperatorPage() {
     ])
       .catch(err => {
         if (err.response?.status === 401) router.push("/auth/login");
-        else setError("Failed to load operator data");
+        else setError(t("operatorDashboard.loadError"));
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -125,7 +125,7 @@ export default function OperatorPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
         <ServerStackIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-        Operator Portal
+        {t("operatorDashboard.title")}
       </h1>
 
       {error && (
@@ -137,6 +137,7 @@ export default function OperatorPage() {
       {/* Quick Actions — entry points to the operator write flows */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
+          type="button"
           onClick={() => router.push("/operator/deploy")}
           className="text-left bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors"
         >
@@ -151,6 +152,7 @@ export default function OperatorPage() {
           </p>
         </button>
         <button
+          type="button"
           onClick={() => router.push("/operator/manage")}
           className="text-left bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors"
         >
@@ -171,18 +173,21 @@ export default function OperatorPage() {
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              My Operator Status
+              {t("operatorDashboard.myStatusTitle")}
             </h2>
             <div className="flex gap-2">
-              <StatusBadge active={dashboard.isSPO} label="SPO" />
-              <StatusBadge active={dashboard.isV4Operator} label="V4 Operator" />
+              <StatusBadge active={dashboard.isSPO} label={t("operatorDashboard.spoBadge")} />
+              <StatusBadge
+                active={dashboard.isV4Operator}
+                label={t("operatorDashboard.v4OperatorBadge")}
+              />
             </div>
           </div>
 
           {/* GToken Balance */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <MetricCard
-              label="GToken Balance"
+              label={t("operatorDashboard.gtokenBalance")}
               value={dashboard.gtokenBalance}
               unit="GTOKEN"
             />
@@ -190,18 +195,22 @@ export default function OperatorPage() {
             {dashboard.isSPO && dashboard.spoStatus && (
               <>
                 <MetricCard
-                  label="SPO Stake"
+                  label={t("operatorDashboard.spoStake")}
                   value={dashboard.spoStatus.stakeAmount}
                   unit="GTOKEN"
                 />
                 <MetricCard
-                  label="SP Balance"
+                  label={t("operatorDashboard.spBalance")}
                   value={dashboard.spoStatus.balance}
                   unit="aPNTs"
-                  sub={dashboard.spoStatus.isConfigured ? "Configured ✓" : "Not configured"}
+                  sub={
+                    dashboard.spoStatus.isConfigured
+                      ? t("operatorDashboard.configured")
+                      : t("operatorDashboard.notConfigured")
+                  }
                 />
                 <MetricCard
-                  label="Exchange Rate"
+                  label={t("operatorDashboard.exchangeRate")}
                   value={dashboard.spoStatus.exchangeRate}
                   unit="aPNTs/GWEI"
                 />
@@ -210,7 +219,7 @@ export default function OperatorPage() {
 
             {dashboard.v4Status.paymasterAddress && (
               <MetricCard
-                label="V4 Paymaster ETH"
+                label={t("operatorDashboard.v4PaymasterEth")}
                 value={dashboard.v4Status.balance}
                 unit="ETH"
                 sub={shortenAddr(dashboard.v4Status.paymasterAddress)}
@@ -222,19 +231,19 @@ export default function OperatorPage() {
           {!dashboard.isSPO && (
             <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
               <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
-                Register as SPO (SuperPaymaster Operator)
+                {t("operatorDashboard.registerSpoTitle")}
               </p>
               <ol className="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-decimal list-inside">
-                <li>Approve GToken to GTokenStaking contract</li>
+                <li>{t("operatorDashboard.registerSpoStep1")}</li>
                 <li>
-                  Call{" "}
+                  {t("operatorDashboard.registerSpoStep2Prefix")}{" "}
                   <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
                     registerRoleSelf
                   </code>{" "}
-                  on Registry with ROLE_PAYMASTER_AOA
+                  {t("operatorDashboard.registerSpoStep2Suffix")}
                 </li>
-                <li>Deposit aPNTs to SuperPaymaster via depositFor</li>
-                <li>Call configureOperator with xPNTs token + treasury + exchange rate</li>
+                <li>{t("operatorDashboard.registerSpoStep3")}</li>
+                <li>{t("operatorDashboard.registerSpoStep4")}</li>
               </ol>
             </div>
           )}
@@ -243,22 +252,22 @@ export default function OperatorPage() {
           {!dashboard.v4Status.paymasterAddress && (
             <div className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">
-                Deploy V4 Paymaster
+                {t("operatorDashboard.deployV4Title")}
               </p>
               <ol className="text-xs text-amber-600 dark:text-amber-400 space-y-1 list-decimal list-inside">
                 <li>
-                  Call{" "}
+                  {t("operatorDashboard.deployV4Step1Prefix")}{" "}
                   <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">
                     deployPaymaster
                   </code>{" "}
-                  on PaymasterFactory
+                  {t("operatorDashboard.deployV4Step1Suffix")}
                 </li>
                 <li>
-                  Register with{" "}
+                  {t("operatorDashboard.deployV4Step2Prefix")}{" "}
                   <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">
                     ROLE_PAYMASTER_SUPER
                   </code>{" "}
-                  on Registry
+                  {t("operatorDashboard.deployV4Step2Suffix")}
                 </li>
               </ol>
             </div>
@@ -266,7 +275,9 @@ export default function OperatorPage() {
 
           {/* Contract Addresses */}
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-xs text-gray-500 mb-2">Contract Addresses</p>
+            <p className="text-xs text-gray-500 mb-2">
+              {t("operatorDashboard.contractAddresses")}
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
               {[
                 ["Registry", dashboard.registryAddress],
@@ -288,11 +299,11 @@ export default function OperatorPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-            SPO Operators
+            {t("operatorDashboard.spoOperatorsTitle")}
             <span className="ml-2 text-sm font-normal text-gray-400">({spoList.length})</span>
           </h2>
           {spoList.length === 0 ? (
-            <p className="text-sm text-gray-400">None registered</p>
+            <p className="text-sm text-gray-400">{t("operatorDashboard.noneRegistered")}</p>
           ) : (
             <ul className="space-y-1">
               {spoList.map(addr => (
@@ -306,11 +317,11 @@ export default function OperatorPage() {
 
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-            V4 Operators
+            {t("operatorDashboard.v4OperatorsTitle")}
             <span className="ml-2 text-sm font-normal text-gray-400">({v4List.length})</span>
           </h2>
           {v4List.length === 0 ? (
-            <p className="text-sm text-gray-400">None registered</p>
+            <p className="text-sm text-gray-400">{t("operatorDashboard.noneRegistered")}</p>
           ) : (
             <ul className="space-y-1">
               {v4List.map(addr => (
