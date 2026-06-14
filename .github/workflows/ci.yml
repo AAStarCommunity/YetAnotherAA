@@ -93,6 +93,12 @@ jobs:
             cd ${{ matrix.project }} && npx eslint . --ext .js,.jsx,.ts,.tsx
           fi
 
+      - name: Check i18n locale parity
+        run: |
+          if [ -f ${{ matrix.project }}/package.json ] && jq -e '.scripts["i18n:check"]' ${{ matrix.project }}/package.json > /dev/null; then
+            npm run i18n:check --workspace=${{ matrix.project }}
+          fi
+
   # Job 3: Build all projects
   build:
     name: Build
