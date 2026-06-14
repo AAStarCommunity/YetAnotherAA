@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   BuildingOfficeIcon,
   CurrencyDollarIcon,
@@ -58,6 +59,7 @@ function resolveImageUrl(url: string): string {
 }
 
 function CommunityCard({ entry }: { entry: CommunityEntry }) {
+  const { t } = useTranslation();
   const name = entry.metadata?.name || shortenAddr(entry.address);
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
@@ -85,16 +87,20 @@ function CommunityCard({ entry }: { entry: CommunityEntry }) {
         {entry.tokenAddress ? (
           <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
             <CheckBadgeIcon className="h-4 w-4" />
-            Token deployed
+            {t("communityPage.card.tokenDeployed")}
           </span>
         ) : (
           <span className="flex items-center gap-1 text-gray-400">
             <XCircleIcon className="h-4 w-4" />
-            No token
+            {t("communityPage.card.noToken")}
           </span>
         )}
         {entry.metadata?.stakeAmount && (
-          <span>{parseFloat(entry.metadata.stakeAmount).toFixed(0)} GToken staked</span>
+          <span>
+            {t("communityPage.card.staked", {
+              amount: parseFloat(entry.metadata.stakeAmount).toFixed(0),
+            })}
+          </span>
         )}
       </div>
     </div>
@@ -103,6 +109,7 @@ function CommunityCard({ entry }: { entry: CommunityEntry }) {
 
 export default function CommunityPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [communities, setCommunities] = useState<CommunityEntry[]>([]);
   const [search, setSearch] = useState("");
@@ -125,7 +132,7 @@ export default function CommunityPage() {
         if (err.response?.status === 401) {
           router.push("/auth/login");
         } else {
-          setError("Failed to load community data");
+          setError(t("communityPage.loadError"));
         }
       })
       .finally(() => setLoading(false));
@@ -140,7 +147,7 @@ export default function CommunityPage() {
       const r = await communityAPI.getInfo(addr);
       setSearchResult(r.data);
     } catch {
-      setError("Address not found or invalid");
+      setError(t("communityPage.searchError"));
     } finally {
       setSearching(false);
     }
@@ -163,7 +170,7 @@ export default function CommunityPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
         <UserGroupIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-        Community Portal
+        {t("communityPage.title")}
       </h1>
 
       {error && (
@@ -177,22 +184,22 @@ export default function CommunityPage() {
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              My Community Status
+              {t("communityPage.myStatusTitle")}
             </h2>
             {dashboard.isAdmin ? (
               <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold">
-                Community Admin
+                {t("communityPage.communityAdminBadge")}
               </span>
             ) : (
               <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs">
-                Not a Community Admin
+                {t("communityPage.notCommunityAdminBadge")}
               </span>
             )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">GToken Balance</p>
+              <p className="text-xs text-gray-500 mb-1">{t("communityPage.gtokenBalance")}</p>
               <p className="text-xl font-bold text-gray-900 dark:text-white">
                 {parseFloat(dashboard.gtokenBalance || "0").toFixed(2)}
               </p>
@@ -201,24 +208,28 @@ export default function CommunityPage() {
 
             {dashboard.isAdmin && dashboard.metadata && (
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Community Name</p>
+                <p className="text-xs text-gray-500 mb-1">{t("communityPage.communityName")}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
                   {myName}
                 </p>
                 <p className="text-xs text-gray-400">
-                  Staked: {parseFloat(dashboard.metadata.stakeAmount).toFixed(0)} GTOKEN
+                  {t("communityPage.staked", {
+                    amount: parseFloat(dashboard.metadata.stakeAmount).toFixed(0),
+                  })}
                 </p>
               </div>
             )}
 
             {dashboard.isAdmin && dashboard.tokenAddress && dashboard.tokenInfo && (
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">xPNTs Token</p>
+                <p className="text-xs text-gray-500 mb-1">{t("communityPage.xpntsToken")}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-white">
                   {dashboard.tokenInfo.symbol}
                 </p>
                 <p className="text-xs text-gray-400">
-                  Supply: {parseFloat(dashboard.tokenInfo.totalSupply).toLocaleString()}
+                  {t("communityPage.supply", {
+                    amount: parseFloat(dashboard.tokenInfo.totalSupply).toLocaleString(),
+                  })}
                 </p>
               </div>
             )}
@@ -227,11 +238,10 @@ export default function CommunityPage() {
           {dashboard.isAdmin && !dashboard.tokenAddress && (
             <div className="mt-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                No xPNTs Token Deployed
+                {t("communityPage.noTokenTitle")}
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                Deploy your community token via the xPNTs factory to enable loyalty points for
-                your members.
+                {t("communityPage.noTokenDesc")}
               </p>
             </div>
           )}
@@ -239,12 +249,12 @@ export default function CommunityPage() {
           {!dashboard.isAdmin && (
             <div className="mt-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
               <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                Register as Community Admin
+                {t("communityPage.registerTitle")}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                To become a Community Admin, stake 30 GToken on the Registry contract. You need
-                the <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">ROLE_COMMUNITY</code>{" "}
-                role. Connect your EOA wallet to proceed.
+                {t("communityPage.registerDescPrefix")}{" "}
+                <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">ROLE_COMMUNITY</code>{" "}
+                {t("communityPage.registerDescSuffix")}
               </p>
             </div>
           )}
@@ -255,7 +265,7 @@ export default function CommunityPage() {
       <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-          Lookup Community by Address
+          {t("communityPage.lookupTitle")}
         </h2>
         <div className="flex gap-2">
           <input
@@ -271,7 +281,7 @@ export default function CommunityPage() {
             disabled={searching}
             className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm rounded-lg disabled:opacity-50"
           >
-            {searching ? "…" : "Search"}
+            {searching ? t("communityPage.searching") : t("communityPage.search")}
           </button>
         </div>
 
@@ -283,11 +293,11 @@ export default function CommunityPage() {
               </p>
               {searchResult.metadata ? (
                 <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">
-                  Community Admin
+                  {t("communityPage.communityAdminBadge")}
                 </span>
               ) : (
                 <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded text-xs">
-                  Not registered
+                  {t("communityPage.notRegistered")}
                 </span>
               )}
             </div>
@@ -299,8 +309,10 @@ export default function CommunityPage() {
               <div className="mt-2 flex items-center gap-2">
                 <CurrencyDollarIcon className="h-4 w-4 text-green-500" />
                 <span className="text-xs text-gray-600 dark:text-gray-300">
-                  {searchResult.tokenInfo.symbol} — Supply:{" "}
-                  {parseFloat(searchResult.tokenInfo.totalSupply).toLocaleString()}
+                  {t("communityPage.supplyInline", {
+                    symbol: searchResult.tokenInfo.symbol,
+                    amount: parseFloat(searchResult.tokenInfo.totalSupply).toLocaleString(),
+                  })}
                 </span>
               </div>
             )}
@@ -312,13 +324,13 @@ export default function CommunityPage() {
       <section>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-          All Community Admins
+          {t("communityPage.allAdminsTitle")}
           <span className="ml-1 text-sm text-gray-400 font-normal">
             ({communities.length})
           </span>
         </h2>
         {communities.length === 0 ? (
-          <p className="text-sm text-gray-500">No communities found.</p>
+          <p className="text-sm text-gray-500">{t("communityPage.noCommunities")}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {communities.map(c => (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   CurrencyDollarIcon,
   ArrowPathIcon,
@@ -69,6 +70,7 @@ function ProgressBar({ percent }: { percent: number }) {
 
 export default function SalePage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [gTokenStatus, setGTokenStatus] = useState<GTokenSaleStatus | null>(null);
   const [aPNTsStatus, setAPNTsStatus] = useState<APNTsSaleStatus | null>(null);
   const [eligibility, setEligibility] = useState<GTokenEligibility | null>(null);
@@ -86,7 +88,7 @@ export default function SalePage() {
     ])
       .catch(err => {
         if (err.response?.status === 401) router.push("/auth/login");
-        else setError("Failed to load sale data");
+        else setError(t("salePage.loadError"));
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -98,7 +100,7 @@ export default function SalePage() {
       const r = await saleAPI.getAPNTsQuote(quoteUSD);
       setApntsQuote(r.data);
     } catch {
-      setError("Failed to get quote");
+      setError(t("salePage.quoteError"));
     } finally {
       setQuoteLoading(false);
     }
@@ -119,7 +121,7 @@ export default function SalePage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
         <CurrencyDollarIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-        Token Sale
+        {t("salePage.title")}
       </h1>
 
       {error && (
@@ -133,21 +135,21 @@ export default function SalePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <ArrowTrendingUpIcon className="h-5 w-5 text-indigo-400" />
-            GToken Sale
+            {t("salePage.gtokenSaleTitle")}
           </h2>
           {gTokenStatus?.configured ? (
             gTokenStatus.saleEnded ? (
               <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full text-xs">
-                Sale Ended
+                {t("salePage.saleEnded")}
               </span>
             ) : (
               <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
-                Stage {gTokenStatus.currentStage} Active
+                {t("salePage.stageActive", { stage: gTokenStatus.currentStage })}
               </span>
             )
           ) : (
             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-400 rounded-full text-xs">
-              Not Configured
+              {t("salePage.notConfigured")}
             </span>
           )}
         </div>
@@ -157,45 +159,46 @@ export default function SalePage() {
             {/* Price Info */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Current Price</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.currentPrice")}</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   ${parseFloat(gTokenStatus.currentPriceUSD).toFixed(4)}
                 </p>
-                <p className="text-xs text-gray-400">per GToken</p>
+                <p className="text-xs text-gray-400">{t("salePage.perGToken")}</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Tokens Sold</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.tokensSold")}</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-white">
                   {parseFloat(gTokenStatus.tokensSold).toLocaleString(undefined, {
                     maximumFractionDigits: 0,
                   })}
                 </p>
                 <p className="text-xs text-gray-400">
-                  of{" "}
-                  {parseFloat(gTokenStatus.totalForSale).toLocaleString(undefined, {
-                    maximumFractionDigits: 0,
+                  {t("salePage.ofTotal", {
+                    total: parseFloat(gTokenStatus.totalForSale).toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    }),
                   })}
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Ceiling Price</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.ceilingPrice")}</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-white">
                   ${parseFloat(gTokenStatus.ceilingPriceUSD).toFixed(4)}
                 </p>
-                <p className="text-xs text-gray-400">max price</p>
+                <p className="text-xs text-gray-400">{t("salePage.maxPrice")}</p>
               </div>
             </div>
 
             {/* Progress */}
             <div className="mb-4">
               <div className="flex justify-between text-xs text-gray-500 mb-2">
-                <span>Stage 1 (S1)</span>
-                <span>Stage 2</span>
-                <span>Stage 3</span>
+                <span>{t("salePage.stage1")}</span>
+                <span>{t("salePage.stage2")}</span>
+                <span>{t("salePage.stage3")}</span>
               </div>
               <ProgressBar percent={gTokenStatus.soldPercent} />
               <p className="text-right text-xs text-gray-400 mt-1">
-                {gTokenStatus.soldPercent.toFixed(1)}% sold
+                {t("salePage.percentSold", { percent: gTokenStatus.soldPercent.toFixed(1) })}
               </p>
             </div>
 
@@ -221,28 +224,28 @@ export default function SalePage() {
                         : "text-gray-600 dark:text-gray-300"
                     }`}
                   >
-                    {eligibility.eligible ? "You are eligible to buy GTokens" : eligibility.reason}
+                    {eligibility.eligible ? t("salePage.eligibleMsg") : eligibility.reason}
                   </p>
                 </div>
                 {eligibility.eligible && (
                   <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                    Connect your wallet and call{" "}
+                    {t("salePage.eligibleHintPrefix")}{" "}
                     <code className="bg-green-100 dark:bg-green-800 px-1 rounded">
                       buyTokens(usdAmount, paymentToken, signature)
                     </code>{" "}
-                    on the sale contract.
+                    {t("salePage.eligibleHintSuffix")}
                   </p>
                 )}
               </div>
             )}
 
             <p className="mt-2 text-xs font-mono text-gray-400">
-              Contract: {gTokenStatus.address}
+              {t("salePage.contract", { address: gTokenStatus.address })}
             </p>
           </>
         ) : (
           <p className="text-sm text-gray-500">
-            GToken sale contract not configured. Set <code>GTOKEN_SALE_ADDRESS</code> in env.
+            {t("salePage.gtokenNotConfigured", { env: "GTOKEN_SALE_ADDRESS" })}
           </p>
         )}
       </section>
@@ -252,21 +255,21 @@ export default function SalePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <CurrencyDollarIcon className="h-5 w-5 text-purple-400" />
-            aPNTs Sale
+            {t("salePage.apntsSaleTitle")}
           </h2>
           {aPNTsStatus?.configured ? (
             aPNTsStatus.saleActive ? (
               <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
-                Active
+                {t("salePage.active")}
               </span>
             ) : (
               <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full text-xs">
-                No Inventory
+                {t("salePage.noInventory")}
               </span>
             )
           ) : (
             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-400 rounded-full text-xs">
-              Not Configured
+              {t("salePage.notConfigured")}
             </span>
           )}
         </div>
@@ -275,37 +278,37 @@ export default function SalePage() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Price</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.price")}</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   ${parseFloat(aPNTsStatus.priceUSD).toFixed(4)}
                 </p>
-                <p className="text-xs text-gray-400">per aPNTs (fixed)</p>
+                <p className="text-xs text-gray-400">{t("salePage.perApnts")}</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Available</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.available")}</p>
                 <p className="text-xl font-bold text-gray-900 dark:text-white">
                   {parseFloat(aPNTsStatus.availableInventory).toLocaleString(undefined, {
                     maximumFractionDigits: 0,
                   })}
                 </p>
-                <p className="text-xs text-gray-400">aPNTs</p>
+                <p className="text-xs text-gray-400">{t("salePage.apnts")}</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Limits</p>
+                <p className="text-xs text-gray-400 mb-1">{t("salePage.limits")}</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
                   {parseFloat(aPNTsStatus.minPurchaseAmount).toFixed(0)} –{" "}
                   {parseFloat(aPNTsStatus.maxPurchaseAmount).toLocaleString(undefined, {
                     maximumFractionDigits: 0,
                   })}
                 </p>
-                <p className="text-xs text-gray-400">aPNTs per purchase</p>
+                <p className="text-xs text-gray-400">{t("salePage.apntsPerPurchase")}</p>
               </div>
             </div>
 
             {/* Quote calculator */}
             <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
               <p className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                Price Calculator
+                {t("salePage.priceCalculator")}
               </p>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
@@ -326,7 +329,7 @@ export default function SalePage() {
                   disabled={quoteLoading}
                   className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm rounded-lg disabled:opacity-50"
                 >
-                  {quoteLoading ? "…" : "Quote"}
+                  {quoteLoading ? t("salePage.quoting") : t("salePage.quote")}
                 </button>
               </div>
               {apntsQuote && (
@@ -341,12 +344,12 @@ export default function SalePage() {
             </div>
 
             <p className="mt-3 text-xs font-mono text-gray-400">
-              Contract: {aPNTsStatus.address}
+              {t("salePage.contract", { address: aPNTsStatus.address })}
             </p>
           </>
         ) : (
           <p className="text-sm text-gray-500">
-            aPNTs sale contract not configured. Set <code>APNTS_SALE_ADDRESS</code> in env.
+            {t("salePage.apntsNotConfigured", { env: "APNTS_SALE_ADDRESS" })}
           </p>
         )}
       </section>

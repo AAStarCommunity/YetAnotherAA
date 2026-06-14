@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   ShieldCheckIcon,
   ArrowPathIcon,
@@ -79,6 +80,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 
 export default function AdminPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -89,7 +91,7 @@ export default function AdminPage() {
       .then(r => setDashboard(r.data))
       .catch(err => {
         if (err.response?.status === 401) router.push("/auth/login");
-        else setError("Failed to load protocol data");
+        else setError(t("adminPage.loadError"));
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -114,17 +116,19 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <ShieldCheckIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-          Protocol Admin
+          {t("adminPage.title")}
         </h1>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Chain {dashboard.chainId}</span>
+          <span className="text-xs text-gray-400">
+            {t("adminPage.chain", { chainId: dashboard.chainId })}
+          </span>
           {dashboard.isAdmin ? (
             <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">
-              Protocol Admin
+              {t("adminPage.protocolAdminBadge")}
             </span>
           ) : (
             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full text-xs">
-              Read Only
+              {t("adminPage.readOnlyBadge")}
             </span>
           )}
         </div>
@@ -140,32 +144,32 @@ export default function AdminPage() {
       <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
           <CircleStackIcon className="h-5 w-5 text-gray-400" />
-          Registry Overview
+          {t("adminPage.registryOverview")}
         </h2>
         <p className="text-xs text-gray-400 font-mono mb-4">{registryStats.registryAddress}</p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
-            label="Community Admins"
+            label={t("adminPage.communityAdmins")}
             value={registryStats.roleCounts.communityAdmin}
           />
-          <StatCard label="SPO Operators" value={registryStats.roleCounts.spo} />
-          <StatCard label="V4 Operators" value={registryStats.roleCounts.v4Operator} />
-          <StatCard label="End Users" value={registryStats.roleCounts.endUser} />
+          <StatCard label={t("adminPage.spoOperators")} value={registryStats.roleCounts.spo} />
+          <StatCard label={t("adminPage.v4Operators")} value={registryStats.roleCounts.v4Operator} />
+          <StatCard label={t("adminPage.endUsers")} value={registryStats.roleCounts.endUser} />
         </div>
 
         <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-          <span>
-            Owner: <span className="font-mono">{registryStats.owner?.slice(0, 10)}…</span>
+          <span className="font-mono">
+            {t("adminPage.owner", { address: `${registryStats.owner?.slice(0, 10)}…` })}
           </span>
-          <span>Version: {registryStats.version}</span>
+          <span>{t("adminPage.version", { version: registryStats.version })}</span>
         </div>
       </section>
 
       {/* Role Configurations */}
       <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Role Configurations
+          {t("adminPage.roleConfigsTitle")}
         </h2>
         <div className="space-y-4">
           {roleConfigs.map(role => (
@@ -183,33 +187,35 @@ export default function AdminPage() {
                         : "bg-gray-100 dark:bg-gray-700 text-gray-500"
                     }`}
                   >
-                    {role.config.isActive ? "Active" : "Inactive"}
+                    {role.config.isActive ? t("adminPage.active") : t("adminPage.inactive")}
                   </span>
-                  <span className="text-xs text-gray-400">{role.memberCount} members</span>
+                  <span className="text-xs text-gray-400">
+                    {t("adminPage.members", { count: role.memberCount })}
+                  </span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div>
-                  <p className="text-gray-400">Min Stake</p>
+                  <p className="text-gray-400">{t("adminPage.minStake")}</p>
                   <p className="font-semibold text-gray-700 dark:text-gray-300">
                     {parseFloat(role.config.minStake).toFixed(0)} GTOKEN
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Entry Burn</p>
+                  <p className="text-gray-400">{t("adminPage.entryBurn")}</p>
                   <p className="font-semibold text-gray-700 dark:text-gray-300">
                     {parseFloat(role.config.entryBurn).toFixed(0)} GTOKEN
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Exit Fee</p>
+                  <p className="text-gray-400">{t("adminPage.exitFee")}</p>
                   <p className="font-semibold text-gray-700 dark:text-gray-300">
                     {role.config.exitFeePercent}%
                   </p>
                 </div>
               </div>
               <p className="text-xs font-mono text-gray-400 mt-2 truncate">
-                RoleId: {role.roleId}
+                {t("adminPage.roleIdLabel", { roleId: role.roleId })}
               </p>
             </div>
           ))}
@@ -220,22 +226,22 @@ export default function AdminPage() {
       <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
-          GToken ({gtokenStats.symbol})
+          {t("adminPage.gtokenTitle", { symbol: gtokenStats.symbol })}
         </h2>
         <div className="grid grid-cols-2 gap-4">
           <StatCard
-            label="Total Supply"
+            label={t("adminPage.totalSupply")}
             value={parseFloat(gtokenStats.totalSupply).toLocaleString(undefined, {
               maximumFractionDigits: 0,
             })}
             sub={gtokenStats.symbol}
           />
           <StatCard
-            label="Staking Contract Balance"
+            label={t("adminPage.stakingContractBalance")}
             value={parseFloat(gtokenStats.stakingContractBalance).toLocaleString(undefined, {
               maximumFractionDigits: 0,
             })}
-            sub="Locked in GTokenStaking"
+            sub={t("adminPage.lockedInStaking")}
           />
         </div>
         <p className="text-xs font-mono text-gray-400 mt-3">{gtokenStats.address}</p>
@@ -244,7 +250,7 @@ export default function AdminPage() {
       {/* System Contract Addresses */}
       <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          System Contract Addresses
+          {t("adminPage.systemAddressesTitle")}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Object.entries(systemAddresses).map(([key, addr]) => (
