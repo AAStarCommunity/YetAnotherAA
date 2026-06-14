@@ -43,11 +43,17 @@ export default function Step3RegisterCommunity({
       async () => {
         ensureSdkConfig();
         const pc = getPublicClient();
-        // 1) ensure GToken allowance to GTokenStaking covers minStake + entryBurn
-        const cfg = await registryActions(REGISTRY_ADDRESS)(pc as any).getRoleConfig({
+        // 1) ensure GToken allowance to GTokenStaking covers stake + entry fee.
+        // The @aastar/core RoleConfigDetailed type declares `entryBurn`, but the
+        // deployed registry returns the fee under `ticketPrice` — the SDK type is
+        // out of sync with the on-chain struct. Read whichever exists (guarding
+        // against undefined so `minStake + undefined` can't throw), summing both
+        // only if both were ever present. `minStake` is always returned.
+        const cfg = (await registryActions(REGISTRY_ADDRESS)(pc as any).getRoleConfig({
           roleId: ROLE_COMMUNITY,
-        });
-        const needed = cfg.minStake + cfg.entryBurn;
+        })) as { minStake?: bigint; entryBurn?: bigint; ticketPrice?: bigint };
+        const entryFee = (cfg.entryBurn ?? 0n) + (cfg.ticketPrice ?? 0n);
+        const needed = (cfg.minStake ?? 0n) + entryFee;
         const token = tokenActions(GTOKEN_ADDRESS)(walletClient as any);
         const allowance = await tokenActions(GTOKEN_ADDRESS)(pc as any).allowance({
           token: GTOKEN_ADDRESS,
