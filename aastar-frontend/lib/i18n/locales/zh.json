@@ -760,5 +760,15 @@
     "quote": "报价",
     "quoting": "…",
     "apntsNotConfigured": "aPNTs 销售合约未配置。请在环境变量中设置 {{env}}。"
+  },
+  "operatorHub": {
+    "onboard": {
+      "title": "社区准入",
+      "desc": "分步注册社区并部署 Paymaster(AOA / AOA+)。"
+    },
+    "manage": {
+      "title": "运营管理",
+      "desc": "管理 xPNTs、为 Paymaster 充值、查看运营者状态。"
+    }
   }
 }

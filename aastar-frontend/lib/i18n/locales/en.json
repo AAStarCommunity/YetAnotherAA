@@ -760,5 +760,15 @@
     "quote": "Quote",
     "quoting": "…",
     "apntsNotConfigured": "aPNTs sale contract not configured. Set {{env}} in env."
+  },
+  "operatorHub": {
+    "onboard": {
+      "title": "Onboard a Community",
+      "desc": "Register your community and deploy a Paymaster (AOA / AOA+), step by step."
+    },
+    "manage": {
+      "title": "Manage Operations",
+      "desc": "Manage xPNTs, top up your Paymaster, and view operator status."
+    }
   }
 }

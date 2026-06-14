@@ -7,7 +7,10 @@ import {
   CheckBadgeIcon,
   XCircleIcon,
   ArrowPathIcon,
+  RocketLaunchIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
+import { useTranslation } from "react-i18next";
 import Layout from "@/components/Layout";
 import { operatorAPI } from "@/lib/api";
 
@@ -87,6 +90,7 @@ function MetricCard({
 
 export default function OperatorPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [spoList, setSpoList] = useState<string[]>([]);
   const [v4List, setV4List] = useState<string[]>([]);
@@ -129,6 +133,38 @@ export default function OperatorPage() {
           {error}
         </div>
       )}
+
+      {/* Quick Actions — entry points to the operator write flows */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => router.push("/operator/deploy")}
+          className="text-left bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <RocketLaunchIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-semibold text-gray-900 dark:text-white">
+              {t("operatorHub.onboard.title")}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t("operatorHub.onboard.desc")}
+          </p>
+        </button>
+        <button
+          onClick={() => router.push("/operator/manage")}
+          className="text-left bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <WrenchScrewdriverIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-semibold text-gray-900 dark:text-white">
+              {t("operatorHub.manage.title")}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t("operatorHub.manage.desc")}
+          </p>
+        </button>
+      </section>
 
       {/* My Operator Status */}
       {dashboard && (
