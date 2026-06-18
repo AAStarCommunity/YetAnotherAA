@@ -81,7 +81,12 @@ export default function Step5DeployPaymasterV4({
             {t("operatorDeploy.step5Paymaster.alreadyDeployed")}
           </div>
           {paymaster && (
-            <a href={explorerAddr(paymaster)} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline break-all">
+            <a
+              href={explorerAddr(paymaster)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs hover:underline break-all"
+            >
               {paymaster}
             </a>
           )}

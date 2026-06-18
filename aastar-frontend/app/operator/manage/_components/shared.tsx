@@ -17,7 +17,12 @@
  */
 import { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowPathIcon, CheckBadgeIcon, XCircleIcon, WalletIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowPathIcon,
+  CheckBadgeIcon,
+  XCircleIcon,
+  WalletIcon,
+} from "@heroicons/react/24/outline";
 import { useWallet } from "@/contexts/WalletContext";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 
@@ -108,7 +113,11 @@ export function StatusBadge({ active, label }: StatusBadgeProps) {
           : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
       }`}
     >
-      {active ? <CheckBadgeIcon className="h-3.5 w-3.5" /> : <XCircleIcon className="h-3.5 w-3.5" />}
+      {active ? (
+        <CheckBadgeIcon className="h-3.5 w-3.5" />
+      ) : (
+        <XCircleIcon className="h-3.5 w-3.5" />
+      )}
       {label}
     </span>
   );
@@ -180,7 +189,9 @@ export function ConnectGate({ children }: { children: ReactNode }) {
           ) : (
             <WalletIcon className="h-4 w-4" />
           )}
-          {isConnecting ? t("operatorManage.shared.connecting") : t("operatorManage.shared.connectWallet")}
+          {isConnecting
+            ? t("operatorManage.shared.connecting")
+            : t("operatorManage.shared.connectWallet")}
         </button>
       ) : (
         <p className="text-xs text-amber-600 dark:text-amber-400">

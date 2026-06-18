@@ -28,7 +28,9 @@ export default function FormField({
 }: FormFieldProps) {
   return (
     <label className="block">
-      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</span>
+      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        {label}
+      </span>
       <input
         type={type}
         value={value}

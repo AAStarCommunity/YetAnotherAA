@@ -40,7 +40,8 @@ type Translate = (key: string) => string;
 
 function humanizeError(err: unknown, t: Translate): string {
   const raw = err instanceof Error ? err.message : String(err);
-  if (/user rejected|denied|rejected the request/i.test(raw)) return t("operatorDeploy.tx.rejected");
+  if (/user rejected|denied|rejected the request/i.test(raw))
+    return t("operatorDeploy.tx.rejected");
   if (/insufficient funds/i.test(raw)) return t("operatorDeploy.tx.insufficientFunds");
   // viem stuffs the useful bit in the first line; keep it short for the UI.
   return raw.split("\n")[0].slice(0, 200);

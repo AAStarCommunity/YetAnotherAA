@@ -74,7 +74,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Reflect account switches from the injected wallet.
   useEffect(() => {
     const provider = getInjectedProvider() as
-      | { on?: (e: string, cb: (a: string[]) => void) => void; removeListener?: (e: string, cb: (a: string[]) => void) => void }
+      | {
+          on?: (e: string, cb: (a: string[]) => void) => void;
+          removeListener?: (e: string, cb: (a: string[]) => void) => void;
+        }
       | undefined;
     if (!provider?.on) return;
     const onAccountsChanged = (accounts: string[]) => {

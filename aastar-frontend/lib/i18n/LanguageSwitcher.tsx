@@ -42,7 +42,7 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
       aria-label="Language"
       className={`inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 text-sm font-medium dark:border-gray-700 dark:bg-gray-800 ${className}`}
     >
-      {LANGUAGES.map((lang) => {
+      {LANGUAGES.map(lang => {
         const isActive = mounted && active === lang.code;
         return (
           <button

@@ -21,7 +21,13 @@ import { useTxStep } from "../components/useTxStep";
 import StepCard from "../components/StepCard";
 import WizardButton from "../components/WizardButton";
 
-export default function Step5RegisterSuper({ walletClient, data, onNext, onBack, refreshResources }: StepProps) {
+export default function Step5RegisterSuper({
+  walletClient,
+  data,
+  onNext,
+  onBack,
+  refreshResources,
+}: StepProps) {
   const { t } = useTranslation();
   const already = !!data.resources?.hasSuperPaymasterRegistered;
   const tx = useTxStep();

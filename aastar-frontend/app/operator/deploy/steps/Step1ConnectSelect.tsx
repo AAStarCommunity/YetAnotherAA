@@ -94,9 +94,13 @@ export default function Step1ConnectSelect({ data, update, onNext }: Step1Props)
             >
               <div className="flex items-center gap-2 mb-2">
                 <Icon className="h-5 w-5 text-slate-700 dark:text-emerald-400" />
-                <span className="font-semibold text-gray-900 dark:text-white">{t(`${m.ns}.title`)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {t(`${m.ns}.title`)}
+                </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t(`${m.ns}.subtitle`)}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                {t(`${m.ns}.subtitle`)}
+              </p>
               <ul className="space-y-1">
                 {[1, 2, 3, 4].map(n => (
                   <li key={n} className="text-xs text-gray-600 dark:text-gray-300 flex gap-1.5">

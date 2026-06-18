@@ -69,7 +69,8 @@ export default function Step2ResourceCheck({ address, data, update, onNext, onBa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const balancesOk = !!res && res.hasEnoughGToken && res.hasEnoughETH && (mode === "aoa" || res.hasEnoughAPNTs);
+  const balancesOk =
+    !!res && res.hasEnoughGToken && res.hasEnoughETH && (mode === "aoa" || res.hasEnoughAPNTs);
 
   return (
     <StepCard
@@ -128,12 +129,21 @@ export default function Step2ResourceCheck({ address, data, update, onNext, onBa
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
               {t("operatorDeploy.step2.onChainState")}
             </p>
-            <Row label={t("operatorDeploy.step2.communityRegistered")} ok={res.isCommunityRegistered} />
+            <Row
+              label={t("operatorDeploy.step2.communityRegistered")}
+              ok={res.isCommunityRegistered}
+            />
             <Row label={t("operatorDeploy.step2.xpntsDeployed")} ok={res.hasXPNTs} />
             {mode === "aoa" ? (
-              <Row label={t("operatorDeploy.step2.aoaPaymasterDeployed")} ok={res.hasAOAPaymaster} />
+              <Row
+                label={t("operatorDeploy.step2.aoaPaymasterDeployed")}
+                ok={res.hasAOAPaymaster}
+              />
             ) : (
-              <Row label={t("operatorDeploy.step2.registeredOnSuper")} ok={res.hasSuperPaymasterRegistered} />
+              <Row
+                label={t("operatorDeploy.step2.registeredOnSuper")}
+                ok={res.hasSuperPaymasterRegistered}
+              />
             )}
           </div>
 

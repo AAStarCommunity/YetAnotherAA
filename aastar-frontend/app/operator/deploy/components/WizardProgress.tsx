@@ -34,9 +34,7 @@ export default function WizardProgress({ labels, current }: WizardProgressProps)
               </span>
               <span
                 className={`text-xs font-medium whitespace-nowrap ${
-                  active
-                    ? "text-gray-900 dark:text-white"
-                    : "text-gray-400 dark:text-gray-500"
+                  active ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
                 }`}
               >
                 {label}

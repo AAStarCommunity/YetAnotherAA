@@ -295,8 +295,7 @@ export const saleAPI = {
   getOverview: () => api.get("/sale/overview"),
   getGTokenStatus: () => api.get("/sale/gtoken/status"),
   getAPNTsStatus: () => api.get("/sale/apnts/status"),
-  getAPNTsQuote: (usdAmount: string) =>
-    api.get("/sale/apnts/quote", { params: { usdAmount } }),
+  getAPNTsQuote: (usdAmount: string) => api.get("/sale/apnts/quote", { params: { usdAmount } }),
   getGTokenEvents: () => api.get("/sale/gtoken/events"),
   getGTokenEligibility: (address?: string) =>
     api.get("/sale/gtoken/eligibility", { params: address ? { address } : undefined }),

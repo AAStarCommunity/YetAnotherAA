@@ -753,7 +753,8 @@ export default function TransferPage() {
                           Gas used: {parseInt(transferStatus.actualGasUsed, 16).toLocaleString()}
                           {transferStatus.actualGasCost && (
                             <span className="ml-2">
-                              Cost: {(parseInt(transferStatus.actualGasCost, 16) / 1e18).toFixed(8)} ETH
+                              Cost: {(parseInt(transferStatus.actualGasCost, 16) / 1e18).toFixed(8)}{" "}
+                              ETH
                             </span>
                           )}
                           {transferStatus.retryCount > 0 && (

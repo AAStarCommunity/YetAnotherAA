@@ -18,7 +18,14 @@ import StepCard from "../components/StepCard";
 import WizardButton from "../components/WizardButton";
 import FormField from "../components/FormField";
 
-export default function Step7DepositAPNTs({ walletClient, data, update, onNext, onBack, refreshResources }: StepProps) {
+export default function Step7DepositAPNTs({
+  walletClient,
+  data,
+  update,
+  onNext,
+  onBack,
+  refreshResources,
+}: StepProps) {
   const { t } = useTranslation();
   const tx = useTxStep();
   const [amount, setAmount] = useState(data.aPNTsDeposit);
@@ -64,7 +71,13 @@ export default function Step7DepositAPNTs({ walletClient, data, update, onNext, 
         </>
       }
     >
-      <FormField label={t("operatorDeploy.step7Apnts.depositAmount")} type="number" value={amount} onChange={setAmount} hint={t("operatorDeploy.step7Apnts.depositHint")} />
+      <FormField
+        label={t("operatorDeploy.step7Apnts.depositAmount")}
+        type="number"
+        value={amount}
+        onChange={setAmount}
+        hint={t("operatorDeploy.step7Apnts.depositHint")}
+      />
     </StepCard>
   );
 }

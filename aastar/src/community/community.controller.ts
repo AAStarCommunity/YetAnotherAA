@@ -44,9 +44,7 @@ export class CommunityController {
   @ApiOperation({ summary: "Get xPNTs token info for an address" })
   @ApiQuery({ name: "address", required: true })
   async getTokenInfo(@Query("address") address: string) {
-    const tokenAddress = await this.communityService.getDeployedTokenAddress(
-      address as Address
-    );
+    const tokenAddress = await this.communityService.getDeployedTokenAddress(address as Address);
     if (!tokenAddress) {
       return { address, tokenAddress: null, tokenInfo: null };
     }

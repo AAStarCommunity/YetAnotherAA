@@ -112,160 +112,163 @@ export default function AdminPage() {
 
   return (
     <Layout requireAuth>
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <ShieldCheckIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
-          {t("adminPage.title")}
-        </h1>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">
-            {t("adminPage.chain", { chainId: dashboard.chainId })}
-          </span>
-          {dashboard.isAdmin ? (
-            <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">
-              {t("adminPage.protocolAdminBadge")}
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <ShieldCheckIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
+            {t("adminPage.title")}
+          </h1>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {t("adminPage.chain", { chainId: dashboard.chainId })}
             </span>
-          ) : (
-            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full text-xs">
-              {t("adminPage.readOnlyBadge")}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">
-          {error}
-        </div>
-      )}
-
-      {/* Registry Overview */}
-      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-          <CircleStackIcon className="h-5 w-5 text-gray-400" />
-          {t("adminPage.registryOverview")}
-        </h2>
-        <p className="text-xs text-gray-400 font-mono mb-4">{registryStats.registryAddress}</p>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label={t("adminPage.communityAdmins")}
-            value={registryStats.roleCounts.communityAdmin}
-          />
-          <StatCard label={t("adminPage.spoOperators")} value={registryStats.roleCounts.spo} />
-          <StatCard label={t("adminPage.v4Operators")} value={registryStats.roleCounts.v4Operator} />
-          <StatCard label={t("adminPage.endUsers")} value={registryStats.roleCounts.endUser} />
-        </div>
-
-        <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-          <span className="font-mono">
-            {t("adminPage.owner", { address: `${registryStats.owner?.slice(0, 10)}…` })}
-          </span>
-          <span>{t("adminPage.version", { version: registryStats.version })}</span>
-        </div>
-      </section>
-
-      {/* Role Configurations */}
-      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          {t("adminPage.roleConfigsTitle")}
-        </h2>
-        <div className="space-y-4">
-          {roleConfigs.map(role => (
-            <div
-              key={role.roleId}
-              className="rounded-xl border border-gray-100 dark:border-gray-700 p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-medium text-gray-900 dark:text-white text-sm">
-                  {t(`roleNames.${role.name}`, { defaultValue: role.name })}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs ${
-                      role.config.isActive
-                        ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-500"
-                    }`}
-                  >
-                    {role.config.isActive ? t("adminPage.active") : t("adminPage.inactive")}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {t("adminPage.members", { count: role.memberCount })}
-                  </span>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-xs">
-                <div>
-                  <p className="text-gray-400">{t("adminPage.minStake")}</p>
-                  <p className="font-semibold text-gray-700 dark:text-gray-300">
-                    {parseFloat(role.config.minStake).toFixed(0)} GTOKEN
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">{t("adminPage.entryBurn")}</p>
-                  <p className="font-semibold text-gray-700 dark:text-gray-300">
-                    {parseFloat(role.config.entryBurn).toFixed(0)} GTOKEN
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">{t("adminPage.exitFee")}</p>
-                  <p className="font-semibold text-gray-700 dark:text-gray-300">
-                    {role.config.exitFeePercent}%
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs font-mono text-gray-400 mt-2 truncate">
-                {t("adminPage.roleIdLabel", { roleId: role.roleId })}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* GToken Stats */}
-      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
-          {t("adminPage.gtokenTitle", { symbol: gtokenStats.symbol })}
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <StatCard
-            label={t("adminPage.totalSupply")}
-            value={parseFloat(gtokenStats.totalSupply).toLocaleString(undefined, {
-              maximumFractionDigits: 0,
-            })}
-            sub={gtokenStats.symbol}
-          />
-          <StatCard
-            label={t("adminPage.stakingContractBalance")}
-            value={parseFloat(gtokenStats.stakingContractBalance).toLocaleString(undefined, {
-              maximumFractionDigits: 0,
-            })}
-            sub={t("adminPage.lockedInStaking")}
-          />
-        </div>
-        <p className="text-xs font-mono text-gray-400 mt-3">{gtokenStats.address}</p>
-      </section>
-
-      {/* System Contract Addresses */}
-      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          {t("adminPage.systemAddressesTitle")}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {Object.entries(systemAddresses).map(([key, addr]) => (
-            <div key={key} className="flex gap-2 text-xs">
-              <span className="text-gray-400 w-32 shrink-0 capitalize">
-                {key.replace(/([A-Z])/g, " $1").trim()}:
+            {dashboard.isAdmin ? (
+              <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">
+                {t("adminPage.protocolAdminBadge")}
               </span>
-              <span className="font-mono text-gray-600 dark:text-gray-300 break-all">{addr}</span>
-            </div>
-          ))}
+            ) : (
+              <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full text-xs">
+                {t("adminPage.readOnlyBadge")}
+              </span>
+            )}
+          </div>
         </div>
-      </section>
-    </div>
+
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {/* Registry Overview */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+            <CircleStackIcon className="h-5 w-5 text-gray-400" />
+            {t("adminPage.registryOverview")}
+          </h2>
+          <p className="text-xs text-gray-400 font-mono mb-4">{registryStats.registryAddress}</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard
+              label={t("adminPage.communityAdmins")}
+              value={registryStats.roleCounts.communityAdmin}
+            />
+            <StatCard label={t("adminPage.spoOperators")} value={registryStats.roleCounts.spo} />
+            <StatCard
+              label={t("adminPage.v4Operators")}
+              value={registryStats.roleCounts.v4Operator}
+            />
+            <StatCard label={t("adminPage.endUsers")} value={registryStats.roleCounts.endUser} />
+          </div>
+
+          <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+            <span className="font-mono">
+              {t("adminPage.owner", { address: `${registryStats.owner?.slice(0, 10)}…` })}
+            </span>
+            <span>{t("adminPage.version", { version: registryStats.version })}</span>
+          </div>
+        </section>
+
+        {/* Role Configurations */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            {t("adminPage.roleConfigsTitle")}
+          </h2>
+          <div className="space-y-4">
+            {roleConfigs.map(role => (
+              <div
+                key={role.roleId}
+                className="rounded-xl border border-gray-100 dark:border-gray-700 p-4"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium text-gray-900 dark:text-white text-sm">
+                    {t(`roleNames.${role.name}`, { defaultValue: role.name })}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs ${
+                        role.config.isActive
+                          ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-500"
+                      }`}
+                    >
+                      {role.config.isActive ? t("adminPage.active") : t("adminPage.inactive")}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {t("adminPage.members", { count: role.memberCount })}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-400">{t("adminPage.minStake")}</p>
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                      {parseFloat(role.config.minStake).toFixed(0)} GTOKEN
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">{t("adminPage.entryBurn")}</p>
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                      {parseFloat(role.config.entryBurn).toFixed(0)} GTOKEN
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">{t("adminPage.exitFee")}</p>
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                      {role.config.exitFeePercent}%
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs font-mono text-gray-400 mt-2 truncate">
+                  {t("adminPage.roleIdLabel", { roleId: role.roleId })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* GToken Stats */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+            {t("adminPage.gtokenTitle", { symbol: gtokenStats.symbol })}
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard
+              label={t("adminPage.totalSupply")}
+              value={parseFloat(gtokenStats.totalSupply).toLocaleString(undefined, {
+                maximumFractionDigits: 0,
+              })}
+              sub={gtokenStats.symbol}
+            />
+            <StatCard
+              label={t("adminPage.stakingContractBalance")}
+              value={parseFloat(gtokenStats.stakingContractBalance).toLocaleString(undefined, {
+                maximumFractionDigits: 0,
+              })}
+              sub={t("adminPage.lockedInStaking")}
+            />
+          </div>
+          <p className="text-xs font-mono text-gray-400 mt-3">{gtokenStats.address}</p>
+        </section>
+
+        {/* System Contract Addresses */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            {t("adminPage.systemAddressesTitle")}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(systemAddresses).map(([key, addr]) => (
+              <div key={key} className="flex gap-2 text-xs">
+                <span className="text-gray-400 w-32 shrink-0 capitalize">
+                  {key.replace(/([A-Z])/g, " $1").trim()}:
+                </span>
+                <span className="font-mono text-gray-600 dark:text-gray-300 break-all">{addr}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </Layout>
   );
 }

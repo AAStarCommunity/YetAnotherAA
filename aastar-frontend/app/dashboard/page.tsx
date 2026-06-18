@@ -601,7 +601,11 @@ function DashboardContent() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                    <svg className="w-5 h-5 text-slate-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                    <svg
+                      className="w-5 h-5 text-slate-600 dark:text-emerald-400"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
                       <path d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33a2.5 2.5 0 002.5 2.5c.36 0 .69-.08 1-.21V19c0 .55-.45 1-1 1s-1-.45-1-1v-3c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6C4.9 3 4 3.9 4 5v16h10v-7.5h1.5v5a2.5 2.5 0 005 0V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5zm6 0a1 1 0 110-2 1 1 0 010 2z" />
                     </svg>
                     Paymaster Status

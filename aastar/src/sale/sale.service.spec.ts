@@ -11,9 +11,7 @@ jest.mock("viem", () => ({
     getLogs: mockGetLogs,
   })),
   http: jest.fn(),
-  formatUnits: jest.fn((val: bigint, dec: number) =>
-    (Number(val) / Math.pow(10, dec)).toFixed(6)
-  ),
+  formatUnits: jest.fn((val: bigint, dec: number) => (Number(val) / Math.pow(10, dec)).toFixed(6)),
   parseAbi: jest.fn(() => []),
 }));
 
@@ -100,10 +98,7 @@ describe("SaleService", () => {
       });
 
       const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          SaleService,
-          { provide: ConfigService, useValue: { get: mockConfigGet } },
-        ],
+        providers: [SaleService, { provide: ConfigService, useValue: { get: mockConfigGet } }],
       }).compile();
 
       service = module.get<SaleService>(SaleService);
@@ -118,12 +113,12 @@ describe("SaleService", () => {
 
     it("getGTokenSaleStatus calls readContract for each field", async () => {
       mockReadContract
-        .mockResolvedValueOnce(BigInt("1000000"))    // getCurrentPriceUSD
+        .mockResolvedValueOnce(BigInt("1000000")) // getCurrentPriceUSD
         .mockResolvedValueOnce(BigInt("100000000000000000000000")) // tokensSold
         .mockResolvedValueOnce(BigInt("1050000000000000000000000")) // totalTokensForSale
-        .mockResolvedValueOnce(BigInt("210000000000000000000000"))  // STAGE1_TOKEN_LIMIT
-        .mockResolvedValueOnce(BigInt("630000000000000000000000"))  // STAGE2_TOKEN_LIMIT
-        .mockResolvedValueOnce(BigInt("4885000"));   // CEILING_PRICE_USD
+        .mockResolvedValueOnce(BigInt("210000000000000000000000")) // STAGE1_TOKEN_LIMIT
+        .mockResolvedValueOnce(BigInt("630000000000000000000000")) // STAGE2_TOKEN_LIMIT
+        .mockResolvedValueOnce(BigInt("4885000")); // CEILING_PRICE_USD
 
       const status = await service.getGTokenSaleStatus();
       expect(status.configured).toBe(true);

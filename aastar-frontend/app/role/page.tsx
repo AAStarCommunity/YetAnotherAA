@@ -125,9 +125,7 @@ export default function RolePage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {t("rolePage.title")}
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {t("rolePage.subtitle")}
-          </p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t("rolePage.subtitle")}</p>
         </div>
 
         {/* Registry Info */}
@@ -141,7 +139,10 @@ export default function RolePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: t("rolePage.communityAdmins"), value: registryInfo.roleCounts.communityAdmin },
+                {
+                  label: t("rolePage.communityAdmins"),
+                  value: registryInfo.roleCounts.communityAdmin,
+                },
                 { label: t("rolePage.spoOperators"), value: registryInfo.roleCounts.spo },
                 { label: t("rolePage.v4Operators"), value: registryInfo.roleCounts.v4Operator },
                 { label: t("rolePage.endUsers"), value: registryInfo.roleCounts.endUser },
@@ -198,11 +199,31 @@ export default function RolePage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-5">
-              <RoleBadge label={t("rolePage.badge.protocolAdmin")} active={roleInfo.isAdmin} color="purple" />
-              <RoleBadge label={t("rolePage.badge.communityAdmin")} active={roleInfo.isCommunityAdmin} color="green" />
-              <RoleBadge label={t("rolePage.badge.spoOperator")} active={roleInfo.isSPO} color="orange" />
-              <RoleBadge label={t("rolePage.badge.v4Operator")} active={roleInfo.isV4Operator} color="blue" />
-              <RoleBadge label={t("rolePage.badge.endUser")} active={roleInfo.isEndUser} color="gray" />
+              <RoleBadge
+                label={t("rolePage.badge.protocolAdmin")}
+                active={roleInfo.isAdmin}
+                color="purple"
+              />
+              <RoleBadge
+                label={t("rolePage.badge.communityAdmin")}
+                active={roleInfo.isCommunityAdmin}
+                color="green"
+              />
+              <RoleBadge
+                label={t("rolePage.badge.spoOperator")}
+                active={roleInfo.isSPO}
+                color="orange"
+              />
+              <RoleBadge
+                label={t("rolePage.badge.v4Operator")}
+                active={roleInfo.isV4Operator}
+                color="blue"
+              />
+              <RoleBadge
+                label={t("rolePage.badge.endUser")}
+                active={roleInfo.isEndUser}
+                color="gray"
+              />
             </div>
 
             {/* Navigation Cards */}
@@ -275,13 +296,17 @@ export default function RolePage() {
                 </button>
               )}
 
-              {!roleInfo.isAdmin && !roleInfo.isCommunityAdmin && !roleInfo.isSPO && !roleInfo.isV4Operator && !roleInfo.isEndUser && (
-                <div className="col-span-full text-center py-6 text-gray-500 dark:text-gray-400">
-                  <ShieldCheckIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">{t("rolePage.noRolesTitle")}</p>
-                  <p className="text-xs mt-1">{t("rolePage.noRolesHint")}</p>
-                </div>
-              )}
+              {!roleInfo.isAdmin &&
+                !roleInfo.isCommunityAdmin &&
+                !roleInfo.isSPO &&
+                !roleInfo.isV4Operator &&
+                !roleInfo.isEndUser && (
+                  <div className="col-span-full text-center py-6 text-gray-500 dark:text-gray-400">
+                    <ShieldCheckIcon className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">{t("rolePage.noRolesTitle")}</p>
+                    <p className="text-xs mt-1">{t("rolePage.noRolesHint")}</p>
+                  </div>
+                )}
             </div>
           </div>
         ) : null}

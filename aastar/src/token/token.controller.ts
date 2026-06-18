@@ -25,7 +25,7 @@ export class TokenController {
     name: "category",
     required: false,
     enum: Object.values(TokenCategory),
-    type: 'string',
+    type: "string",
     description: "Filter by category",
   })
   @ApiResponse({
@@ -228,7 +228,7 @@ export class TokenController {
     name: "category",
     required: false,
     enum: Object.values(TokenCategory),
-    type: 'string',
+    type: "string",
     description: "Filter by category",
   })
   @ApiQuery({

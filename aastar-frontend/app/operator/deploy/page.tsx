@@ -69,7 +69,10 @@ export default function OperatorDeployPage() {
       : [...head, "paymaster", "entrypoint", "done"];
   }, [data.mode]);
 
-  const onNext = useCallback(() => setStep(s => Math.min(s + 1, stepKeys.length - 1)), [stepKeys.length]);
+  const onNext = useCallback(
+    () => setStep(s => Math.min(s + 1, stepKeys.length - 1)),
+    [stepKeys.length]
+  );
   const onBack = useCallback(() => setStep(s => Math.max(s - 1, 0)), []);
 
   const refreshResources = useCallback(async () => {
@@ -135,7 +138,9 @@ export default function OperatorDeployPage() {
       case "deposit-apnts":
         return <Step7DepositAPNTs {...stepProps} />;
       case "done":
-        return <StepComplete data={data} onDone={() => router.push("/operator")} onRestart={restart} />;
+        return (
+          <StepComplete data={data} onDone={() => router.push("/operator")} onRestart={restart} />
+        );
       default:
         return null;
     }

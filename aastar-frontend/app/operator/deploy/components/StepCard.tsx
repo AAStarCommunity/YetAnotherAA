@@ -55,7 +55,9 @@ export default function StepCard({
         {icon && <div className="text-slate-700 dark:text-emerald-400 shrink-0 mt-0.5">{icon}</div>}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
-          {description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>}
+          {description && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+          )}
         </div>
       </div>
 
@@ -69,7 +71,9 @@ export default function StepCard({
             <CheckCircleIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           )}
           <span className="text-emerald-700 dark:text-emerald-300">
-            {status === "pending" ? t("operatorDeploy.tx.pending") : t("operatorDeploy.tx.confirmedLabel")}
+            {status === "pending"
+              ? t("operatorDeploy.tx.pending")
+              : t("operatorDeploy.tx.confirmedLabel")}
           </span>
           <a
             href={explorerTx(txHash)}

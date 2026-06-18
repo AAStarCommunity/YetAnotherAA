@@ -94,8 +94,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
         <nav className="hidden md:block sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
-              <div className="flex items-center">
-              </div>
+              <div className="flex items-center"></div>
 
               {/* Desktop Navigation */}
               <div className="flex items-center space-x-2">
