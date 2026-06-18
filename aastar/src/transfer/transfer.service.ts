@@ -1,5 +1,7 @@
 import { Injectable, Inject, BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
+import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { AddressBookService } from "./address-book.service";
 import { ExecuteTransferDto } from "./dto/execute-transfer.dto";
@@ -9,7 +11,8 @@ import { EstimateGasDto } from "./dto/estimate-gas.dto";
 export class TransferService {
   constructor(
     @Inject(YAAA_SERVER_CLIENT) private client: YAAAServerClient,
-    private addressBookService: AddressBookService
+    private addressBookService: AddressBookService,
+    private configService: ConfigService
   ) {}
 
   async executeTransfer(userId: string, transferDto: ExecuteTransferDto) {
@@ -18,11 +21,14 @@ export class TransferService {
     }
 
     // PMv4 requires the ERC-20 gas token address appended to paymasterData.
-    // Its contract has no token() getter so we supply it explicitly.
-    const PMV4_ADDRESS = "0xd0c82dc12b7d65b03df7972f67d13f1d33469a98";
-    const APNTS_TOKEN = "0xDf669834F04988BcEE0E3B6013B6b867Bd38778d";
+    // Its contract has no token() getter so we supply it explicitly. Addresses
+    // come from the SDK's canonical set for the configured chain (the same source
+    // the paymaster list is built from) — never hardcoded.
+    const canonical = getCanonicalAddresses(this.configService.get<number>("chainId") ?? 11155111);
     const paymasterTokenAddress =
-      transferDto.paymasterAddress?.toLowerCase() === PMV4_ADDRESS ? APNTS_TOKEN : undefined;
+      transferDto.paymasterAddress?.toLowerCase() === canonical.paymasterV4?.toLowerCase()
+        ? canonical.aPNTs
+        : undefined;
 
     // Pass the Legacy assertion through to the SDK, which forwards it
     // to BLSSignatureService → ISignerAdapter → KmsSigner → KMS SignHash.
