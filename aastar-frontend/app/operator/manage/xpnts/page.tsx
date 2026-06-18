@@ -31,7 +31,7 @@ import {
   paymasterFactoryActions,
   XPNTS_FACTORY_ADDRESS,
   PAYMASTER_FACTORY_ADDRESS,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import Layout from "@/components/Layout";
 import { useWallet } from "@/contexts/WalletContext";
 import { ensureSdkConfig } from "@/lib/sdk/client";
@@ -194,9 +194,12 @@ function XPNTsManager() {
         amount: parseEther(mintAmount),
       });
       setMintTx(hash);
-      toast.success(t("operatorManage.xpnts.toastMinted", { amount: mintAmount, symbol: token.symbol }), {
-        id: tid,
-      });
+      toast.success(
+        t("operatorManage.xpnts.toastMinted", { amount: mintAmount, symbol: token.symbol }),
+        {
+          id: tid,
+        }
+      );
       setMintTo("");
       setMintAmount("");
       setTimeout(() => void load(), 4000);
@@ -222,8 +225,18 @@ function XPNTsManager() {
             {t("operatorManage.xpnts.deployPrompt")}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label={t("operatorManage.xpnts.tokenName")} value={name} onChange={setName} placeholder={t("operatorManage.xpnts.tokenNamePlaceholder")} />
-            <Field label={t("operatorManage.xpnts.symbol")} value={symbol} onChange={setSymbol} placeholder={t("operatorManage.xpnts.symbolPlaceholder")} />
+            <Field
+              label={t("operatorManage.xpnts.tokenName")}
+              value={name}
+              onChange={setName}
+              placeholder={t("operatorManage.xpnts.tokenNamePlaceholder")}
+            />
+            <Field
+              label={t("operatorManage.xpnts.symbol")}
+              value={symbol}
+              onChange={setSymbol}
+              placeholder={t("operatorManage.xpnts.symbolPlaceholder")}
+            />
             <Field
               label={t("operatorManage.xpnts.communityName")}
               value={communityName}
@@ -260,7 +273,9 @@ function XPNTsManager() {
             ) : (
               <RocketLaunchIcon className="h-4 w-4" />
             )}
-            {deploying ? t("operatorManage.xpnts.deploying") : t("operatorManage.xpnts.deployToken")}
+            {deploying
+              ? t("operatorManage.xpnts.deploying")
+              : t("operatorManage.xpnts.deployToken")}
           </button>
           {deployTx && (
             <div className="mt-3">
@@ -285,10 +300,26 @@ function XPNTsManager() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <MetricCard label={t("operatorManage.xpnts.name")} value={token.name} mono />
               <MetricCard label={t("operatorManage.xpnts.symbolLabel")} value={token.symbol} mono />
-              <MetricCard label={t("operatorManage.xpnts.exchangeRate")} value={token.exchangeRate} unit={t("operatorManage.xpnts.exchangeRateUnit")} />
-              <MetricCard label={t("operatorManage.xpnts.community")} value={token.communityName} mono />
-              <MetricCard label={t("operatorManage.xpnts.yourBalance")} value={token.balance} unit={token.symbol} />
-              <MetricCard label={t("operatorManage.xpnts.owner")} value={shortAddr(token.communityOwner)} mono />
+              <MetricCard
+                label={t("operatorManage.xpnts.exchangeRate")}
+                value={token.exchangeRate}
+                unit={t("operatorManage.xpnts.exchangeRateUnit")}
+              />
+              <MetricCard
+                label={t("operatorManage.xpnts.community")}
+                value={token.communityName}
+                mono
+              />
+              <MetricCard
+                label={t("operatorManage.xpnts.yourBalance")}
+                value={token.balance}
+                unit={token.symbol}
+              />
+              <MetricCard
+                label={t("operatorManage.xpnts.owner")}
+                value={shortAddr(token.communityOwner)}
+                mono
+              />
             </div>
             <p className="mt-3 text-xs text-gray-400 font-mono break-all">
               {t("operatorManage.xpnts.tokenLabel")}{" "}
@@ -313,7 +344,13 @@ function XPNTsManager() {
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label={t("operatorManage.xpnts.recipient")} value={mintTo} onChange={setMintTo} placeholder="0x…" mono />
+              <Field
+                label={t("operatorManage.xpnts.recipient")}
+                value={mintTo}
+                onChange={setMintTo}
+                placeholder="0x…"
+                mono
+              />
               <Field
                 label={t("operatorManage.xpnts.amountWithSymbol", { symbol: token.symbol })}
                 value={mintAmount}

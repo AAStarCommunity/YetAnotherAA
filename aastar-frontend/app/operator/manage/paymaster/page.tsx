@@ -31,7 +31,7 @@ import {
   entryPointActions,
   paymasterFactoryActions,
   PAYMASTER_FACTORY_ADDRESS,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import Layout from "@/components/Layout";
 import { useWallet } from "@/contexts/WalletContext";
 import { ensureSdkConfig } from "@/lib/sdk/client";
@@ -175,7 +175,11 @@ function AOAManager() {
           <div className="flex items-center gap-2">
             <StatusBadge
               active={!state.paused}
-              label={state.paused ? t("operatorManage.paymaster.paused") : t("operatorManage.paymaster.active")}
+              label={
+                state.paused
+                  ? t("operatorManage.paymaster.paused")
+                  : t("operatorManage.paymaster.active")
+              }
             />
             <button
               onClick={() => void load()}
@@ -187,16 +191,36 @@ function AOAManager() {
         }
       >
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <MetricCard label={t("operatorManage.paymaster.entryPointBalance")} value={state.entryPointBalance} unit="ETH" />
-          <MetricCard label={t("operatorManage.paymaster.serviceFeeRate")} value={state.serviceFeeRate.toString()} unit="bps" />
+          <MetricCard
+            label={t("operatorManage.paymaster.entryPointBalance")}
+            value={state.entryPointBalance}
+            unit="ETH"
+          />
+          <MetricCard
+            label={t("operatorManage.paymaster.serviceFeeRate")}
+            value={state.serviceFeeRate.toString()}
+            unit="bps"
+          />
           <MetricCard
             label={t("operatorManage.paymaster.maxGasCostCap")}
             value={formatEther(state.maxGasCostCap)}
             unit="ETH"
           />
-          <MetricCard label={t("operatorManage.paymaster.owner")} value={shortAddr(state.owner)} mono />
-          <MetricCard label={t("operatorManage.paymaster.treasury")} value={shortAddr(state.treasury)} mono />
-          <MetricCard label={t("operatorManage.paymaster.entryPoint")} value={shortAddr(state.entryPoint)} mono />
+          <MetricCard
+            label={t("operatorManage.paymaster.owner")}
+            value={shortAddr(state.owner)}
+            mono
+          />
+          <MetricCard
+            label={t("operatorManage.paymaster.treasury")}
+            value={shortAddr(state.treasury)}
+            mono
+          />
+          <MetricCard
+            label={t("operatorManage.paymaster.entryPoint")}
+            value={shortAddr(state.entryPoint)}
+            mono
+          />
         </div>
         <p className="mt-3 text-xs text-gray-400 font-mono break-all">
           {t("operatorManage.paymaster.paymasterLabel")}{" "}
@@ -340,7 +364,9 @@ function AOAManager() {
               ) : (
                 <PauseCircleIcon className="h-4 w-4" />
               )}
-              {state.paused ? t("operatorManage.paymaster.unpause") : t("operatorManage.paymaster.pause")}
+              {state.paused
+                ? t("operatorManage.paymaster.unpause")
+                : t("operatorManage.paymaster.pause")}
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
-import { YAAAClient } from "@aastar/airaccount";
-import { KmsManager, LegacyPasskeyAssertion } from "@aastar/airaccount/server";
+import { YAAAClient } from "@aastar/sdk/kms";
+import { KmsManager, LegacyPasskeyAssertion } from "@aastar/sdk/kms";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 

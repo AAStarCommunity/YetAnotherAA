@@ -17,9 +17,7 @@
     "test:ci": "echo \"⚠️  No tests yet - skipping\""
   },
   "dependencies": {
-    "@aastar/airaccount": "^0.19.0",
-    "@aastar/core": "^0.18.0",
-    "@aastar/operator": "^0.18.0",
+    "@aastar/sdk": "^0.20.9",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@simplewebauthn/browser": "^13.3.0",

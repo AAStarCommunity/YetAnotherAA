@@ -26,7 +26,7 @@ import {
   SUPER_PAYMASTER_ADDRESS,
   APNTS_ADDRESS,
   CHAIN_SEPOLIA,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import type { Address } from "viem";
 import { ensureSdkConfig, getPublicClient } from "../sdk/client";
 import { clearCache, loadFromCache, saveToCache } from "./cache";
@@ -183,9 +183,21 @@ async function checkAOAResources(walletAddress: string): Promise<ResourceStatus>
   const addr = walletAddress.toLowerCase();
 
   const [registered, xpnts, paymaster, gToken, eth] = await Promise.all([
-    getCachedOrFetch(cacheKey("community", addr), () => isCommunityRegistered(address), r => r),
-    getCachedOrFetch(cacheKey("xpnts", addr), () => checkXPNTs(address), r => r.hasToken),
-    getCachedOrFetch(cacheKey("paymaster", addr), () => checkPaymaster(address), r => r.hasPaymaster),
+    getCachedOrFetch(
+      cacheKey("community", addr),
+      () => isCommunityRegistered(address),
+      r => r
+    ),
+    getCachedOrFetch(
+      cacheKey("xpnts", addr),
+      () => checkXPNTs(address),
+      r => r.hasToken
+    ),
+    getCachedOrFetch(
+      cacheKey("paymaster", addr),
+      () => checkPaymaster(address),
+      r => r.hasPaymaster
+    ),
     tokenBalance(GTOKEN_ADDRESS, address), // fresh, never cached
     ethBalance(address), // fresh, never cached
   ]);
@@ -224,11 +236,27 @@ async function checkAOAPlusResources(walletAddress: string): Promise<ResourceSta
   const addr = walletAddress.toLowerCase();
 
   const [registered, xpnts, aoaPaymaster, superRegistered, gToken, aPNTs, eth] = await Promise.all([
-    getCachedOrFetch(cacheKey("community", addr), () => isCommunityRegistered(address), r => r),
-    getCachedOrFetch(cacheKey("xpnts", addr), () => checkXPNTs(address), r => r.hasToken),
+    getCachedOrFetch(
+      cacheKey("community", addr),
+      () => isCommunityRegistered(address),
+      r => r
+    ),
+    getCachedOrFetch(
+      cacheKey("xpnts", addr),
+      () => checkXPNTs(address),
+      r => r.hasToken
+    ),
     // Only cache when there is NO conflict (no AOA paymaster / not yet registered).
-    getCachedOrFetch(cacheKey("aoa_paymaster", addr), () => checkPaymaster(address), r => !r.hasPaymaster),
-    getCachedOrFetch(cacheKey("superpaymaster", addr), () => isSuperPaymasterRegistered(address), r => !r),
+    getCachedOrFetch(
+      cacheKey("aoa_paymaster", addr),
+      () => checkPaymaster(address),
+      r => !r.hasPaymaster
+    ),
+    getCachedOrFetch(
+      cacheKey("superpaymaster", addr),
+      () => isSuperPaymasterRegistered(address),
+      r => !r
+    ),
     tokenBalance(GTOKEN_ADDRESS, address), // fresh, never cached
     tokenBalance(APNTS_ADDRESS, address), // fresh, never cached
     ethBalance(address), // fresh, never cached

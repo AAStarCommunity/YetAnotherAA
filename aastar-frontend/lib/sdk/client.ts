@@ -11,7 +11,7 @@
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import type { Address, Chain, PublicClient, WalletClient } from "viem";
 import { sepolia } from "viem/chains";
-import { applyConfig, CHAIN_SEPOLIA } from "@aastar/core";
+import { applyConfig, CHAIN_SEPOLIA } from "@aastar/sdk/core";
 
 let sdkConfigured = false;
 

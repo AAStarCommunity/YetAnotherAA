@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { parseEther, isAddress, type Address } from "viem";
+import { isAddress, type Address } from "viem";
 import { buildPaymasterOperatorClient } from "@/lib/sdk/operator";
 import type { StepProps } from "./types";
 import { useTxStep } from "../components/useTxStep";
@@ -19,7 +19,14 @@ import StepCard from "../components/StepCard";
 import WizardButton from "../components/WizardButton";
 import FormField from "../components/FormField";
 
-export default function Step6ConfigureOperator({ address, walletClient, data, update, onNext, onBack }: StepProps) {
+export default function Step6ConfigureOperator({
+  address,
+  walletClient,
+  data,
+  update,
+  onNext,
+  onBack,
+}: StepProps) {
   const { t } = useTranslation();
   const tx = useTxStep();
   const [treasury, setTreasury] = useState(data.treasury || address);
@@ -32,7 +39,9 @@ export default function Step6ConfigureOperator({ address, walletClient, data, up
     await tx.run(
       async () => {
         const client = buildPaymasterOperatorClient(walletClient);
-        return client.configureOperator(xPNTs as Address, treasury as Address, parseEther(rate || "1"));
+        // SDK 0.20.x: exchange rate is no longer set here — it's read live from
+        // xPNTsToken.exchangeRate() at runtime, so configureOperator drops the rate arg.
+        return client.configureOperator(xPNTs as Address, treasury as Address);
       },
       {
         loadingMsg: t("operatorDeploy.tx.configuringOperator"),
@@ -73,10 +82,24 @@ export default function Step6ConfigureOperator({ address, walletClient, data, up
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {t("operatorDeploy.step6Configure.xpntsToken")} <span className="font-mono break-all">{xPNTs}</span>
+            {t("operatorDeploy.step6Configure.xpntsToken")}{" "}
+            <span className="font-mono break-all">{xPNTs}</span>
           </p>
-          <FormField label={t("operatorDeploy.step6Configure.treasuryAddress")} value={treasury} onChange={setTreasury} mono placeholder="0x…" hint={t("operatorDeploy.step6Configure.treasuryHint")} />
-          <FormField label={t("operatorDeploy.step6Configure.exchangeRate")} type="number" value={rate} onChange={setRate} hint={t("operatorDeploy.step6Configure.exchangeRateHint")} />
+          <FormField
+            label={t("operatorDeploy.step6Configure.treasuryAddress")}
+            value={treasury}
+            onChange={setTreasury}
+            mono
+            placeholder="0x…"
+            hint={t("operatorDeploy.step6Configure.treasuryHint")}
+          />
+          <FormField
+            label={t("operatorDeploy.step6Configure.exchangeRate")}
+            type="number"
+            value={rate}
+            onChange={setRate}
+            hint={t("operatorDeploy.step6Configure.exchangeRateHint")}
+          />
         </div>
       )}
     </StepCard>

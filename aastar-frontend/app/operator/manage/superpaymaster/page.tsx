@@ -29,9 +29,10 @@ import {
 import {
   superPaymasterActions,
   tokenActions,
+  xPNTsTokenActions,
   SUPER_PAYMASTER_ADDRESS,
   APNTS_ADDRESS,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import Layout from "@/components/Layout";
 import { useWallet } from "@/contexts/WalletContext";
 import { ensureSdkConfig } from "@/lib/sdk/client";
@@ -86,11 +87,20 @@ function SuperPaymasterManager() {
         token: APNTS_ADDRESS,
         account: operator,
       });
+      // SDK 0.20.x dropped exchangeRate from OperatorConfig — it's now read live
+      // from the configured xPNTs token (zero address when none set yet).
+      const ZERO = "0x0000000000000000000000000000000000000000";
+      const exchangeRate =
+        cfg.xPNTsToken && cfg.xPNTsToken.toLowerCase() !== ZERO
+          ? await xPNTsTokenActions(cfg.xPNTsToken)(reader()).exchangeRate({
+              token: cfg.xPNTsToken,
+            })
+          : 0n;
       setState({
         isConfigured: cfg.isConfigured,
         isPaused: cfg.isPaused,
         aPNTsBalance: formatEther(cfg.aPNTsBalance),
-        exchangeRate: formatEther(cfg.exchangeRate),
+        exchangeRate: formatEther(exchangeRate),
         reputation: cfg.reputation,
         treasury: cfg.treasury,
         xPNTsToken: cfg.xPNTsToken,
@@ -140,7 +150,9 @@ function SuperPaymasterManager() {
       const sp = superPaymasterActions(SUPER_PAYMASTER_ADDRESS)(walletClient as never);
       const hash = await sp.deposit({ amount });
       setLastTx(hash);
-      toast.success(t("operatorManage.super.toastDeposited", { amount: depositAmount }), { id: tid });
+      toast.success(t("operatorManage.super.toastDeposited", { amount: depositAmount }), {
+        id: tid,
+      });
       setDepositAmount("");
       setTimeout(() => void load(), 4000);
     } catch (e) {
@@ -165,11 +177,17 @@ function SuperPaymasterManager() {
           <div className="flex items-center gap-2">
             <StatusBadge
               active={state.isConfigured}
-              label={state.isConfigured ? t("operatorManage.super.configured") : t("operatorManage.super.notConfigured")}
+              label={
+                state.isConfigured
+                  ? t("operatorManage.super.configured")
+                  : t("operatorManage.super.notConfigured")
+              }
             />
             <StatusBadge
               active={!state.isPaused}
-              label={state.isPaused ? t("operatorManage.super.paused") : t("operatorManage.super.active")}
+              label={
+                state.isPaused ? t("operatorManage.super.paused") : t("operatorManage.super.active")
+              }
             />
             <button
               onClick={() => void load()}
@@ -192,11 +210,29 @@ function SuperPaymasterManager() {
             unit="aPNTs"
             sub={lowBalance ? t("operatorManage.super.lowTopUp") : undefined}
           />
-          <MetricCard label={t("operatorManage.super.exchangeRate")} value={state.exchangeRate} unit={t("operatorManage.super.exchangeRateUnit")} />
-          <MetricCard label={t("operatorManage.super.reputation")} value={state.reputation.toString()} />
-          <MetricCard label={t("operatorManage.super.totalSpent")} value={state.totalSpent} unit="aPNTs" />
-          <MetricCard label={t("operatorManage.super.txSponsored")} value={state.totalTxSponsored} />
-          <MetricCard label={t("operatorManage.super.treasury")} value={shortAddr(state.treasury)} mono />
+          <MetricCard
+            label={t("operatorManage.super.exchangeRate")}
+            value={state.exchangeRate}
+            unit={t("operatorManage.super.exchangeRateUnit")}
+          />
+          <MetricCard
+            label={t("operatorManage.super.reputation")}
+            value={state.reputation.toString()}
+          />
+          <MetricCard
+            label={t("operatorManage.super.totalSpent")}
+            value={state.totalSpent}
+            unit="aPNTs"
+          />
+          <MetricCard
+            label={t("operatorManage.super.txSponsored")}
+            value={state.totalTxSponsored}
+          />
+          <MetricCard
+            label={t("operatorManage.super.treasury")}
+            value={shortAddr(state.treasury)}
+            mono
+          />
         </div>
         <p className="mt-3 text-xs text-gray-400 font-mono break-all">
           {t("operatorManage.super.tokenAndWallet", {
@@ -228,7 +264,9 @@ function SuperPaymasterManager() {
             ) : (
               <PlusCircleIcon className="h-4 w-4" />
             )}
-            {depositing ? t("operatorManage.super.depositing") : t("operatorManage.super.depositApnts")}
+            {depositing
+              ? t("operatorManage.super.depositing")
+              : t("operatorManage.super.depositApnts")}
           </button>
         </div>
         {lastTx && (

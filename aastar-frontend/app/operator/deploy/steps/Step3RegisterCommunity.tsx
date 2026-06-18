@@ -21,7 +21,7 @@ import {
   REGISTRY_ADDRESS,
   GTOKEN_ADDRESS,
   GTOKEN_STAKING_ADDRESS,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 import type { StepProps } from "./types";
 import { useTxStep } from "../components/useTxStep";
@@ -118,7 +118,9 @@ export default function Step3RegisterCommunity({
       ) : (
         <p className="text-sm text-gray-600 dark:text-gray-300">
           {t("operatorDeploy.step3.explainerPrefix")}{" "}
-          <code className="px-1 rounded bg-gray-100 dark:bg-gray-700 text-xs">registerRole(ROLE_COMMUNITY)</code>
+          <code className="px-1 rounded bg-gray-100 dark:bg-gray-700 text-xs">
+            registerRole(ROLE_COMMUNITY)
+          </code>
           {t("operatorDeploy.step3.explainerSuffix")}
         </p>
       )}

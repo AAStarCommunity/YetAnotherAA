@@ -11,7 +11,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BanknotesIcon } from "@heroicons/react/24/outline";
 import { parseEther } from "viem";
-import { entryPointActions, ENTRY_POINT_ADDRESS } from "@aastar/core";
+import { entryPointActions, ENTRY_POINT_ADDRESS } from "@aastar/sdk/core";
 import { ensureSdkConfig } from "@/lib/sdk/client";
 import type { StepProps } from "./types";
 import { useTxStep } from "../components/useTxStep";
@@ -19,7 +19,13 @@ import StepCard from "../components/StepCard";
 import WizardButton from "../components/WizardButton";
 import FormField from "../components/FormField";
 
-export default function Step6EntryPointDeposit({ data, walletClient, update, onNext, onBack }: StepProps) {
+export default function Step6EntryPointDeposit({
+  data,
+  walletClient,
+  update,
+  onNext,
+  onBack,
+}: StepProps) {
   const { t } = useTranslation();
   const paymaster = data.paymasterAddress;
   const tx = useTxStep();
@@ -75,9 +81,16 @@ export default function Step6EntryPointDeposit({ data, walletClient, update, onN
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {t("operatorDeploy.step6Entrypoint.paymaster")} <span className="font-mono">{paymaster}</span>
+            {t("operatorDeploy.step6Entrypoint.paymaster")}{" "}
+            <span className="font-mono">{paymaster}</span>
           </p>
-          <FormField label={t("operatorDeploy.step6Entrypoint.depositAmount")} type="number" value={eth} onChange={setEth} hint={t("operatorDeploy.step6Entrypoint.depositHint")} />
+          <FormField
+            label={t("operatorDeploy.step6Entrypoint.depositAmount")}
+            type="number"
+            value={eth}
+            onChange={setEth}
+            hint={t("operatorDeploy.step6Entrypoint.depositHint")}
+          />
         </div>
       )}
     </StepCard>

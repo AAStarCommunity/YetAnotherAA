@@ -16,7 +16,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CurrencyDollarIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { parseEther, zeroAddress, type Address } from "viem";
-import { xPNTsFactoryActions, XPNTS_FACTORY_ADDRESS } from "@aastar/core";
+import { xPNTsFactoryActions, XPNTS_FACTORY_ADDRESS } from "@aastar/sdk/core";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 import type { StepProps } from "./types";
 import { useTxStep } from "../components/useTxStep";
@@ -130,11 +130,38 @@ export default function Step4DeployXPNTs({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label={t("operatorDeploy.step4.tokenName")} value={local.name} onChange={v => setLocal(s => ({ ...s, name: v }))} placeholder={t("operatorDeploy.step4.tokenNamePlaceholder")} />
-          <FormField label={t("operatorDeploy.step4.tokenSymbol")} value={local.symbol} onChange={v => setLocal(s => ({ ...s, symbol: v.toUpperCase() }))} placeholder={t("operatorDeploy.step4.tokenSymbolPlaceholder")} />
-          <FormField label={t("operatorDeploy.step4.communityName")} value={local.communityName} onChange={v => setLocal(s => ({ ...s, communityName: v }))} placeholder={t("operatorDeploy.step4.communityNamePlaceholder")} />
-          <FormField label={t("operatorDeploy.step4.communityENS")} value={local.communityENS} onChange={v => setLocal(s => ({ ...s, communityENS: v }))} placeholder={t("operatorDeploy.step4.communityENSPlaceholder")} mono />
-          <FormField label={t("operatorDeploy.step4.exchangeRate")} type="number" value={local.rate} onChange={v => setLocal(s => ({ ...s, rate: v }))} hint={t("operatorDeploy.step4.exchangeRateHint")} />
+          <FormField
+            label={t("operatorDeploy.step4.tokenName")}
+            value={local.name}
+            onChange={v => setLocal(s => ({ ...s, name: v }))}
+            placeholder={t("operatorDeploy.step4.tokenNamePlaceholder")}
+          />
+          <FormField
+            label={t("operatorDeploy.step4.tokenSymbol")}
+            value={local.symbol}
+            onChange={v => setLocal(s => ({ ...s, symbol: v.toUpperCase() }))}
+            placeholder={t("operatorDeploy.step4.tokenSymbolPlaceholder")}
+          />
+          <FormField
+            label={t("operatorDeploy.step4.communityName")}
+            value={local.communityName}
+            onChange={v => setLocal(s => ({ ...s, communityName: v }))}
+            placeholder={t("operatorDeploy.step4.communityNamePlaceholder")}
+          />
+          <FormField
+            label={t("operatorDeploy.step4.communityENS")}
+            value={local.communityENS}
+            onChange={v => setLocal(s => ({ ...s, communityENS: v }))}
+            placeholder={t("operatorDeploy.step4.communityENSPlaceholder")}
+            mono
+          />
+          <FormField
+            label={t("operatorDeploy.step4.exchangeRate")}
+            type="number"
+            value={local.rate}
+            onChange={v => setLocal(s => ({ ...s, rate: v }))}
+            hint={t("operatorDeploy.step4.exchangeRateHint")}
+          />
         </div>
       )}
     </StepCard>

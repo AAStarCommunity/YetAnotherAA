@@ -15,8 +15,8 @@
  * @module lib/sdk/operator
  */
 import type { WalletClient } from "viem";
-import { OperatorLifecycle, PaymasterOperatorClient } from "@aastar/operator";
-import { SUPER_PAYMASTER_ADDRESS, GTOKEN_ADDRESS } from "@aastar/core";
+import { OperatorLifecycle, PaymasterOperatorClient } from "@aastar/sdk/operator";
+import { SUPER_PAYMASTER_ADDRESS, GTOKEN_ADDRESS } from "@aastar/sdk/core";
 import { ensureSdkConfig, getPublicClient } from "./client";
 
 // @aastar/* bundles its own viem copy, so its WalletClient/PublicClient type
