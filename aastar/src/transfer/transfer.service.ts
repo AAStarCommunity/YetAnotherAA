@@ -24,8 +24,12 @@ export class TransferService {
     // Its contract has no token() getter so we supply it explicitly. Addresses
     // come from the SDK's canonical set for the configured chain (the same source
     // the paymaster list is built from) — never hardcoded.
+    // `canonical` is undefined for an unsupported CHAIN_ID; guard so a misconfig
+    // surfaces as "no paymaster token" rather than a TypeError that crashes every
+    // transfer (strictNullChecks is off, so tsc won't catch this).
     const canonical = getCanonicalAddresses(this.configService.get<number>("chainId") ?? 11155111);
     const paymasterTokenAddress =
+      canonical &&
       transferDto.paymasterAddress?.toLowerCase() === canonical.paymasterV4?.toLowerCase()
         ? canonical.aPNTs
         : undefined;
