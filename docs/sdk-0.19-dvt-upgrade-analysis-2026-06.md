@@ -1,7 +1,49 @@
 # YAA × SDK 0.19 + DVT infra 升级:变化分析与调整计划(2026-06)
 
 > 触发:aastar-sdk 收尾发布 **0.19.0**(钉 AirAccount contracts v0.18.0-beta.1 / SuperPaymaster v5.4.0-beta.1 / KMS 0.22.0 / DVT v1.2.0),infra 四仓库全部出新版。YAA 全部能力经 SDK 构建,本文给 SDK/infra 变化对 YAA 的影响 + 调整计划。
-> 关联:[sdk-infra-upgrade-analysis-2026-06.md](./sdk-infra-upgrade-analysis-2026-06.md)、[sdk-requirements-registry-portal.md](./sdk-requirements-registry-portal.md);DVT 消费侧 tracking:YetAnotherAA#311 / #312;SDK gap:aastar-sdk#52。
+> 关联:[sdk-infra-upgrade-analysis-2026-06.md](./sdk-infra-upgrade-analysis-2026-06.md)、[sdk-requirements-registry-portal.md](./sdk-requirements-registry-portal.md);DVT 消费侧 tracking:YetAnotherAA#311 / #312;SDK gap:aastar-sdk#52;SDK 契约漂移:YetAnotherAA#314。
+
+---
+
+## ⚠️ 更新(2026-06-18):SDK 已到 0.20.x(`@aastar/sdk` 0.20.7)——本节取代下方 0.19 计划
+
+代码已冻结。infra pin 再前进:AirAccount 合约 **v0.19.0-beta.2** / SuperPaymaster **v5.4.0-beta.1-redeploy(2026-06-16)** / KMS openapi **0.23.0** / DVT **v1.3.0**。本次有**两个结构性 break**(CHANGELOG 停在 0.20.1,未记):
+
+### 🔴 头号变化:打包重构 —— 19 个包合并为单一发布包 `@aastar/sdk`
+`@aastar/airaccount` / `@aastar/core` / `@aastar/operator`(及其余 16 个)全部 `private:true`,**不再单独发 npm**。YAA 现在的依赖升级后**无法从 registry 解析**,必须全改走 `@aastar/sdk` 子路径:
+
+| 现在 import | 改为 |
+|---|---|
+| `@aastar/airaccount` | `@aastar/sdk/airaccount`(或根) |
+| `@aastar/airaccount/server` | `@aastar/sdk/kms`(无 `/server` 子路径;迁移前先核 `@aastar/sdk/kms` 是否 re-export `YAAAServerClient`/adapters/records/`ServerConfig`/`UserOperation`/`BLSSignatureData`)|
+| `@aastar/core` | `@aastar/sdk/core` |
+| `@aastar/operator` | `@aastar/sdk/operator` |
+
+涉及 YAA:后端约 9 文件(`@aastar/airaccount/server`)+ 前后端约 9 文件(`@aastar/core`)+ operator/airaccount 各处。
+
+### 🔴 第二变化:ethers→viem 全量迁移 → `ISignerAdapter` 重写(YAA 实现了它,BREAKING)
+- `ISignerAdapter`:**删 `getSigner()`**;新增 **`signMessage(userId, message: 0x${string}|Uint8Array, ctx?): Promise<0x${string}>`**;`ensureSigner()` 返回 **`{ address }`**(原 `{ signer, address }`);`getAddress()` 返回 `0x${string}`。
+- **`aastar/src/sdk/backend-signer.adapter.ts` 必须重写。** ⚠️ 坑:`signMessage` 传进来的是 **32B 摘要**;底层 `KmsSigner.signMessage` 把 **string 当 UTF-8、Uint8Array 当 raw bytes** → YAA 必须传 **bytes**(`ethers.getBytes(message)`),否则签错 preimage。
+- `KmsSigner` 不再是 ethers Signer(删 `signTransaction`/`signTypedData`/`connect`/`provider`);`createKmsSigner` **去掉第 4 个 `provider` 参数** → `aastar/src/kms/kms.service.ts:127` 要去掉那个参数。YAA 不依赖 KmsSigner 的 tx/typed-data 签名(guardian.service 用独立 `ethers.Wallet`),OK。
+
+### 🟡 第三变化:Sepolia 地址全量 redeploy(功能性)
+`CANONICAL_ADDRESSES[11155111]` 几乎全换(superPaymaster/paymasterFactory/xPNTsFactory/registry/gToken/policyRegistry/aPNTs + **所有 AirAccount 合约** factory/impl/validator/blsAlgorithm/...)。YAA 若**只**经 `@aastar/sdk/core` 取地址 → 升级自动跟上;但 `@aastar/airaccount` 自带地址副本**仍滞后(beta.4)**,**不要**从那取 AirAccount 地址。审计所有硬编码地址。
+
+### ✅ 好消息:核心调用面没动(现有功能稳)
+`client.transfers.*`(executeTransfer/estimateGas/getTransferStatus/getTransferHistory)、`client.accounts.*`、`client.bls.*`(generateBLSSignature/packSignature/getActiveSignerNodes)、`client.tokens.*`、`client.ethereum.*` 签名**全不变**;`IStorageAdapter`+records、`ServerConfig`、`applyConfig`/`CHAIN_SEPOLIA`/`ROLE_*`、`@aastar/core` actions **不变**;`YAAAServerClient`/`YAAAClient` 保留 `@deprecated` 别名仍能编译。
+
+### 修订后"跟随升级保持稳定"硬清单(取代下方 0.19 的依赖部分)
+1. **依赖改 `@aastar/sdk@^0.20.7` + 重写所有 import 路径**(上表)。先核 `@aastar/sdk/kms` 导出覆盖 YAA 用的 server 符号。
+2. **重写 `backend-signer.adapter.ts`** 到新 `ISignerAdapter`(删 getSigner、加 signMessage 且传 bytes、ensureSigner 返 `{address}`、getAddress 返 `0x`)。
+3. **`kms.service.ts:127` 去掉 `createKmsSigner` 第 4 参数**。
+4. **地址只经 `@aastar/sdk/core`**;清硬编码(transfer.service PMV4/APNTS + 运营 deploy step + resourceChecker)。
+5. 前端 `AirAccountConfig.apiURL` 现**必填**(无默认),`lib/yaaa.ts` 显式传(关联 #314:无公开实例,先用 localhost)。
+6. 转账回归(`ALG_ID.BLS` 前缀 + `wrapExecuteUserOp`,0.19 引入)。
+7. passkey:client 侧 `PasskeyManager` 路由已可覆盖(#99);server 侧 `@aastar/passkey-server` 尚未交付,等 YAA 提供 RP/KMS-login 实现抽取(#314)。
+
+> 下方 0.19 章节保留作背景;地址/字段细节以本 0.20.x 节为准。
+
+---
 
 ## 0. 一句话结论
 
