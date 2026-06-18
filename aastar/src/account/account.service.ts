@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from "@nestjs/common";
-import { YAAAServerClient } from "@aastar/airaccount/server";
+import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { CreateAccountDto, EntryPointVersionDto } from "./dto/create-account.dto";
 import { GuardianSetupPrepareDto, CreateWithGuardiansDto } from "./dto/guardian-setup.dto";
@@ -87,6 +87,7 @@ export class AccountService {
     factoryAddress: string;
     acceptanceHash: string;
     qrPayload: string;
+    dailyLimit: string;
   }> {
     const versionDto = dto.entryPointVersion || EntryPointVersionDto.V0_7;
     const versionMap: Record<string, "0.6" | "0.7" | "0.8"> = {
@@ -106,24 +107,40 @@ export class AccountService {
     // Determine salt (use provided or generate random)
     const salt = dto.salt ?? Math.floor(Math.random() * 1_000_000);
 
+    // SDK 0.20.x binds dailyLimit into the acceptance hash — it MUST equal the
+    // value submitted in createWithGuardians, so compute it the same way here.
+    const dailyLimitWei = this.parseDailyLimitToWei(dto.dailyLimit) ?? 0n;
+
     // Build acceptance hash
     const acceptanceHash = this.client.accounts.buildGuardianAcceptanceHash(
       owner,
       salt,
       factoryAddress,
-      chainId
+      chainId,
+      dailyLimitWei
     );
 
-    // Build QR payload — everything guardian phone needs to reconstruct and sign
+    // Build QR payload — everything guardian phone needs to reconstruct and sign.
+    // dailyLimit is echoed (as wei string) so the create step submits the exact
+    // same value the hash was built with.
     const qrPayload = JSON.stringify({
       acceptanceHash,
       factory: factoryAddress,
       chainId,
       owner,
       salt,
+      dailyLimit: dailyLimitWei.toString(),
     });
 
-    return { owner, salt, chainId, factoryAddress, acceptanceHash, qrPayload };
+    return {
+      owner,
+      salt,
+      chainId,
+      factoryAddress,
+      acceptanceHash,
+      qrPayload,
+      dailyLimit: dailyLimitWei.toString(),
+    };
   }
 
   /**

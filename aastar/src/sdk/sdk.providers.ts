@@ -1,6 +1,6 @@
 import { Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { YAAAServerClient, ServerConfig } from "@aastar/airaccount/server";
+import { AirAccountServerClient as YAAAServerClient, ServerConfig } from "@aastar/sdk/kms";
 import { BackendStorageAdapter } from "./backend-storage.adapter";
 import { BackendSignerAdapter } from "./backend-signer.adapter";
 

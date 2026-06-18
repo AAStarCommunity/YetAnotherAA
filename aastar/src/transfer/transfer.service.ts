@@ -1,5 +1,5 @@
 import { Injectable, Inject, BadRequestException } from "@nestjs/common";
-import { YAAAServerClient } from "@aastar/airaccount/server";
+import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { AddressBookService } from "./address-book.service";
 import { ExecuteTransferDto } from "./dto/execute-transfer.dto";

@@ -3,31 +3,35 @@ import { ConfigService } from "@nestjs/config";
 import { RegistryService } from "./registry.service";
 
 // Mock @aastar/core to avoid real blockchain calls
-jest.mock("@aastar/core", () => ({
-  registryActions: jest.fn(() => jest.fn(() => ({
-    hasRole: jest.fn().mockResolvedValue(true),
-    getUserRoles: jest.fn().mockResolvedValue(["0xrole1"]),
-    getRoleConfig: jest.fn().mockResolvedValue({
-      minStake: BigInt("30000000000000000000"),
-      entryBurn: BigInt("0"),
-      slashThreshold: 3,
-      slashBase: 1,
-      slashInc: 1,
-      slashMax: 10,
-      exitFeePercent: 5,
-      isActive: true,
-      minExitFee: BigInt("0"),
-      description: "Community Admin",
-      owner: "0xowner",
-      roleLockDuration: BigInt(86400),
-    }),
-    getRoleMembers: jest.fn().mockResolvedValue(["0xmember1", "0xmember2"]),
-    getRoleUserCount: jest.fn().mockResolvedValue(BigInt(42)),
-    communityByName: jest.fn().mockResolvedValue("0xcommunity"),
-  }))),
-  tokenActions: jest.fn(() => jest.fn(() => ({
-    balanceOf: jest.fn().mockResolvedValue(BigInt("1000000000000000000")), // 1 GToken
-  }))),
+jest.mock("@aastar/sdk/core", () => ({
+  registryActions: jest.fn(() =>
+    jest.fn(() => ({
+      hasRole: jest.fn().mockResolvedValue(true),
+      getUserRoles: jest.fn().mockResolvedValue(["0xrole1"]),
+      getRoleConfig: jest.fn().mockResolvedValue({
+        minStake: BigInt("30000000000000000000"),
+        ticketPrice: BigInt("0"),
+        slashThreshold: 3,
+        slashBase: 1,
+        slashInc: 1,
+        slashMax: 10,
+        exitFeePercent: 5,
+        isActive: true,
+        minExitFee: BigInt("0"),
+        description: "Community Admin",
+        owner: "0xowner",
+        roleLockDuration: BigInt(86400),
+      }),
+      getRoleMembers: jest.fn().mockResolvedValue(["0xmember1", "0xmember2"]),
+      getRoleUserCount: jest.fn().mockResolvedValue(BigInt(42)),
+      communityByName: jest.fn().mockResolvedValue("0xcommunity"),
+    }))
+  ),
+  tokenActions: jest.fn(() =>
+    jest.fn(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt("1000000000000000000")), // 1 GToken
+    }))
+  ),
   applyConfig: jest.fn(),
   CHAIN_SEPOLIA: 11155111,
   REGISTRY_ADDRESS: "0xregistry",

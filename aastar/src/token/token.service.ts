@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ethers } from "ethers";
-import { YAAAServerClient } from "@aastar/airaccount/server";
+import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 
 export enum TokenCategory {

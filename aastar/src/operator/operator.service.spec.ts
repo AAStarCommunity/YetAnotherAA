@@ -2,18 +2,26 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { OperatorService } from "./operator.service";
 
-jest.mock("@aastar/core", () => ({
-  registryActions: jest.fn(() => jest.fn(() => ({
-    hasRole: jest.fn().mockResolvedValue(false),
-    getRoleMembers: jest.fn().mockResolvedValue(["0xop1"]),
-  }))),
-  stakingActions: jest.fn(() => jest.fn(() => ({
-    getStakeInfo: jest.fn().mockResolvedValue({ amount: BigInt("30000000000000000000"), lockedUntil: BigInt(0) }),
-  }))),
+jest.mock("@aastar/sdk/core", () => ({
+  registryActions: jest.fn(() =>
+    jest.fn(() => ({
+      hasRole: jest.fn().mockResolvedValue(false),
+      getRoleMembers: jest.fn().mockResolvedValue(["0xop1"]),
+    }))
+  ),
+  stakingActions: jest.fn(() =>
+    jest.fn(() => ({
+      getStakeInfo: jest
+        .fn()
+        .mockResolvedValue({ amount: BigInt("30000000000000000000"), lockedUntil: BigInt(0) }),
+    }))
+  ),
   superPaymasterActions: jest.fn(() => jest.fn(() => ({}))),
-  tokenActions: jest.fn(() => jest.fn(() => ({
-    balanceOf: jest.fn().mockResolvedValue(BigInt("10000000000000000000")),
-  }))),
+  tokenActions: jest.fn(() =>
+    jest.fn(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt("10000000000000000000")),
+    }))
+  ),
   applyConfig: jest.fn(),
   CHAIN_SEPOLIA: 11155111,
   REGISTRY_ADDRESS: "0xregistry",
@@ -27,14 +35,14 @@ jest.mock("@aastar/core", () => ({
 
 const mockReadContract = jest.fn().mockResolvedValue([
   BigInt("1000000000000000000"), // balance
-  BigInt("1000"),                // exchangeRate
-  true,                          // isConfigured
-  false,                         // isPaused
-  "0xtoken",                     // token
-  100,                           // reputation
-  "0xtreasury",                  // treasury
-  BigInt(0),                     // spent
-  BigInt(100),                   // txSponsored
+  BigInt("1000"), // exchangeRate
+  true, // isConfigured
+  false, // isPaused
+  "0xtoken", // token
+  100, // reputation
+  "0xtreasury", // treasury
+  BigInt(0), // spent
+  BigInt(100), // txSponsored
 ]);
 
 const mockGetBalance = jest.fn().mockResolvedValue(BigInt("500000000000000000")); // 0.5 ETH

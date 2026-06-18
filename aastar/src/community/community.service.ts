@@ -17,13 +17,13 @@ import {
   GTOKEN_ADDRESS as CORE_GTOKEN_ADDRESS,
   XPNTS_FACTORY_ADDRESS as CORE_XPNTS_FACTORY_ADDRESS,
   ROLE_COMMUNITY,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import type { Address, Hex } from "viem";
 
 @Injectable()
 export class CommunityService implements OnModuleInit {
   private readonly logger = new Logger(CommunityService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private publicClient: any;
   private registryAddress: Address;
   private gtokenAddress: Address;

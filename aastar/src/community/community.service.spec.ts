@@ -2,29 +2,35 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { CommunityService } from "./community.service";
 
-jest.mock("@aastar/core", () => ({
-  registryActions: jest.fn(() => jest.fn(() => ({
-    getRoleMembers: jest.fn().mockResolvedValue(["0xadmin1", "0xadmin2"]),
-    hasRole: jest.fn().mockResolvedValue(true),
-    roleMetadata: jest.fn().mockResolvedValue("0x"),
-    getRoleUserCount: jest.fn().mockResolvedValue(BigInt(5)),
-  }))),
-  tokenActions: jest.fn(() => jest.fn(() => ({
-    balanceOf: jest.fn().mockResolvedValue(BigInt("5000000000000000000")), // 5 tokens
-    name: jest.fn().mockResolvedValue("TestToken"),
-    symbol: jest.fn().mockResolvedValue("TST"),
-    totalSupply: jest.fn().mockResolvedValue(BigInt("1000000000000000000000")),
-    getMetadata: jest.fn().mockResolvedValue({
-      name: "TestToken",
-      symbol: "TST",
-      communityName: "TestCommunity",
-      communityENS: "test.eth",
-      communityOwner: "0xadmin1",
-    }),
-  }))),
-  xPNTsFactoryActions: jest.fn(() => jest.fn(() => ({
-    getTokenAddress: jest.fn().mockResolvedValue("0x0000000000000000000000000000000000000000"),
-  }))),
+jest.mock("@aastar/sdk/core", () => ({
+  registryActions: jest.fn(() =>
+    jest.fn(() => ({
+      getRoleMembers: jest.fn().mockResolvedValue(["0xadmin1", "0xadmin2"]),
+      hasRole: jest.fn().mockResolvedValue(true),
+      roleMetadata: jest.fn().mockResolvedValue("0x"),
+      getRoleUserCount: jest.fn().mockResolvedValue(BigInt(5)),
+    }))
+  ),
+  tokenActions: jest.fn(() =>
+    jest.fn(() => ({
+      balanceOf: jest.fn().mockResolvedValue(BigInt("5000000000000000000")), // 5 tokens
+      name: jest.fn().mockResolvedValue("TestToken"),
+      symbol: jest.fn().mockResolvedValue("TST"),
+      totalSupply: jest.fn().mockResolvedValue(BigInt("1000000000000000000000")),
+      getMetadata: jest.fn().mockResolvedValue({
+        name: "TestToken",
+        symbol: "TST",
+        communityName: "TestCommunity",
+        communityENS: "test.eth",
+        communityOwner: "0xadmin1",
+      }),
+    }))
+  ),
+  xPNTsFactoryActions: jest.fn(() =>
+    jest.fn(() => ({
+      getTokenAddress: jest.fn().mockResolvedValue("0x0000000000000000000000000000000000000000"),
+    }))
+  ),
   applyConfig: jest.fn(),
   CHAIN_SEPOLIA: 11155111,
   REGISTRY_ADDRESS: "0xregistry",

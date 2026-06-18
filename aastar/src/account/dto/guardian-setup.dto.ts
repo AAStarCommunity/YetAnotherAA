@@ -17,6 +17,16 @@ export class GuardianSetupPrepareDto {
   @IsOptional()
   @IsNumber()
   salt?: number;
+
+  @ApiProperty({
+    description:
+      "Daily spending limit (string). Bound into the guardian acceptance hash since SDK 0.20.x, " +
+      "so it MUST match the value submitted in the create step. Default: 0 (no limit).",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  dailyLimit?: string;
 }
 
 export class CreateWithGuardiansDto {

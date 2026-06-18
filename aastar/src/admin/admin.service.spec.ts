@@ -4,7 +4,7 @@ import { AdminService } from "./admin.service";
 
 const mockRoleConfig = {
   minStake: BigInt("30000000000000000000"),
-  entryBurn: BigInt("0"),
+  ticketPrice: BigInt("0"),
   slashThreshold: 3,
   slashBase: 1,
   slashInc: 1,
@@ -17,20 +17,24 @@ const mockRoleConfig = {
   roleLockDuration: BigInt(86400),
 };
 
-jest.mock("@aastar/core", () => ({
-  registryActions: jest.fn(() => jest.fn(() => ({
-    hasRole: jest.fn().mockResolvedValue(false),
-    getRoleConfig: jest.fn().mockResolvedValue(mockRoleConfig),
-    getRoleUserCount: jest.fn().mockResolvedValue(BigInt(10)),
-    owner: jest.fn().mockResolvedValue("0xowner"),
-    version: jest.fn().mockResolvedValue("1.0.0"),
-  }))),
-  tokenActions: jest.fn(() => jest.fn(() => ({
-    totalSupply: jest.fn().mockResolvedValue(BigInt("21000000000000000000000000")),
-    name: jest.fn().mockResolvedValue("GToken"),
-    symbol: jest.fn().mockResolvedValue("GT"),
-    balanceOf: jest.fn().mockResolvedValue(BigInt("1000000000000000000000")),
-  }))),
+jest.mock("@aastar/sdk/core", () => ({
+  registryActions: jest.fn(() =>
+    jest.fn(() => ({
+      hasRole: jest.fn().mockResolvedValue(false),
+      getRoleConfig: jest.fn().mockResolvedValue(mockRoleConfig),
+      getRoleUserCount: jest.fn().mockResolvedValue(BigInt(10)),
+      owner: jest.fn().mockResolvedValue("0xowner"),
+      version: jest.fn().mockResolvedValue("1.0.0"),
+    }))
+  ),
+  tokenActions: jest.fn(() =>
+    jest.fn(() => ({
+      totalSupply: jest.fn().mockResolvedValue(BigInt("21000000000000000000000000")),
+      name: jest.fn().mockResolvedValue("GToken"),
+      symbol: jest.fn().mockResolvedValue("GT"),
+      balanceOf: jest.fn().mockResolvedValue(BigInt("1000000000000000000000")),
+    }))
+  ),
   applyConfig: jest.fn(),
   CHAIN_SEPOLIA: 11155111,
   REGISTRY_ADDRESS: "0xregistry",

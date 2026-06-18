@@ -4,9 +4,17 @@
     "noEmitOnError": false,
     "paths": {
       "ox": ["./node_modules/ox/_types/index.d.ts"],
-      "ox/*": ["./node_modules/ox/_types/*.d.ts"]
+      "ox/*": ["./node_modules/ox/_types/*.d.ts"],
+      "@aastar/sdk/kms": ["./node_modules/@aastar/sdk/dist/kms.d.ts"],
+      "@aastar/sdk/core": ["./node_modules/@aastar/sdk/dist/core.d.ts"]
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "../node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "../node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

@@ -31,7 +31,7 @@ const APNTS_SALE_ABI = parseAbi([
 @Injectable()
 export class SaleService implements OnModuleInit {
   private readonly logger = new Logger(SaleService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private publicClient: any;
 
   // Contract addresses from env

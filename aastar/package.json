@@ -50,8 +50,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@aastar/airaccount": "^0.19.0",
-    "@aastar/core": "^0.18.0",
+    "@aastar/sdk": "^0.20.9",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.18",

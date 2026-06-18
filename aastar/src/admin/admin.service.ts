@@ -18,13 +18,13 @@ import {
   ROLE_PAYMASTER_AOA,
   ROLE_PAYMASTER_SUPER,
   ROLE_ENDUSER,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import type { Address, Hex } from "viem";
 
 @Injectable()
 export class AdminService implements OnModuleInit {
   private readonly logger = new Logger(AdminService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private publicClient: any;
   private registryAddress: Address;
   private gtokenAddress: Address;
@@ -81,7 +81,9 @@ export class AdminService implements OnModuleInit {
     });
     return {
       minStake: formatUnits(cfg.minStake, 18),
-      entryBurn: formatUnits(cfg.entryBurn, 18),
+      // SDK 0.20.x renamed RoleConfigDetailed.entryBurn → ticketPrice; keep the
+      // API field name `entryBurn` for the frontend contract.
+      entryBurn: formatUnits(cfg.ticketPrice, 18),
       exitFeePercent: cfg.exitFeePercent.toString(),
       isActive: cfg.isActive,
       description: cfg.description,

@@ -13,13 +13,13 @@ import {
   ROLE_PAYMASTER_SUPER,
   DEFAULT_ADMIN_ROLE,
   ROLE_ENDUSER,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import type { Address, Hex } from "viem";
 
 @Injectable()
 export class RegistryService implements OnModuleInit {
   private readonly logger = new Logger(RegistryService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private publicClient: any;
   private registryAddress: Address;
   private gtokenAddress: Address;

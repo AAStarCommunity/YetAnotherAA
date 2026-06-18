@@ -1,8 +1,7 @@
 import { createHash } from "crypto";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { KmsManager, KmsSigner, LegacyPasskeyAssertion } from "@aastar/airaccount/server";
-import { ethers } from "ethers";
+import { KmsManager, KmsSigner, LegacyPasskeyAssertion } from "@aastar/sdk/kms";
 
 export type { LegacyPasskeyAssertion };
 
@@ -116,14 +115,13 @@ export class KmsService {
   createKmsSigner(
     keyId: string,
     address: string,
-    assertionProvider?: () => Promise<LegacyPasskeyAssertion>,
-    provider?: ethers.Provider
+    assertionProvider?: () => Promise<LegacyPasskeyAssertion>
   ): KmsSigner {
     const ap =
       assertionProvider ??
       (() => {
         throw new Error("Passkey assertion is required for signing. Provide an assertionProvider.");
       });
-    return this.kmsManager.createKmsSigner(keyId, address, ap, provider as any);
+    return this.kmsManager.createKmsSigner(keyId, address, ap);
   }
 }

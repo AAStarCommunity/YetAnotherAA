@@ -15,13 +15,13 @@ import {
   PAYMASTER_FACTORY_ADDRESS as CORE_PAYMASTER_FACTORY_ADDRESS,
   ROLE_PAYMASTER_AOA,
   ROLE_PAYMASTER_SUPER,
-} from "@aastar/core";
+} from "@aastar/sdk/core";
 import type { Address } from "viem";
 
 @Injectable()
 export class OperatorService implements OnModuleInit {
   private readonly logger = new Logger(OperatorService.name);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private publicClient: any;
   private registryAddress: Address;
   private gtokenAddress: Address;

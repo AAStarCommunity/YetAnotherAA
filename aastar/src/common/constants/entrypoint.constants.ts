@@ -9,5 +9,5 @@ export {
   ACCOUNT_ABI,
   VALIDATOR_ABI,
   ERC20_ABI,
-} from "@aastar/airaccount/server";
-export type { EntryPointConfig } from "@aastar/airaccount/server";
+} from "@aastar/sdk/kms";
+export type { EntryPointConfig } from "@aastar/sdk/kms";

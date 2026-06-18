@@ -1,7 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ethers } from "ethers";
-import { YAAAServerClient } from "@aastar/airaccount/server";
+import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { EntryPointVersion } from "../common/constants/entrypoint.constants";
 
@@ -12,28 +11,8 @@ export class EthereumService {
     private configService: ConfigService
   ) {}
 
-  getProvider(): ethers.JsonRpcProvider {
+  getProvider() {
     return this.client.ethereum.getProvider();
-  }
-
-  getBundlerProvider(): ethers.JsonRpcProvider {
-    return this.client.ethereum.getBundlerProvider();
-  }
-
-  getFactoryContract(version: EntryPointVersion = EntryPointVersion.V0_6): ethers.Contract {
-    return this.client.ethereum.getFactoryContract(version);
-  }
-
-  getEntryPointContract(version: EntryPointVersion = EntryPointVersion.V0_6): ethers.Contract {
-    return this.client.ethereum.getEntryPointContract(version);
-  }
-
-  getValidatorContract(version: EntryPointVersion = EntryPointVersion.V0_6): ethers.Contract {
-    return this.client.ethereum.getValidatorContract(version);
-  }
-
-  getAccountContract(address: string): ethers.Contract {
-    return this.client.ethereum.getAccountContract(address);
   }
 
   async getBalance(address: string): Promise<string> {
@@ -88,7 +67,9 @@ export class EthereumService {
   async detectAccountVersion(accountAddress: string): Promise<EntryPointVersion> {
     try {
       const provider = this.getProvider();
-      const code = await provider.getCode(accountAddress);
+      // viem PublicClient.getCode takes { address } (not a bare string) and
+      // returns Hex | undefined.
+      const code = await provider.getCode({ address: accountAddress as `0x${string}` });
       if (code && code !== "0x") {
         return EntryPointVersion.V0_6;
       }
