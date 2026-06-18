@@ -11,8 +11,14 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@aastar/sdk/kms": ["./node_modules/@aastar/sdk/dist/kms.d.ts"],
-      "@aastar/sdk/core": ["./node_modules/@aastar/sdk/dist/core.d.ts"]
+      "@aastar/sdk/kms": [
+        "./node_modules/@aastar/sdk/dist/kms.d.ts",
+        "../node_modules/@aastar/sdk/dist/kms.d.ts"
+      ],
+      "@aastar/sdk/core": [
+        "./node_modules/@aastar/sdk/dist/core.d.ts",
+        "../node_modules/@aastar/sdk/dist/core.d.ts"
+      ]
     },
     "incremental": true,
     "skipLibCheck": true,
