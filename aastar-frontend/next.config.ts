@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   }),
   async rewrites() {
     const backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:3000";
-    const kmsUrl = process.env.KMS_PROXY_URL || "https://kms1.aastar.io";
+    const kmsUrl = process.env.KMS_PROXY_URL || "https://kms.aastar.io";
     return [
       {
         source: "/api/:path*",

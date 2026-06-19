@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/a
 const KMS_ENDPOINT =
   typeof window !== "undefined"
     ? "/kms-api"
-    : process.env.NEXT_PUBLIC_KMS_URL || "https://kms1.aastar.io";
+    : process.env.NEXT_PUBLIC_KMS_URL || "https://kms.aastar.io";
 
 export const yaaa = new YAAAClient({
   apiURL: API_BASE_URL,
