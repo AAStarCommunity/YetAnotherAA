@@ -201,6 +201,25 @@ export default function RegisterPage() {
 
           {/* Main Card */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
+            {/* How your account is protected — shown up-front at account creation */}
+            <div className="mb-5 rounded-lg bg-slate-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 p-4 text-xs text-gray-600 dark:text-gray-400 space-y-1">
+              <p className="font-semibold text-gray-700 dark:text-gray-300">
+                🔑 No seed phrase — protected by social recovery
+              </p>
+              <p>
+                Your account is guarded by <span className="font-medium">3 guardians</span>; any{" "}
+                <span className="font-medium">2</span> can help you move it to a new device.{" "}
+                <span className="font-medium">2 are yours, 1 is the community.</span>
+              </p>
+              <p>
+                Because the community is <span className="font-medium">only 1 of 3</span>, it can
+                never reach the 2 needed — so even a rogue community{" "}
+                <span className="font-medium">can never touch your funds</span>. Lose one of your
+                two? You can still recover with your remaining guardian + the community, which
+                confirms it&apos;s really you through real social relationships (not a password).
+              </p>
+            </div>
+
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label

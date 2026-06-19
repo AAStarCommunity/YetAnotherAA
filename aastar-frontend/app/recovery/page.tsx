@@ -238,8 +238,16 @@ export default function RecoveryPage() {
               <p className="font-semibold">🤝 You also get a community guardian (by default)</p>
               <p className="text-emerald-700 dark:text-emerald-300/90">
                 Every account is given a <span className="font-medium">community multisig</span> as
-                one of its 3 guardians. So even if you lose one personal guardian, you can still
-                recover with your remaining personal guardian + the community guardian.
+                exactly{" "}
+                <span className="font-medium">
+                  one of its 3 guardians — you control the other two
+                </span>
+                . Recovery needs 2, so the community alone (1) can never reach the threshold:{" "}
+                <span className="font-medium">
+                  even a rogue community can never move your funds
+                </span>
+                . And if you lose one of your two, you can still recover with your remaining
+                guardian + the community.
               </p>
               <p className="text-emerald-700 dark:text-emerald-300/90">
                 The community guardian doesn&apos;t rely on a key or device — it verifies{" "}
