@@ -165,11 +165,27 @@ export default function CreateAccountDialog({
       <div className="space-y-4">
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
           <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
-            Step {guardianNumber} of 2 — Guardian {guardianNumber} Scan
+            Step {guardianNumber} of 2 — Guardian {guardianNumber}
           </p>
           <p className="text-xs text-blue-700 dark:text-blue-400">
-            Have Guardian {guardianNumber} scan the QR code below with their phone, sign the
-            acceptance hash with their passkey, then paste the returned address and signature here.
+            Send this QR / link to whoever you want as Guardian {guardianNumber}. On the page they
+            can become a guardian in any of these ways — no app install needed:
+          </p>
+          <ul className="text-xs text-blue-700 dark:text-blue-400 list-disc pl-4 mt-1 space-y-0.5">
+            <li>
+              <span className="font-medium">Already have an AirAccount</span> — enter their address,
+              confirm with Face ID
+            </li>
+            <li>
+              <span className="font-medium">New guardian</span> — email + Face ID, creates a passkey
+              on the spot (no wallet needed)
+            </li>
+            <li>
+              <span className="font-medium">MetaMask</span> — sign with their own wallet
+            </li>
+          </ul>
+          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+            They&apos;ll get an address + signature to paste back below.
           </p>
         </div>
 
@@ -223,11 +239,25 @@ export default function CreateAccountDialog({
       case "config":
         return (
           <div className="space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-              <p className="text-sm text-amber-800 dark:text-amber-300">
-                Creating an AirAccount requires 2 guardian devices. Each guardian scans a QR code
-                and signs with their passkey. The team Safe is added as the 3rd guardian
-                automatically.
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2 text-sm text-amber-800 dark:text-amber-300">
+              <p className="font-semibold">🛡️ Social recovery — no seed phrase</p>
+              <p>
+                Your account is protected by <span className="font-medium">3 guardians</span>; any{" "}
+                <span className="font-medium">2</span> can help you recover it to a new device. You
+                set <span className="font-medium">2 guardians</span> here; the{" "}
+                <span className="font-medium">community multisig</span> is added automatically as
+                the 3rd.
+              </p>
+              <p>
+                Because the community is only 1 of 3, it can never reach the 2 needed —{" "}
+                <span className="font-medium">
+                  even a rogue community can&apos;t move your funds
+                </span>
+                . Lose one of your two? You can still recover with the other + the community.
+              </p>
+              <p>
+                Each guardian just scans a QR on the next step — no app install needed. They can use
+                their existing AirAccount, MetaMask, or create a guardian on the spot.
               </p>
             </div>
 
