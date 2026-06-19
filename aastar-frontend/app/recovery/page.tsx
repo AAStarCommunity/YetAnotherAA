@@ -234,6 +234,25 @@ export default function RecoveryPage() {
               </p>
             </div>
 
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 text-sm text-emerald-800 dark:text-emerald-300 space-y-2">
+              <p className="font-semibold">🤝 You also get a community guardian (by default)</p>
+              <p className="text-emerald-700 dark:text-emerald-300/90">
+                Every account is given a <span className="font-medium">community multisig</span> as
+                one of its 3 guardians. So even if you lose one personal guardian, you can still
+                recover with your remaining personal guardian + the community guardian.
+              </p>
+              <p className="text-emerald-700 dark:text-emerald-300/90">
+                The community guardian doesn&apos;t rely on a key or device — it verifies{" "}
+                <span className="font-medium">who you are through real social relationships</span>:
+                signing happens in an <span className="font-medium">open meeting</span>, and members
+                who have met you in person ask{" "}
+                <span className="font-medium">3 questions about shared past experiences</span> only
+                the real you would know. Once enough of them vouch for you (the multisig threshold),
+                the community guardian signs. See{" "}
+                <span className="font-mono text-xs">docs/social-recovery.md</span>.
+              </p>
+            </div>
+
             {[
               {
                 label: "Account Address (to recover)",
