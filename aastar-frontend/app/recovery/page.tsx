@@ -195,6 +195,17 @@ export default function RecoveryPage() {
               The guardians will each need to approve the recovery.
             </div>
 
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-sm text-red-800 dark:text-red-300">
+              <p className="font-semibold mb-1">⚠️ Choose diverse guardians</p>
+              <p>
+                Avoid making both guardians the same kind. A passkey/KMS guardian depends on the KMS
+                service — if it&apos;s unavailable, that guardian can&apos;t sign. For resilience,
+                use <span className="font-medium">different methods</span> (e.g. one passkey + one
+                self-custody MetaMask wallet, or two people on different devices), so no single
+                point of failure can block recovery.
+              </p>
+            </div>
+
             {[
               {
                 label: "Account Address (to recover)",

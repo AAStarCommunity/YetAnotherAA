@@ -65,6 +65,15 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
+
+          <div className="mt-6 rounded-lg bg-white/60 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 p-4 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              🛡️ Asked to be someone&apos;s <span className="font-medium">guardian</span>? Just open
+              the link / QR code they send you — you can sign with Face ID / fingerprint, no wallet
+              and no install needed. Tip: sign in to iCloud (Apple) or Google (Android) so your
+              passkey syncs across your devices.
+            </p>
+          </div>
         </div>
       </div>
     </Layout>
