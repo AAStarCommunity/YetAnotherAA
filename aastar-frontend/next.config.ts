@@ -15,15 +15,12 @@ const nextConfig: NextConfig = {
   }),
   async rewrites() {
     const backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:3000";
-    const kmsUrl = process.env.KMS_PROXY_URL || "https://kms.aastar.io";
+    // /kms-api/* is handled by the server-side route handler at app/kms-api/[...path]
+    // (injects the KMS key server-side + diagnostics), not by a rewrite.
     return [
       {
         source: "/api/:path*",
         destination: `${backendUrl}/api/:path*`,
-      },
-      {
-        source: "/kms-api/:path*",
-        destination: `${kmsUrl}/:path*`,
       },
     ];
   },
