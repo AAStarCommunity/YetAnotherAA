@@ -25,11 +25,15 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { startAuthentication } from "@simplewebauthn/browser";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { kmsClient } from "@/lib/yaaa";
 import { ethers } from "ethers";
 
-type SignMethod = "passkey" | "metamask";
+// "passkey"   — guardian already has an AirAccount: enters their address, signs with their passkey.
+// "register"  — guardian has no account: creates a passkey (email + Face ID/fingerprint) on the fly,
+//               then signs. No wallet app needed.
+// "metamask"  — guardian signs with an injected EOA wallet.
+type SignMethod = "passkey" | "register" | "metamask";
 
 // ── Helper: apply EIP-191 prefix ──────────────────────────────────────────
 // Replicates: ethers.hashMessage(ethers.getBytes(hash))
@@ -60,6 +64,8 @@ function GuardianSignInner() {
 
   const [signMethod, setSignMethod] = useState<SignMethod>("passkey");
   const [guardianAddress, setGuardianAddress] = useState("");
+  const [guardianEmail, setGuardianEmail] = useState("");
+  const [registerStatus, setRegisterStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ address: string; signature: string } | null>(null);
@@ -120,6 +126,83 @@ function GuardianSignInner() {
     }
   };
 
+  // Quick path for guardians WITHOUT an account: create a passkey + KMS key on the
+  // fly (email + biometric), wait for the derived EOA address, then sign the hash.
+  // Two biometric prompts: one to create the passkey, one to sign.
+  const handleRegisterAndSign = async () => {
+    setError("");
+    if (!acceptanceHash) {
+      setError("Missing acceptanceHash parameter. Please scan the QR code again.");
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(guardianEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const label = `guardian-${guardianEmail}`;
+
+      // 1. Create the passkey + KMS key (first biometric prompt)
+      setRegisterStatus("Creating your passkey…");
+      const beginResp = await kmsClient.beginRegistration({
+        Description: label,
+        UserName: guardianEmail,
+        UserDisplayName: guardianEmail.split("@")[0],
+      });
+      const regCredential = await startRegistration({ optionsJSON: beginResp.Options as any });
+      const completeResp = await kmsClient.completeRegistration({
+        ChallengeId: beginResp.ChallengeId,
+        Credential: regCredential,
+        Description: label,
+      });
+
+      // 2. Wait for KMS to derive the guardian's EOA address (can take up to ~2 min)
+      setRegisterStatus("Deriving your guardian address (up to 2 min)…");
+      const keyStatus = await kmsClient.pollUntilReady(completeResp.KeyId, 150_000, 3_000);
+      if (!keyStatus.Address) {
+        throw new Error("Key created but no address was derived. Please try again.");
+      }
+      const address = keyStatus.Address;
+
+      // 3. Sign the acceptance hash with the new passkey (second biometric prompt)
+      setRegisterStatus("Confirm signing with your passkey…");
+      const authResponse = await kmsClient.beginAuthentication({ Address: address });
+      const authCredential = await startAuthentication({
+        optionsJSON: authResponse.Options as any,
+      });
+      const signResponse = await kmsClient.signHashWithWebAuthn(
+        applyEip191(acceptanceHash),
+        authResponse.ChallengeId,
+        authCredential,
+        { Address: address }
+      );
+
+      setResult({
+        address,
+        signature: signResponse.Signature?.startsWith("0x")
+          ? signResponse.Signature
+          : "0x" + signResponse.Signature,
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.name === "NotAllowedError") {
+          setError("Passkey was cancelled or not allowed. Please try again.");
+        } else if (err.name === "NotSupportedError") {
+          setError("Passkeys are not supported on this device/browser.");
+        } else {
+          setError(err.message || "Registration/signing failed. Please try again.");
+        }
+      } else {
+        setError("Registration/signing failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+      setRegisterStatus("");
+    }
+  };
+
   const handleSignWithMetaMask = async () => {
     setError("");
 
@@ -158,7 +241,12 @@ function GuardianSignInner() {
     }
   };
 
-  const handleSign = signMethod === "metamask" ? handleSignWithMetaMask : handleSignWithPasskey;
+  const handleSign =
+    signMethod === "metamask"
+      ? handleSignWithMetaMask
+      : signMethod === "register"
+        ? handleRegisterAndSign
+        : handleSignWithPasskey;
 
   const handleCopy = async (field: "address" | "sig" | "both") => {
     if (!result) return;
@@ -271,31 +359,48 @@ function GuardianSignInner() {
                 How would you like to sign?
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Choose either method — both guardians can use the same method or different ones.
+                Have an AirAccount? Use your passkey. New here? Create a guardian in one step — no
+                wallet app needed.
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setSignMethod("passkey");
                     setError("");
                   }}
-                  className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`py-2.5 px-2 rounded-lg border text-xs font-medium transition-colors ${
                     signMethod === "passkey"
                       ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
                       : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
-                  Passkey (KMS)
+                  I have a passkey
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignMethod("register");
+                    setGuardianAddress("");
+                    setError("");
+                  }}
+                  className={`py-2.5 px-2 rounded-lg border text-xs font-medium transition-colors ${
+                    signMethod === "register"
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
+                      : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  New guardian
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setSignMethod("metamask");
                     setGuardianAddress("");
+                    setGuardianEmail("");
                     setError("");
                   }}
-                  className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`py-2.5 px-2 rounded-lg border text-xs font-medium transition-colors ${
                     signMethod === "metamask"
                       ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400"
                       : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -323,6 +428,33 @@ function GuardianSignInner() {
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Enter the Ethereum address associated with your passkey on this device.
                 </p>
+              </div>
+            )}
+
+            {/* New guardian — email input */}
+            {signMethod === "register" && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Your Email
+                </label>
+                <input
+                  type="email"
+                  value={guardianEmail}
+                  onChange={e => setGuardianEmail(e.target.value.trim())}
+                  placeholder="you@example.com"
+                  disabled={loading}
+                  className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-50"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  No wallet needed — we&apos;ll create a passkey on this device with Face ID /
+                  fingerprint. Sign in to iCloud (Apple) or Google (Android) first so the passkey
+                  syncs to your other devices and you don&apos;t lose guardian access.
+                </p>
+                {loading && registerStatus && (
+                  <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    {registerStatus}
+                  </p>
+                )}
               </div>
             )}
 
@@ -356,7 +488,11 @@ function GuardianSignInner() {
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                  {signMethod === "metamask" ? "Waiting for MetaMask..." : "Authenticating..."}
+                  {signMethod === "metamask"
+                    ? "Waiting for MetaMask..."
+                    : signMethod === "register"
+                      ? registerStatus || "Working…"
+                      : "Authenticating..."}
                 </>
               ) : signMethod === "metamask" ? (
                 <>
@@ -376,7 +512,7 @@ function GuardianSignInner() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  Sign with Passkey
+                  {signMethod === "register" ? "Register & Sign" : "Sign with Passkey"}
                 </>
               )}
             </button>
