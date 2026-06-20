@@ -27,13 +27,17 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { kmsClient } from "@/lib/yaaa";
+import { createGuardianPasskey, type GuardianPasskey } from "@/lib/p256-guardian";
 import { ethers } from "ethers";
 
 // "passkey"   — guardian already has an AirAccount: enters their address, signs with their passkey.
 // "register"  — guardian has no account: creates a passkey (email + Face ID/fingerprint) on the fly,
-//               then signs. No wallet app needed.
+//               then signs (KMS-backed ECDSA). No wallet app needed.
 // "metamask"  — guardian signs with an injected EOA wallet.
-type SignMethod = "passkey" | "register" | "metamask";
+// "p256"      — pure-passkey guardian (no wallet, no KMS): provisions a P-256 passkey (iCloud/Google
+//               synced) and returns its public key (x,y). Owner registration + recovery signing are
+//               wrapped by the SDK (aastar-sdk#110, airaccount-contract v0.20.0) — gated.
+type SignMethod = "passkey" | "register" | "metamask" | "p256";
 
 // ── Helper: apply EIP-191 prefix ──────────────────────────────────────────
 // Replicates: ethers.hashMessage(ethers.getBytes(hash))
@@ -70,6 +74,8 @@ function GuardianSignInner() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ address: string; signature: string } | null>(null);
   const [copied, setCopied] = useState<"address" | "sig" | "both" | null>(null);
+  const [p256Result, setP256Result] = useState<GuardianPasskey | null>(null);
+  const [p256Copied, setP256Copied] = useState(false);
 
   const isValidParams = acceptanceHash && factory && chainId && owner && salt;
 
@@ -241,12 +247,43 @@ function GuardianSignInner() {
     }
   };
 
+  // Pure-passkey (P-256) guardian: provision a passkey + return its public key (x,y).
+  // No KMS, no wallet. Owner registration / recovery signing land with the SDK (#110).
+  const handleCreateP256Guardian = async () => {
+    setError("");
+    if (!guardianEmail.trim()) {
+      setError("Please enter a name or email to label your passkey.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const key = await createGuardianPasskey({ userName: guardianEmail.trim() });
+      setP256Result(key);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.name === "NotAllowedError") {
+          setError("Passkey was cancelled or not allowed. Please try again.");
+        } else if (err.name === "NotSupportedError") {
+          setError("Passkeys are not supported on this device/browser.");
+        } else {
+          setError(err.message || "Could not create the passkey. Please try again.");
+        }
+      } else {
+        setError("Could not create the passkey. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSign =
     signMethod === "metamask"
       ? handleSignWithMetaMask
       : signMethod === "register"
         ? handleRegisterAndSign
-        : handleSignWithPasskey;
+        : signMethod === "p256"
+          ? handleCreateP256Guardian
+          : handleSignWithPasskey;
 
   const handleCopy = async (field: "address" | "sig" | "both") => {
     if (!result) return;
@@ -362,7 +399,7 @@ function GuardianSignInner() {
                 Have an AirAccount? Use your passkey. New here? Create a guardian in one step — no
                 wallet app needed.
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -407,6 +444,21 @@ function GuardianSignInner() {
                   }`}
                 >
                   MetaMask
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignMethod("p256");
+                    setGuardianAddress("");
+                    setError("");
+                  }}
+                  className={`py-2.5 px-2 rounded-lg border text-xs font-medium transition-colors ${
+                    signMethod === "p256"
+                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400"
+                      : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  Passkey · no KMS
                 </button>
               </div>
             </div>
@@ -467,6 +519,68 @@ function GuardianSignInner() {
               </div>
             )}
 
+            {/* P-256 pure-passkey guardian */}
+            {signMethod === "p256" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Name your passkey
+                  </label>
+                  <input
+                    type="text"
+                    value={guardianEmail}
+                    onChange={e => setGuardianEmail(e.target.value.trim())}
+                    placeholder="e.g. alice-iphone"
+                    disabled={loading || !!p256Result}
+                    className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    A pure passkey guardian — <span className="font-medium">no wallet, no KMS</span>
+                    . We create a passkey on this device (sign in to iCloud / Google first so it
+                    syncs) and read its public key. Recovery is signed by this passkey directly,
+                    verified on-chain.
+                  </p>
+                </div>
+
+                {p256Result && (
+                  <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">
+                      ✅ Passkey created — send this public key to the account owner
+                    </p>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-indigo-500">x</p>
+                      <p className="font-mono text-xs break-all text-indigo-900 dark:text-indigo-200">
+                        {p256Result.x}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-indigo-500">y</p>
+                      <p className="font-mono text-xs break-all text-indigo-900 dark:text-indigo-200">
+                        {p256Result.y}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await copyToClipboard(`x: ${p256Result.x}\ny: ${p256Result.y}`);
+                        if (ok) {
+                          setP256Copied(true);
+                          setTimeout(() => setP256Copied(false), 2000);
+                        }
+                      }}
+                      className="w-full py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+                    >
+                      {p256Copied ? "Copied!" : "Copy x + y"}
+                    </button>
+                    <p className="text-[11px] text-indigo-600 dark:text-indigo-400">
+                      Owner registration &amp; passkey-signed recovery land with the SDK
+                      (airaccount-contract v0.20.0 / aastar-sdk#110).
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Error */}
             {error && (
               <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 p-3">
@@ -474,48 +588,58 @@ function GuardianSignInner() {
               </div>
             )}
 
-            {/* Sign button */}
-            <button
-              type="button"
-              onClick={handleSign}
-              disabled={loading}
-              className={`w-full flex justify-center items-center py-3.5 px-4 border border-transparent text-base font-semibold rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg ${
-                signMethod === "metamask"
-                  ? "bg-orange-500 hover:bg-orange-400 focus:ring-orange-500"
-                  : "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500"
-              }`}
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                  {signMethod === "metamask"
-                    ? "Waiting for MetaMask..."
-                    : signMethod === "register"
-                      ? registerStatus || "Working…"
-                      : "Authenticating..."}
-                </>
-              ) : signMethod === "metamask" ? (
-                <>
-                  <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21.49 3L13.5 9.3l1.47-3.44L21.49 3z" opacity=".8" />
-                    <path d="M2.51 3l7.92 6.36-1.4-3.44L2.51 3zM18.62 16.27l-2.13 3.26 4.56 1.25 1.31-4.43-3.74-.08zM1.55 16.35l1.3 4.43 4.56-1.25-2.13-3.26-3.73.08z" />
-                    <path d="M7.13 10.62L5.87 12.55l4.52.2-.15-4.87-3.11 2.74zM16.87 10.62l-3.15-2.8-.1 4.93 4.51-.2-1.26-1.93zM7.41 19.53l2.72-1.32-2.35-1.83-.37 3.15zM13.87 18.21l2.72 1.32-.36-3.15-2.36 1.83z" />
-                  </svg>
-                  Sign with MetaMask
-                </>
-              ) : (
-                <>
-                  <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {signMethod === "register" ? "Register & Sign" : "Sign with Passkey"}
-                </>
-              )}
-            </button>
+            {/* Sign button (hidden once a P-256 passkey has been created) */}
+            {!(signMethod === "p256" && p256Result) && (
+              <button
+                type="button"
+                onClick={handleSign}
+                disabled={loading}
+                className={`w-full flex justify-center items-center py-3.5 px-4 border border-transparent text-base font-semibold rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg ${
+                  signMethod === "metamask"
+                    ? "bg-orange-500 hover:bg-orange-400 focus:ring-orange-500"
+                    : signMethod === "p256"
+                      ? "bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500"
+                      : "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                    {signMethod === "metamask"
+                      ? "Waiting for MetaMask..."
+                      : signMethod === "register"
+                        ? registerStatus || "Working…"
+                        : signMethod === "p256"
+                          ? "Creating passkey…"
+                          : "Authenticating..."}
+                  </>
+                ) : signMethod === "metamask" ? (
+                  <>
+                    <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.49 3L13.5 9.3l1.47-3.44L21.49 3z" opacity=".8" />
+                      <path d="M2.51 3l7.92 6.36-1.4-3.44L2.51 3zM18.62 16.27l-2.13 3.26 4.56 1.25 1.31-4.43-3.74-.08zM1.55 16.35l1.3 4.43 4.56-1.25-2.13-3.26-3.73.08z" />
+                      <path d="M7.13 10.62L5.87 12.55l4.52.2-.15-4.87-3.11 2.74zM16.87 10.62l-3.15-2.8-.1 4.93 4.51-.2-1.26-1.93zM7.41 19.53l2.72-1.32-2.35-1.83-.37 3.15zM13.87 18.21l2.72 1.32-.36-3.15-2.36 1.83z" />
+                    </svg>
+                    Sign with MetaMask
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {signMethod === "register"
+                      ? "Register & Sign"
+                      : signMethod === "p256"
+                        ? "Create passkey"
+                        : "Sign with Passkey"}
+                  </>
+                )}
+              </button>
+            )}
           </>
         ) : (
           /* Signature result */
