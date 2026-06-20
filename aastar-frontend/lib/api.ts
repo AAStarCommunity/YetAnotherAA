@@ -82,6 +82,12 @@ export const accountAPI = {
     salt?: number;
     entryPointVersion?: string;
   }) => api.post("/account/create-with-guardians", data),
+  createWithP256Guardians: (data: {
+    p256Guardians: { x: string; y: string }[];
+    dailyLimit: string;
+    salt?: number;
+    entryPointVersion?: string;
+  }) => api.post("/account/create-with-p256-guardians", data),
 };
 
 // Transfer API

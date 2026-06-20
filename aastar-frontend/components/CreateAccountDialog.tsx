@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 import EntryPointVersionSelector from "./EntryPointVersionSelector";
 import { EntryPointVersion } from "@/lib/types";
 import { accountAPI } from "@/lib/api";
+import { createGuardianPasskey } from "@/lib/p256-guardian";
 import toast from "react-hot-toast";
 
 interface CreateAccountDialogProps {
@@ -36,6 +37,10 @@ export default function CreateAccountDialog({
   onClose,
   onSuccess,
 }: CreateAccountDialogProps) {
+  // "passkey" — guardians are P-256 (WebAuthn) passkeys: self-custodial, synced via
+  //   iCloud/Google, no KMS, no QR. Owner-bootstrap (no acceptance sig). Default.
+  // "ecdsa"   — the legacy QR flow: 2 ECDSA guardians scan + sign an acceptance hash.
+  const [guardianMode, setGuardianMode] = useState<"passkey" | "ecdsa">("passkey");
   const [version, setVersion] = useState<EntryPointVersion>(EntryPointVersion.V0_7);
   const [salt, setSalt] = useState<string>("");
   const [dailyLimit, setDailyLimit] = useState<string>("");
@@ -48,6 +53,7 @@ export default function CreateAccountDialog({
 
   const handleReset = () => {
     setStep("config");
+    setGuardianMode("passkey");
     setPrepareResult(null);
     setGuardian1({ address: "", sig: "" });
     setGuardian2({ address: "", sig: "" });
@@ -74,6 +80,45 @@ export default function CreateAccountDialog({
     } catch (error: any) {
       const message = error.response?.data?.message || "Failed to prepare guardian setup";
       toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Passkey path: create a P-256 guardian passkey (Face ID / fingerprint) and
+  // deploy the account with it in one step — no QR, no second device, no KMS.
+  const handleCreateWithPasskey = async () => {
+    if (!dailyLimit || parseFloat(dailyLimit) <= 0) {
+      toast.error("Set a daily limit (> 0) — a guardian set enables the on-chain guard.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const passkey = await createGuardianPasskey({ userName: "AAStar account guardian" });
+      setStep("creating");
+      const response = await accountAPI.createWithP256Guardians({
+        p256Guardians: [{ x: passkey.x, y: passkey.y }],
+        dailyLimit,
+        salt: salt ? parseInt(salt) : undefined,
+        entryPointVersion: version,
+      });
+
+      toast.success("Smart Account created with a passkey guardian!");
+      handleReset();
+      onSuccess(response.data);
+      onClose();
+    } catch (error: any) {
+      if (error?.name === "NotAllowedError") {
+        toast.error("Passkey creation was cancelled.");
+      } else if (error?.name === "NotSupportedError") {
+        toast.error("This device doesn't support passkeys. Use ECDSA guardians instead.");
+      } else {
+        const message =
+          error.response?.data?.message || error.message || "Failed to create account";
+        toast.error(message);
+      }
+      setStep("config");
     } finally {
       setLoading(false);
     }
@@ -239,27 +284,104 @@ export default function CreateAccountDialog({
       case "config":
         return (
           <div className="space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2 text-sm text-amber-800 dark:text-amber-300">
-              <p className="font-semibold">🛡️ Social recovery — no seed phrase</p>
-              <p>
-                Your account is protected by <span className="font-medium">3 guardians</span>; any{" "}
-                <span className="font-medium">2</span> can help you recover it to a new device. You
-                set <span className="font-medium">2 guardians</span> here; the{" "}
-                <span className="font-medium">community multisig</span> is added automatically as
-                the 3rd.
-              </p>
-              <p>
-                Because the community is only 1 of 3, it can never reach the 2 needed —{" "}
-                <span className="font-medium">
-                  even a rogue community can&apos;t move your funds
+            {/* Guardian type */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setGuardianMode("passkey")}
+                disabled={loading}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition ${
+                  guardianMode === "passkey"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                    : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400"
+                }`}
+              >
+                Passkey guardian
+                <span className="block text-xs font-normal opacity-80">
+                  Face ID / fingerprint · no KMS
                 </span>
-                . Lose one of your two? You can still recover with the other + the community.
-              </p>
-              <p>
-                Each guardian just scans a QR on the next step — no app install needed. They can use
-                their existing AirAccount, MetaMask, or create a guardian on the spot.
-              </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuardianMode("ecdsa")}
+                disabled={loading}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition ${
+                  guardianMode === "ecdsa"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                    : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400"
+                }`}
+              >
+                ECDSA guardians
+                <span className="block text-xs font-normal opacity-80">MetaMask · QR scan</span>
+              </button>
             </div>
+
+            {guardianMode === "passkey" ? (
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 space-y-2 text-sm text-indigo-800 dark:text-indigo-300">
+                <p className="font-semibold">🛡️ Social recovery — no seed phrase, no KMS</p>
+                <p>
+                  Your guardian is a <span className="font-medium">passkey</span> (Face ID /
+                  fingerprint) that lives in your iCloud Keychain or Google Password Manager —{" "}
+                  <span className="font-medium">self-custodial</span>, synced across your devices,
+                  outside any server. If you lose this device, your passkey recovers the account on
+                  a new one.
+                </p>
+                <p>
+                  Created in one step on this device — <span className="font-medium">no QR</span>,
+                  no second device, no extra app. You&apos;ll be prompted for Face ID / fingerprint
+                  next.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2 text-sm text-amber-800 dark:text-amber-300">
+                <p className="font-semibold">🛡️ Social recovery — no seed phrase</p>
+                <p>
+                  Your account is protected by <span className="font-medium">3 guardians</span>; any{" "}
+                  <span className="font-medium">2</span> can help you recover it to a new device.
+                  You set <span className="font-medium">2 guardians</span> here; the{" "}
+                  <span className="font-medium">community multisig</span> is added automatically as
+                  the 3rd.
+                </p>
+                <p>
+                  Because the community is only 1 of 3, it can never reach the 2 needed —{" "}
+                  <span className="font-medium">
+                    even a rogue community can&apos;t move your funds
+                  </span>
+                  . Lose one of your two? You can still recover with the other + the community.
+                </p>
+                <p>
+                  Each guardian just scans a QR on the next step — no app install needed. They can
+                  use their existing AirAccount, MetaMask, or create a guardian on the spot.
+                </p>
+              </div>
+            )}
+
+            {/* Passkey mode requires a daily limit (a guardian set enables the on-chain guard). */}
+            {guardianMode === "passkey" && (
+              <div>
+                <label
+                  htmlFor="passkeyDailyLimit"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Daily transfer limit (ETH)
+                </label>
+                <input
+                  type="number"
+                  id="passkeyDailyLimit"
+                  value={dailyLimit}
+                  onChange={e => setDailyLimit(e.target.value)}
+                  placeholder="e.g. 1.0"
+                  min="0"
+                  step="0.01"
+                  disabled={loading}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Required (&gt; 0) — installing guardians enables the on-chain spend guard.
+                  Transfers above this limit need a passkey-signed guardian approval.
+                </p>
+              </div>
+            )}
 
             <EntryPointVersionSelector value={version} onChange={setVersion} disabled={loading} />
 
@@ -296,35 +418,37 @@ export default function CreateAccountDialog({
                   </p>
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="dailyLimit"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Daily Transfer Limit (ETH, Optional)
-                  </label>
-                  <input
-                    type="number"
-                    id="dailyLimit"
-                    value={dailyLimit}
-                    onChange={e => setDailyLimit(e.target.value)}
-                    placeholder="e.g. 1.0 (leave empty for no limit)"
-                    min="0"
-                    step="0.01"
-                    disabled={loading}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Enables on-chain guard enforcement. Tier 3 transfers (above limit) require
-                    guardian approval. Leave empty to disable.
-                  </p>
-                  {dailyLimit && parseFloat(dailyLimit) > 0 && (
-                    <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-700 dark:text-amber-400">
-                      Tiered security enabled. Transfers above {dailyLimit} ETH will require
-                      guardian approval (Tier 3).
-                    </div>
-                  )}
-                </div>
+                {guardianMode === "ecdsa" && (
+                  <div>
+                    <label
+                      htmlFor="dailyLimit"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Daily Transfer Limit (ETH, Optional)
+                    </label>
+                    <input
+                      type="number"
+                      id="dailyLimit"
+                      value={dailyLimit}
+                      onChange={e => setDailyLimit(e.target.value)}
+                      placeholder="e.g. 1.0 (leave empty for no limit)"
+                      min="0"
+                      step="0.01"
+                      disabled={loading}
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Enables on-chain guard enforcement. Tier 3 transfers (above limit) require
+                      guardian approval. Leave empty to disable.
+                    </p>
+                    {dailyLimit && parseFloat(dailyLimit) > 0 && (
+                      <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+                        Tiered security enabled. Transfers above {dailyLimit} ETH will require
+                        guardian approval (Tier 3).
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -355,15 +479,21 @@ export default function CreateAccountDialog({
           <>
             <button
               type="button"
-              onClick={handlePrepare}
+              onClick={guardianMode === "passkey" ? handleCreateWithPasskey : handlePrepare}
               disabled={loading}
-              className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+              className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto ${
+                guardianMode === "passkey"
+                  ? "bg-indigo-600 hover:bg-indigo-500"
+                  : "bg-blue-600 hover:bg-blue-500"
+              }`}
             >
               {loading ? (
                 <>
                   <div className="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin" />
-                  Preparing...
+                  {guardianMode === "passkey" ? "Creating…" : "Preparing..."}
                 </>
+              ) : guardianMode === "passkey" ? (
+                "Create with passkey"
               ) : (
                 "Create Account"
               )}
