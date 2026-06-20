@@ -161,6 +161,15 @@ export class AccountService {
 
     const dailyLimitWei = this.parseDailyLimitToWei(dto.dailyLimit) ?? 0n;
 
+    // ── SEAM: P-256 (WebAuthn) passkey guardian — see YAA#324 / aastar-sdk#110 ──
+    // A passkey guardian is a secp256r1 pubkey (x, y), NOT an address, and needs
+    // NO acceptance signature at creation (unlike ECDSA guardians above). The
+    // v0.20.0 contract factory InitConfig carries it via `guardianP256X/Y bytes32[3]`.
+    // The published @aastar/sdk@0.20.9 does NOT yet expose this on
+    // createAccountWithGuardians (batch1 added it post-v0.20.9, unpublished).
+    // When the SDK publishes the P-256 InitConfig wrapper, plug it in here, e.g.:
+    //   p256Guardians: dto.guardianP256 ? [{ x: dto.guardianP256.x, y: dto.guardianP256.y }] : undefined,
+    // No speculative wiring now — see the "flip on publish" checklist in YAA#324.
     return this.client.accounts.createAccountWithGuardians(userId, {
       guardian1: dto.guardian1,
       guardian1Sig: dto.guardian1Sig,
