@@ -15,7 +15,10 @@ import {
   RemoveGuardianDto,
   InitiateRecoveryDto,
   SupportRecoveryDto,
+  PrepareP256RecoveryDto,
+  SubmitP256RecoveryDto,
 } from "./dto/guardian.dto";
+import { buildProposeRecoveryChallenge, encodeWebAuthnAssertion } from "@aastar/sdk";
 
 // Time lock before recovery can be executed (48 hours in ms)
 const RECOVERY_DELAY_MS = 48 * 60 * 60 * 1000;
@@ -38,6 +41,22 @@ const AIRACCOUNT_RECOVERY_ABI = [
   // read the active recovery proposal stored on-chain
   "function activeRecovery() external view returns (address newOwner, uint256 proposedAt, uint256 approvalBitmap, uint256 cancellationBitmap)",
 ];
+
+// AirAccount v0.20.0 P-256 (WebAuthn passkey) guardian recovery — AirAccountExtension,
+// reached via the account `fallback`→`delegatecall` (so calls target the account address).
+// Source: airaccount-contract docs/p256-guardian-spec.md §5.2 + getGuardianP256Key / getRecoveryNonce.
+const AIRACCOUNT_P256_RECOVERY_ABI = [
+  // monotonic nonce domain-separating P-256 recovery payloads
+  "function getRecoveryNonce() external view returns (uint256)",
+  // (x, y) secp256r1 pubkey of guardian slot `index` (zero pair => not a P-256 guardian)
+  "function getGuardianP256Key(uint256 index) external view returns (bytes32 x, bytes32 y)",
+  // passkey guardian proposes recovery — ANY relayer may submit (sig is the proof)
+  "function proposeRecoveryWithSig(address newOwner, uint8 gIdx, bytes sig) external",
+];
+
+// Max guardian slots on-chain (InitConfig guardians/guardianP256X/Y are bytes32[3]/address[3]).
+const MAX_GUARDIAN_SLOTS = 3;
+const ZERO32 = "0x" + "00".repeat(32);
 
 @Injectable()
 export class GuardianService {
@@ -454,5 +473,118 @@ export class GuardianService {
           }
         : { active: false },
     };
+  }
+
+  // ─── P-256 (passkey) guardian recovery ───────────────────────────────────
+
+  /**
+   * Resolve which on-chain guardian slot holds a P-256 (passkey) key.
+   * Returns the single non-zero slot's index + (x, y). Errors if there are zero or
+   * more than one (the latter needs the guardian's pubkey to disambiguate — not yet
+   * supported; our creation flow installs a single passkey guardian).
+   */
+  private async resolveP256GuardianSlot(
+    accountAddress: string
+  ): Promise<{ gIdx: number; x: string; y: string }> {
+    const provider = this.getProvider();
+    const ext = new ethers.Contract(accountAddress, AIRACCOUNT_P256_RECOVERY_ABI, provider);
+    const slots: { gIdx: number; x: string; y: string }[] = [];
+    for (let i = 0; i < MAX_GUARDIAN_SLOTS; i++) {
+      const [x, y] = await ext.getGuardianP256Key(i);
+      if (x !== ZERO32 || y !== ZERO32) {
+        slots.push({ gIdx: i, x, y });
+      }
+    }
+    if (slots.length === 0) {
+      throw new BadRequestException("This account has no P-256 (passkey) guardian.");
+    }
+    if (slots.length > 1) {
+      throw new BadRequestException(
+        "Account has multiple passkey guardians; disambiguating by credential is not yet supported."
+      );
+    }
+    return slots[0];
+  }
+
+  /**
+   * Step 1 — build the 32-byte challenge the guardian's passkey must sign to propose
+   * recovery. Reads the on-chain recovery nonce + the P-256 guardian slot.
+   */
+  async prepareP256Recovery(dto: PrepareP256RecoveryDto): Promise<{
+    challenge: string;
+    accountAddress: string;
+    newOwner: string;
+    gIdx: number;
+    nonce: string;
+    chainId: number;
+  }> {
+    const provider = this.getProvider();
+    const ext = new ethers.Contract(dto.accountAddress, AIRACCOUNT_P256_RECOVERY_ABI, provider);
+    const { gIdx } = await this.resolveP256GuardianSlot(dto.accountAddress);
+    const nonce: bigint = await ext.getRecoveryNonce();
+    const chainId = this.configService.get<number>("chainId") || 11155111;
+
+    const challenge = buildProposeRecoveryChallenge({
+      chainId,
+      account: dto.accountAddress as `0x${string}`,
+      nonce,
+      newOwner: dto.newOwner as `0x${string}`,
+    });
+
+    return {
+      challenge,
+      accountAddress: dto.accountAddress,
+      newOwner: dto.newOwner,
+      gIdx,
+      nonce: nonce.toString(),
+      chainId,
+    };
+  }
+
+  /**
+   * Step 2 — encode the guardian's WebAuthn assertion and RELAY proposeRecoveryWithSig
+   * on-chain (the contract accepts any relayer; the backend pays gas). Unlike the ECDSA
+   * proposeRecovery() path, the passkey signature — not msg.sender — is the authorization,
+   * so the backend relayer CAN submit this.
+   */
+  async submitP256Recovery(dto: SubmitP256RecoveryDto): Promise<{
+    success: boolean;
+    transactionHash: string;
+    gIdx: number;
+    newOwner: string;
+  }> {
+    const { gIdx } = await this.resolveP256GuardianSlot(dto.accountAddress);
+
+    // Encode + validate the assertion (low-S, webauthn.get prefix, challenge slot) —
+    // a bad blob fails here with a clear message rather than as an opaque on-chain revert.
+    const sig = encodeWebAuthnAssertion({
+      authenticatorData: dto.authenticatorData as `0x${string}`,
+      clientDataJSON: dto.clientDataJSON as `0x${string}`,
+      r: dto.r as `0x${string}`,
+      s: dto.s as `0x${string}`,
+    });
+
+    const signer = this.getRelaySigner();
+    const ext = new ethers.Contract(dto.accountAddress, AIRACCOUNT_P256_RECOVERY_ABI, signer);
+
+    try {
+      const tx: ethers.TransactionResponse = await ext.proposeRecoveryWithSig(
+        dto.newOwner,
+        gIdx,
+        sig
+      );
+      const receipt = await tx.wait();
+      if (!receipt || receipt.status !== 1) {
+        throw new InternalServerErrorException("proposeRecoveryWithSig transaction reverted");
+      }
+      this.logger.log(
+        `P-256 recovery proposed for ${dto.accountAddress} -> ${dto.newOwner} (gIdx ${gIdx}, tx ${tx.hash})`
+      );
+      return { success: true, transactionHash: tx.hash, gIdx, newOwner: dto.newOwner };
+    } catch (err) {
+      const message = (err as Error).message || "Failed to submit passkey recovery";
+      this.logger.error(`submitP256Recovery failed for ${dto.accountAddress}: ${message}`);
+      throw new InternalServerErrorException(message);
+    }
   }
 }

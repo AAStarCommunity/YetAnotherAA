@@ -20,6 +20,8 @@ import {
   SupportRecoveryDto,
   ExecuteRecoveryDto,
   CancelRecoveryDto,
+  PrepareP256RecoveryDto,
+  SubmitP256RecoveryDto,
 } from "./dto/guardian.dto";
 
 @ApiTags("guardian")
@@ -103,5 +105,27 @@ export class GuardianController {
   @ApiParam({ name: "accountAddress", description: "Smart account address" })
   async getPendingRecovery(@Param("accountAddress") accountAddress: string) {
     return this.guardianService.getPendingRecovery(accountAddress);
+  }
+
+  @Post("recovery/p256/prepare")
+  @ApiOperation({
+    summary: "Build the challenge a passkey guardian must sign to propose recovery",
+    description:
+      "Reads the on-chain recovery nonce + P-256 guardian slot and returns the 32-byte challenge " +
+      "to pass to navigator.credentials.get(). Step 1 of passkey-guardian recovery.",
+  })
+  async prepareP256Recovery(@Body() dto: PrepareP256RecoveryDto) {
+    return this.guardianService.prepareP256Recovery(dto);
+  }
+
+  @Post("recovery/p256/submit")
+  @ApiOperation({
+    summary: "Relay proposeRecoveryWithSig with a passkey guardian's WebAuthn assertion",
+    description:
+      "Encodes the WebAuthn assertion and relays proposeRecoveryWithSig on-chain (backend pays gas; " +
+      "the passkey signature is the authorization, so any relayer may submit). Step 2 of recovery.",
+  })
+  async submitP256Recovery(@Body() dto: SubmitP256RecoveryDto) {
+    return this.guardianService.submitP256Recovery(dto);
   }
 }
