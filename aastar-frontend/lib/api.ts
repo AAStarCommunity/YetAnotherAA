@@ -231,6 +231,18 @@ export const guardianAPI = {
   cancelRecovery: (data: { accountAddress: string }) => api.post("/guardian/recovery/cancel", data),
 
   getPendingRecovery: (accountAddress: string) => api.get(`/guardian/recovery/${accountAddress}`),
+
+  prepareP256Recovery: (data: { accountAddress: string; newOwner: string }) =>
+    api.post("/guardian/recovery/p256/prepare", data),
+
+  submitP256Recovery: (data: {
+    accountAddress: string;
+    newOwner: string;
+    authenticatorData: string;
+    clientDataJSON: string;
+    r: string;
+    s: string;
+  }) => api.post("/guardian/recovery/p256/submit", data),
 };
 
 export const addressBookAPI = {

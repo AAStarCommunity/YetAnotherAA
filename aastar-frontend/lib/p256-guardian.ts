@@ -11,7 +11,7 @@
 // signing (WebAuthn assertion → calldata, EIP-7212 verified) are wrapped by the SDK
 // (aastar-sdk#110) and are NOT done here.
 
-import { startRegistration } from "@simplewebauthn/browser";
+import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 
 export interface GuardianPasskey {
   /** 0x-prefixed 32-byte secp256r1 X coordinate. */
@@ -91,4 +91,71 @@ export async function createGuardianPasskey(opts: {
   }
   const { x, y } = xyFromSpki(b64urlToBytes(spkiB64));
   return { x, y, credentialId: credential.id };
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const h = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (h.length % 2 !== 0) throw new Error("Invalid hex length");
+  const out = new Uint8Array(h.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+// Parse a DER-encoded ECDSA signature (WebAuthn ES256) into 32-byte r and s.
+// DER: 0x30 len 0x02 rLen r… 0x02 sLen s… — each integer may carry a leading 0x00
+// sign byte or be shorter than 32 bytes, so normalise to fixed 32-byte big-endian.
+function derToRS(der: Uint8Array): { r: string; s: string } {
+  if (der[0] !== 0x30) throw new Error("Bad DER: not a sequence");
+  let off = 2; // skip 0x30, total-length
+  const readInt = (): Uint8Array => {
+    if (der[off] !== 0x02) throw new Error("Bad DER: expected integer");
+    const len = der[off + 1];
+    let val = der.slice(off + 2, off + 2 + len);
+    off += 2 + len;
+    while (val.length > 32 && val[0] === 0x00) val = val.slice(1); // drop sign byte
+    if (val.length > 32) throw new Error("Bad DER: scalar too long");
+    const padded = new Uint8Array(32);
+    padded.set(val, 32 - val.length); // left-pad to 32 bytes
+    return padded;
+  };
+  const r = readInt();
+  const s = readInt();
+  return { r: bytesToHex(r), s: bytesToHex(s) };
+}
+
+export interface GuardianRecoveryAssertion {
+  authenticatorData: string;
+  clientDataJSON: string;
+  r: string;
+  s: string;
+}
+
+/**
+ * Have the guardian's passkey sign a recovery challenge (the 32-byte digest from the
+ * backend's buildProposeRecoveryChallenge). Runs the WebAuthn assertion ceremony and
+ * returns the parts the contract verifies (authenticatorData, clientDataJSON, r, s).
+ * The (low-S normalisation + ABI encoding into the on-chain sig blob is done server-side
+ * by the SDK's encodeWebAuthnAssertion.)
+ */
+export async function signGuardianRecovery(opts: {
+  challenge: string;
+}): Promise<GuardianRecoveryAssertion> {
+  if (typeof window === "undefined") throw new Error("signGuardianRecovery is browser-only");
+
+  const challengeBytes = hexToBytes(opts.challenge);
+  const assertion = await startAuthentication({
+    optionsJSON: {
+      challenge: b64urlEncode(challengeBytes),
+      rpId: window.location.hostname,
+      userVerification: "required",
+      timeout: 120000,
+    },
+  });
+
+  const r = assertion.response;
+  return {
+    authenticatorData: bytesToHex(b64urlToBytes(r.authenticatorData)),
+    clientDataJSON: bytesToHex(b64urlToBytes(r.clientDataJSON)),
+    ...derToRS(b64urlToBytes(r.signature)),
+  };
 }

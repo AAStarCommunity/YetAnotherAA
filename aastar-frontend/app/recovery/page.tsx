@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Layout from "@/components/Layout";
+import PasskeyRecoveryCard from "@/components/PasskeyRecoveryCard";
 import { guardianAPI } from "@/lib/api";
 import toast from "react-hot-toast";
 
@@ -155,8 +156,25 @@ export default function RecoveryPage() {
       <div className="max-w-lg mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Social Recovery</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Recover an AirAccount by collecting 2-of-3 guardian approvals.
+          Recover an AirAccount with your passkey guardian, or by collecting 2-of-3 guardian
+          approvals.
         </p>
+
+        {/* Passkey recovery — one-step, backend-relayed (no gas, no second device) */}
+        <div className="mb-8">
+          <PasskeyRecoveryCard />
+        </div>
+
+        <div className="relative mb-8">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-white dark:bg-gray-900 px-3 text-xs uppercase tracking-wide text-gray-400">
+              or ECDSA guardians (2-of-3)
+            </span>
+          </div>
+        </div>
 
         {/* Step progress */}
         {step !== "done" && (
