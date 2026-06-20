@@ -3,7 +3,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagg
 import { AccountService } from "./account.service";
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { RotateSignerDto } from "./dto/rotate-signer.dto";
-import { GuardianSetupPrepareDto, CreateWithGuardiansDto } from "./dto/guardian-setup.dto";
+import {
+  GuardianSetupPrepareDto,
+  CreateWithGuardiansDto,
+  CreateWithP256GuardiansDto,
+} from "./dto/guardian-setup.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 @ApiTags("account")
@@ -78,6 +82,19 @@ export class AccountController {
   })
   async createWithGuardians(@Request() req, @Body() dto: CreateWithGuardiansDto) {
     return this.accountService.createWithGuardians(req.user.sub, dto);
+  }
+
+  @Post("create-with-p256-guardians")
+  @ApiOperation({
+    summary: "Create account with P-256 (WebAuthn passkey) guardians — no KMS, no QR scan",
+    description:
+      "Creates an AirAccount whose guardians are secp256r1 passkey public keys (x, y) — " +
+      "synced via iCloud Keychain / Google Password Manager, outside any KMS. P-256 guardians " +
+      "are an owner-bootstrap: registered at deploy time with NO acceptance signature, so unlike " +
+      "create-with-guardians there is no prepare/QR step. dailyLimit MUST be > 0. Requires SDK >= 0.23.0.",
+  })
+  async createWithP256Guardians(@Request() req, @Body() dto: CreateWithP256GuardiansDto) {
+    return this.accountService.createWithP256Guardians(req.user.sub, dto);
   }
 
   @Post("rotate-signer")

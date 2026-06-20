@@ -2,7 +2,11 @@ import { Injectable, Inject, NotFoundException, BadRequestException } from "@nes
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { CreateAccountDto, EntryPointVersionDto } from "./dto/create-account.dto";
-import { GuardianSetupPrepareDto, CreateWithGuardiansDto } from "./dto/guardian-setup.dto";
+import {
+  GuardianSetupPrepareDto,
+  CreateWithGuardiansDto,
+  CreateWithP256GuardiansDto,
+} from "./dto/guardian-setup.dto";
 import { DatabaseService } from "../database/database.service";
 import { ConfigService } from "@nestjs/config";
 import { ethers } from "ethers";
@@ -161,20 +165,57 @@ export class AccountService {
 
     const dailyLimitWei = this.parseDailyLimitToWei(dto.dailyLimit) ?? 0n;
 
-    // ── SEAM: P-256 (WebAuthn) passkey guardian — see YAA#324 / aastar-sdk#110 ──
-    // A passkey guardian is a secp256r1 pubkey (x, y), NOT an address, and needs
-    // NO acceptance signature at creation (unlike ECDSA guardians above). The
-    // v0.20.0 contract factory InitConfig carries it via `guardianP256X/Y bytes32[3]`.
-    // The published @aastar/sdk@0.20.9 does NOT yet expose this on
-    // createAccountWithGuardians (batch1 added it post-v0.20.9, unpublished).
-    // When the SDK publishes the P-256 InitConfig wrapper, plug it in here, e.g.:
-    //   p256Guardians: dto.guardianP256 ? [{ x: dto.guardianP256.x, y: dto.guardianP256.y }] : undefined,
-    // No speculative wiring now — see the "flip on publish" checklist in YAA#324.
     return this.client.accounts.createAccountWithGuardians(userId, {
       guardian1: dto.guardian1,
       guardian1Sig: dto.guardian1Sig,
       guardian2: dto.guardian2,
       guardian2Sig: dto.guardian2Sig,
+      dailyLimit: dailyLimitWei,
+      salt: dto.salt,
+      entryPointVersion: version,
+    });
+  }
+
+  /**
+   * Create an account with P-256 (WebAuthn passkey) guardian(s) — @aastar/sdk >= 0.23.0.
+   *
+   * A passkey guardian is a secp256r1 pubkey (x, y), NOT an address, and is an
+   * owner-bootstrap: registered at deploy time with NO acceptance signature (unlike
+   * the ECDSA path's QR-scan flow). The SDK's createAccountWithP256Guardians uses the
+   * factory's full-config `createAccount(owner, salt, config)` path — the only
+   * entrypoint that accepts the 8-field InitConfig (guardianP256X/Y). dailyLimit MUST
+   * be > 0: a guardian set enables the on-chain guard.
+   */
+  async createWithP256Guardians(userId: string, dto: CreateWithP256GuardiansDto) {
+    const dailyLimitWei = this.parseDailyLimitToWei(dto.dailyLimit);
+    if (dailyLimitWei === undefined || dailyLimitWei <= 0n) {
+      throw new BadRequestException(
+        "dailyLimit must be > 0 for a P-256 guardian account (a guardian set enables the on-chain guard)."
+      );
+    }
+
+    const seen = new Set<string>();
+    for (const g of dto.p256Guardians) {
+      const key = `${g.x.toLowerCase()}:${g.y.toLowerCase()}`;
+      if (seen.has(key)) {
+        throw new BadRequestException("Duplicate P-256 guardian public key");
+      }
+      seen.add(key);
+    }
+
+    const versionDto = dto.entryPointVersion || EntryPointVersionDto.V0_7;
+    const versionMap: Record<string, "0.6" | "0.7" | "0.8"> = {
+      "0.6": "0.6",
+      "0.7": "0.7",
+      "0.8": "0.8",
+    };
+    const version = versionMap[versionDto] as any;
+
+    return this.client.accounts.createAccountWithP256Guardians(userId, {
+      p256Guardians: dto.p256Guardians.map(g => ({
+        x: g.x as `0x${string}`,
+        y: g.y as `0x${string}`,
+      })),
       dailyLimit: dailyLimitWei,
       salt: dto.salt,
       entryPointVersion: version,
