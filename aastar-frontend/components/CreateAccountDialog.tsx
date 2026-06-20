@@ -44,7 +44,7 @@ export default function CreateAccountDialog({
   const [version, setVersion] = useState<EntryPointVersion>(EntryPointVersion.V0_7);
   const [salt, setSalt] = useState<string>("");
   // Pre-filled so passkey creation is one tap (a guardian set requires a guard limit > 0).
-  const [dailyLimit, setDailyLimit] = useState<string>("1.0");
+  const [dailyLimit, setDailyLimit] = useState<string>("0.1");
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [step, setStep] = useState<Step>("config");
@@ -59,7 +59,7 @@ export default function CreateAccountDialog({
     setGuardian1({ address: "", sig: "" });
     setGuardian2({ address: "", sig: "" });
     setSalt("");
-    setDailyLimit("1.0");
+    setDailyLimit("0.1");
     setShowAdvanced(false);
   };
 
@@ -292,7 +292,7 @@ export default function CreateAccountDialog({
                 onClick={() => {
                   setGuardianMode("passkey");
                   // passkey requires a guard limit > 0; prefill so creation is one tap
-                  setDailyLimit(prev => prev || "1.0");
+                  setDailyLimit(prev => prev || "0.1");
                 }}
                 disabled={loading}
                 className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition ${
@@ -392,23 +392,48 @@ export default function CreateAccountDialog({
                   htmlFor="passkeyDailyLimit"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  Daily transfer limit (ETH)
+                  Daily <span className="font-semibold">ETH</span> limit
                 </label>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  This is the native <span className="font-medium">ETH</span> spend cap only. ERC20
+                  / token limits (USDC, aPNTs…) are a separate per-token policy you set later.
+                </p>
+
+                {/* Suggested presets */}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {["0.1", "0.5", "1.0"].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setDailyLimit(v)}
+                      disabled={loading}
+                      className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
+                        dailyLimit === v
+                          ? "border-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                          : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-400"
+                      }`}
+                    >
+                      {v} ETH{v === "0.1" ? " · suggested" : ""}
+                    </button>
+                  ))}
+                </div>
+
                 <input
                   type="number"
                   id="passkeyDailyLimit"
                   value={dailyLimit}
                   onChange={e => setDailyLimit(e.target.value)}
-                  placeholder="e.g. 1.0"
+                  placeholder="or type a custom amount, e.g. 0.25"
                   min="0"
                   step="0.01"
                   disabled={loading}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                  className="mt-2 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Pre-filled — change it or leave it. Day-to-day transfers below this are
-                  frictionless; only transfers <span className="font-medium">above</span> it ask
-                  your passkey guardian to approve (extra safety for big amounts). Must be &gt; 0.
+                  Everyday ETH transfers below this go through instantly; only transfers{" "}
+                  <span className="font-medium">above</span> it ask your passkey guardian to approve
+                  (extra safety for big amounts). <span className="font-medium">0.1 ETH</span> suits
+                  most people — change it anytime. Must be &gt; 0.
                 </p>
               </div>
             )}
