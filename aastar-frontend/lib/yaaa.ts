@@ -3,8 +3,9 @@ import { KmsManager, LegacyPasskeyAssertion } from "@aastar/sdk/kms";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
-// In the browser, KMS calls are proxied through Next.js to avoid CORS issues.
-// The proxy is configured in next.config.ts: /kms-api/* → KMS_PROXY_URL/*
+// In the browser, KMS calls go through the server-side proxy at
+// app/kms-api/[...path], which injects the KMS api key from a SERVER env var —
+// so the key is never shipped in the browser bundle.
 const KMS_ENDPOINT =
   typeof window !== "undefined"
     ? "/kms-api"
@@ -26,7 +27,9 @@ export const yaaa = new YAAAClient({
 export const kmsClient = new KmsManager({
   kmsEndpoint: KMS_ENDPOINT,
   kmsEnabled: true,
-  kmsApiKey: process.env.NEXT_PUBLIC_KMS_API_KEY,
+  // No api key in the browser — the /kms-api proxy injects it server-side, so the
+  // key stays out of the client bundle. (NEXT_PUBLIC_KMS_API_KEY is intentionally
+  // not read here.)
 });
 
 // ── extractLegacyAssertion ────────────────────────────────────────
