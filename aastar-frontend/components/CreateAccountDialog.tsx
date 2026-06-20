@@ -43,7 +43,8 @@ export default function CreateAccountDialog({
   const [guardianMode, setGuardianMode] = useState<"passkey" | "ecdsa">("passkey");
   const [version, setVersion] = useState<EntryPointVersion>(EntryPointVersion.V0_7);
   const [salt, setSalt] = useState<string>("");
-  const [dailyLimit, setDailyLimit] = useState<string>("");
+  // Pre-filled so passkey creation is one tap (a guardian set requires a guard limit > 0).
+  const [dailyLimit, setDailyLimit] = useState<string>("1.0");
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [step, setStep] = useState<Step>("config");
@@ -58,7 +59,7 @@ export default function CreateAccountDialog({
     setGuardian1({ address: "", sig: "" });
     setGuardian2({ address: "", sig: "" });
     setSalt("");
-    setDailyLimit("");
+    setDailyLimit("1.0");
     setShowAdvanced(false);
   };
 
@@ -288,7 +289,11 @@ export default function CreateAccountDialog({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setGuardianMode("passkey")}
+                onClick={() => {
+                  setGuardianMode("passkey");
+                  // passkey requires a guard limit > 0; prefill so creation is one tap
+                  setDailyLimit(prev => prev || "1.0");
+                }}
                 disabled={loading}
                 className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition ${
                   guardianMode === "passkey"
@@ -303,7 +308,12 @@ export default function CreateAccountDialog({
               </button>
               <button
                 type="button"
-                onClick={() => setGuardianMode("ecdsa")}
+                onClick={() => {
+                  setGuardianMode("ecdsa");
+                  // ECDSA prepare binds dailyLimit=0 into the acceptance hash, so the create
+                  // value must match — reset to "no limit" to keep the QR flow consistent.
+                  setDailyLimit("");
+                }}
                 disabled={loading}
                 className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition ${
                   guardianMode === "ecdsa"
@@ -317,7 +327,7 @@ export default function CreateAccountDialog({
             </div>
 
             {guardianMode === "passkey" ? (
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 space-y-2 text-sm text-indigo-800 dark:text-indigo-300">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 space-y-3 text-sm text-indigo-800 dark:text-indigo-300">
                 <p className="font-semibold">🛡️ Social recovery — no seed phrase, no KMS</p>
                 <p>
                   Your guardian is a <span className="font-medium">passkey</span> (Face ID /
@@ -326,11 +336,30 @@ export default function CreateAccountDialog({
                   outside any server. If you lose this device, your passkey recovers the account on
                   a new one.
                 </p>
-                <p>
-                  Created in one step on this device — <span className="font-medium">no QR</span>,
-                  no second device, no extra app. You&apos;ll be prompted for Face ID / fingerprint
-                  next.
-                </p>
+                <div className="rounded-md bg-white/60 dark:bg-black/20 p-3">
+                  <p className="font-medium mb-1">On your phone — about 10 seconds:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-indigo-700 dark:text-indigo-300/90">
+                    <li>
+                      Set the daily limit below, then tap{" "}
+                      <span className="font-medium">Create with passkey</span>.
+                    </li>
+                    <li>
+                      Your phone asks for{" "}
+                      <span className="font-medium">Face ID / Touch ID / fingerprint</span> —
+                      confirm it.
+                    </li>
+                    <li>
+                      The passkey is saved to <span className="font-medium">iCloud Keychain</span>{" "}
+                      (iPhone) or <span className="font-medium">Google Password Manager</span>{" "}
+                      (Android) and synced to your other devices.
+                    </li>
+                    <li>Done — that passkey is now your recovery guardian.</li>
+                  </ol>
+                  <p className="mt-2 text-xs text-indigo-600/90 dark:text-indigo-300/70">
+                    No QR, no second device, no app install. Keep your iCloud / Google account
+                    secure — that&apos;s what protects your guardian.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2 text-sm text-amber-800 dark:text-amber-300">
@@ -377,8 +406,9 @@ export default function CreateAccountDialog({
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Required (&gt; 0) — installing guardians enables the on-chain spend guard.
-                  Transfers above this limit need a passkey-signed guardian approval.
+                  Pre-filled — change it or leave it. Day-to-day transfers below this are
+                  frictionless; only transfers <span className="font-medium">above</span> it ask
+                  your passkey guardian to approve (extra safety for big amounts). Must be &gt; 0.
                 </p>
               </div>
             )}
