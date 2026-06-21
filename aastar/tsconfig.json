@@ -18,6 +18,10 @@
       "@aastar/sdk/core": [
         "./node_modules/@aastar/sdk/dist/core.d.ts",
         "../node_modules/@aastar/sdk/dist/core.d.ts"
+      ],
+      "@aastar/sdk/email": [
+        "./node_modules/@aastar/sdk/dist/email.d.ts",
+        "../node_modules/@aastar/sdk/dist/email.d.ts"
       ]
     },
     "incremental": true,

@@ -1,17 +1,11 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  BadRequestException,
-} from "@nestjs/common";
+import { Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseService } from "../database/database.service";
 import { KmsService } from "../kms/kms.service";
 import { ethers } from "ethers";
-import * as bcrypt from "bcrypt";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
+import { EmailService } from "../email/email.service";
+import { RequestOtpDto, VerifyOtpDto } from "./dto/otp.dto";
 import { v4 as uuidv4 } from "uuid";
 import * as crypto from "crypto";
 
@@ -20,6 +14,12 @@ export class AuthService {
   /** Temporary store for KMS login challenges (address → { loginHash, expiresAt }) */
   private loginChallengeStore = new Map<string, { loginHash: string; expiresAt: number }>();
 
+  /** Temporary store for email OTP codes (email → { code, expiresAt, attempts }) */
+  private otpStore = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+  private static readonly OTP_TTL_MS = 10 * 60 * 1000;
+  private static readonly OTP_MAX_ATTEMPTS = 5;
+
   /** Cleanup interval for expired challenges */
   private cleanupInterval: ReturnType<typeof setInterval>;
 
@@ -27,69 +27,85 @@ export class AuthService {
     private databaseService: DatabaseService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private kmsService: KmsService
+    private kmsService: KmsService,
+    private emailService: EmailService
   ) {
     // Clean up expired challenges every 60 seconds
     this.cleanupInterval = setInterval(() => this.cleanupExpiredChallenges(), 60_000);
   }
 
-  // ── User Registration (password-based, no wallet) ──────────────
+  // ── Email OTP (passwordless register + login) ──────────────────
 
-  async register(registerDto: RegisterDto) {
-    const existingUser = await this.databaseService.findUserByEmail(registerDto.email);
-    if (existingUser) {
-      throw new ConflictException("User already exists");
-    }
-
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-
-    const user = {
-      id: uuidv4(),
-      email: registerDto.email,
-      username: registerDto.username || registerDto.email.split("@")[0],
-      password: hashedPassword,
-      walletAddress: undefined,
-      kmsKeyId: undefined,
-      kmsCredentialId: undefined,
-      createdAt: new Date().toISOString(),
-    };
-
-    await this.databaseService.saveUser(user);
-
-    const { password: _password, ...result } = user;
-    return {
-      user: result,
-      access_token: this.generateToken(user),
-    };
+  /**
+   * Step 1: send a 6-digit code to the email. Used for BOTH first-time sign-up
+   * and returning login — the code proves email ownership (so it doubles as email
+   * verification) and there is no password anywhere in the system.
+   * Always returns ok (don't leak whether an account exists).
+   */
+  async requestOtp(dto: RequestOtpDto) {
+    const email = dto.email.toLowerCase().trim();
+    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+    this.otpStore.set(email, {
+      code,
+      expiresAt: Date.now() + AuthService.OTP_TTL_MS,
+      attempts: 0,
+    });
+    await this.emailService.sendOtp(email, code);
+    return { ok: true, message: "Verification code sent" };
   }
 
-  // ── Password Login (fallback) ──────────────────────────────────
+  /**
+   * Step 2: verify the code → create the user on first sight (passwordless,
+   * email verified) or log the existing one in. Returns a JWT plus `needsWallet`
+   * so the client knows to run the passkey/KMS wallet setup next.
+   */
+  async verifyOtp(dto: VerifyOtpDto) {
+    const email = dto.email.toLowerCase().trim();
+    const entry = this.otpStore.get(email);
 
-  async login(loginDto: LoginDto) {
-    const user = await this.databaseService.findUserByEmail(loginDto.email);
+    if (!entry) {
+      throw new UnauthorizedException("No code was requested for this email, or it expired.");
+    }
+    if (Date.now() > entry.expiresAt) {
+      this.otpStore.delete(email);
+      throw new UnauthorizedException("Code expired. Please request a new one.");
+    }
+    if (entry.attempts >= AuthService.OTP_MAX_ATTEMPTS) {
+      this.otpStore.delete(email);
+      throw new UnauthorizedException("Too many attempts. Please request a new code.");
+    }
+    if (dto.code !== entry.code) {
+      entry.attempts += 1;
+      throw new UnauthorizedException("Invalid code.");
+    }
+    this.otpStore.delete(email);
+
+    let user = await this.databaseService.findUserByEmail(email);
+    let isNewUser = false;
     if (!user) {
-      throw new UnauthorizedException("Invalid credentials");
+      user = {
+        id: uuidv4(),
+        email,
+        username: email.split("@")[0],
+        emailVerified: true,
+        walletAddress: undefined,
+        kmsKeyId: undefined,
+        kmsCredentialId: undefined,
+        createdAt: new Date().toISOString(),
+      };
+      await this.databaseService.saveUser(user);
+      isNewUser = true;
+    } else if (!user.emailVerified) {
+      await this.databaseService.updateUser(user.id, { emailVerified: true });
+      user.emailVerified = true;
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    const { password: _password, ...result } = user;
     return {
-      user: result,
+      user,
       access_token: this.generateToken(user),
+      isNewUser,
+      needsWallet: !user.walletAddress,
     };
-  }
-
-  async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.databaseService.findUserByEmail(email);
-    if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password: _password, ...result } = user;
-      return result;
-    }
-    return null;
   }
 
   // ── Profile ────────────────────────────────────────────────────
@@ -99,8 +115,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("User not found");
     }
-    const { password: _password, ...result } = user;
-    return result;
+    return user;
   }
 
   // ── KMS Login Flow ─────────────────────────────────────────────
@@ -179,9 +194,8 @@ export class AuthService {
         throw new UnauthorizedException("No user found for this wallet address");
       }
 
-      const { password: _password, ...result } = user;
       return {
-        user: result,
+        user,
         access_token: this.generateToken(user),
       };
     } catch (error) {
@@ -273,6 +287,11 @@ export class AuthService {
     for (const [key, value] of this.loginChallengeStore) {
       if (now > value.expiresAt) {
         this.loginChallengeStore.delete(key);
+      }
+    }
+    for (const [key, value] of this.otpStore) {
+      if (now > value.expiresAt) {
+        this.otpStore.delete(key);
       }
     }
   }

@@ -52,6 +52,8 @@ export default () => {
     ethRpcUrl: process.env.ETH_RPC_URL,
     bundlerRpcUrl: process.env.BUNDLER_RPC_URL,
     ethPrivateKey: process.env.ETH_PRIVATE_KEY,
+    resendApiKey: process.env.RESEND_API_KEY,
+    emailFrom: process.env.EMAIL_FROM || "hi@aastar.io",
     // v0.6 configuration (backward compatibility)
     entryPointAddress: process.env.ENTRY_POINT_ADDRESS,
     aastarAccountFactoryAddress: process.env.AASTAR_ACCOUNT_FACTORY_ADDRESS,

@@ -5,13 +5,14 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
-import { LocalStrategy } from "./strategies/local.strategy";
 import { KmsModule } from "../kms/kms.module";
+import { EmailModule } from "../email/email.module";
 
 @Module({
   imports: [
     PassportModule,
     KmsModule,
+    EmailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<JwtModuleOptions> => {
@@ -30,7 +31,7 @@ import { KmsModule } from "../kms/kms.module";
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })

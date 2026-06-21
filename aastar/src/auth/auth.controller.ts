@@ -1,27 +1,33 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from "@nestjs/common";
+import { Controller, Post, Body, Get, UseGuards, Request, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
+import { RequestOtpDto, VerifyOtpDto } from "./dto/otp.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-import { LocalAuthGuard } from "./guards/local-auth.guard";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post("register")
-  @ApiOperation({ summary: "Register a new user" })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @Post("otp/request")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Send a 6-digit sign-in code to an email (passwordless register + login)",
+  })
+  async requestOtp(@Body() dto: RequestOtpDto) {
+    return this.authService.requestOtp(dto);
   }
 
-  @Post("login")
-  @ApiOperation({ summary: "Password login (fallback)" })
-  @UseGuards(LocalAuthGuard)
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  @Post("otp/verify")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Verify the email code → create/login the user and return a JWT",
+    description:
+      "On first sight the user is created (passwordless, email verified). Returns " +
+      "{ access_token, user, isNewUser, needsWallet }; run passkey/KMS wallet setup when needsWallet.",
+  })
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
   }
 
   @Get("profile")

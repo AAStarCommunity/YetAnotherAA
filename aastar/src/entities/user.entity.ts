@@ -16,8 +16,9 @@ export class User {
   @Column()
   username: string;
 
-  @Column()
-  password: string;
+  /** Set true once the user proves email ownership via an OTP code. */
+  @Column({ default: false })
+  emailVerified: boolean;
 
   @Column({ nullable: true })
   walletAddress?: string;
@@ -28,18 +29,6 @@ export class User {
   /** WebAuthn credential ID stored in KMS, used for wallet association */
   @Column({ nullable: true })
   kmsCredentialId?: string;
-
-  /** @deprecated Kept for data migration compatibility. No longer written. */
-  @Column({ nullable: true })
-  encryptedPrivateKey?: string;
-
-  /** @deprecated Kept for data migration compatibility. No longer written. */
-  @Column({ nullable: true })
-  mnemonic?: string;
-
-  /** @deprecated Always true for new users. Kept for migration compatibility. */
-  @Column({ default: false })
-  useKms: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
