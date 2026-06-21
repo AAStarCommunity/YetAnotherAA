@@ -12,8 +12,20 @@ interface Paymaster {
   configured: boolean;
 }
 
+interface PaymasterPreset {
+  name: string;
+  address: string;
+  type: "custom";
+  recommended: boolean;
+  requiresCommunity: boolean;
+  gasToken: string;
+  gasTokenAddress: string | null;
+  description: string;
+}
+
 export default function PaymasterPage() {
   const [paymasters, setPaymasters] = useState<Paymaster[]>([]);
+  const [presets, setPresets] = useState<PaymasterPreset[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string>("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -32,13 +44,38 @@ export default function PaymasterPage() {
   const loadPaymasters = async () => {
     setLoading(true);
     try {
-      const response = await paymasterAPI.getAvailable();
-      setPaymasters(response.data);
+      const [available, presetList] = await Promise.all([
+        paymasterAPI.getAvailable(),
+        paymasterAPI.getPresets().catch(() => ({ data: [] })),
+      ]);
+      setPaymasters(available.data);
+      setPresets(presetList.data);
     } catch (error) {
       console.error("Failed to load paymasters:", error);
       toast.error("Failed to load paymasters");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add a recommended preset (address comes from the SDK canonical table).
+  const handleAddPreset = async (preset: PaymasterPreset) => {
+    setActionLoading(`preset-${preset.name}`);
+    try {
+      await paymasterAPI.addCustom({
+        name: preset.name,
+        address: preset.address,
+        type: preset.type,
+      });
+      toast.success(`${preset.name} added`);
+      await loadPaymasters();
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+        `Failed to add ${preset.name}`;
+      toast.error(message);
+    } finally {
+      setActionLoading("");
     }
   };
 
@@ -147,6 +184,75 @@ export default function PaymasterPage() {
           >
             <PlusIcon className="w-6 h-6" />
           </button>
+        )}
+
+        {/* Recommended presets (addresses from the SDK) */}
+        {presets.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+              Recommended
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Gas sponsorship options. Addresses are provided by the AAStar SDK.
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {presets.map(preset => {
+                const added = paymasters.some(
+                  p => p.address.toLowerCase() === preset.address.toLowerCase()
+                );
+                return (
+                  <div
+                    key={preset.address}
+                    className={`rounded-xl border p-4 flex flex-col ${
+                      preset.recommended
+                        ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+                        : "border-amber-300 bg-amber-50 dark:bg-amber-900/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {preset.name}
+                      </span>
+                      {preset.recommended ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                          Recommended
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500 text-white">
+                          Needs community points
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                      Pay gas with <span className="font-medium">{preset.gasToken}</span>
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400 flex-1">
+                      {preset.description}
+                    </p>
+                    <p className="mt-2 text-[11px] font-mono text-gray-400 break-all">
+                      {preset.address}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={added || actionLoading === `preset-${preset.name}`}
+                      onClick={() => handleAddPreset(preset)}
+                      className={`mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+                        preset.recommended
+                          ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                          : "bg-amber-500 text-white hover:bg-amber-400"
+                      }`}
+                    >
+                      {added
+                        ? "✓ Added"
+                        : actionLoading === `preset-${preset.name}`
+                          ? "Adding…"
+                          : "Add"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Add Paymaster Form */}

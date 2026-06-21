@@ -32,6 +32,15 @@ export class PaymasterController {
     return this.paymasterService.getAvailablePaymasters(userId);
   }
 
+  @Get("presets")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Recommended paymaster presets (addresses from @aastar/sdk)" })
+  @ApiResponse({ status: 200, description: "AAStar PaymasterV4 + SuperPaymaster presets" })
+  getPaymasterPresets() {
+    return this.paymasterService.getPaymasterPresets();
+  }
+
   @Post("sponsor")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

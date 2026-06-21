@@ -2,7 +2,19 @@ import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ethers } from "ethers";
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
+import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
+
+export interface PaymasterPreset {
+  name: string;
+  address: string;
+  type: "custom";
+  recommended: boolean;
+  requiresCommunity: boolean;
+  gasToken: string;
+  gasTokenAddress: string | null;
+  description: string;
+}
 
 @Injectable()
 export class PaymasterService {
@@ -22,6 +34,47 @@ export class PaymasterService {
     userId: string
   ): Promise<{ name: string; address: string; configured: boolean }[]> {
     return this.client.paymaster.getAvailablePaymasters(userId);
+  }
+
+  /**
+   * Recommended paymaster presets, addresses sourced from the @aastar/sdk canonical
+   * table (never hardcoded). Two options:
+   *  - AAStar PaymasterV4: official, pay gas with aPNTs, no community needed.
+   *  - SuperPaymaster: pay gas with community points (xPNTs) — requires joining a
+   *    community + earning points, so it's unusable without them.
+   */
+  getPaymasterPresets(): PaymasterPreset[] {
+    const chainId = this.configService.get<number>("chainId") || 11155111;
+    const a = getCanonicalAddresses(chainId) as Record<string, string> | undefined;
+    if (!a) return [];
+    const presets: PaymasterPreset[] = [];
+    if (a.paymasterV4) {
+      presets.push({
+        name: "AAStar PaymasterV4",
+        address: a.paymasterV4,
+        type: "custom",
+        recommended: true,
+        requiresCommunity: false,
+        gasToken: "aPNTs",
+        gasTokenAddress: a.aPNTs ?? null,
+        description:
+          "Official AAStar-operated paymaster. Buy aPNTs and it sponsors your gas — available to everyone (you're in the default AAStar community by default). No community membership or points required.",
+      });
+    }
+    if (a.superPaymaster) {
+      presets.push({
+        name: "SuperPaymaster",
+        address: a.superPaymaster,
+        type: "custom",
+        recommended: false,
+        requiresCommunity: true,
+        gasToken: "xPNTs (community points)",
+        gasTokenAddress: null,
+        description:
+          "Pay gas with community points (xPNTs). Requires joining a community and earning points by completing community tasks — it will not work until you hold that community's points.",
+      });
+    }
+    return presets;
   }
 
   async addCustomPaymaster(

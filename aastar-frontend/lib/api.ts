@@ -134,6 +134,9 @@ export const blsAPI = {
 export const paymasterAPI = {
   getAvailable: () => api.get("/paymaster/available"),
 
+  // Recommended presets (addresses sourced from @aastar/sdk canonical table)
+  getPresets: () => api.get("/paymaster/presets"),
+
   sponsor: (data: { paymasterName: string; userOp: any; entryPoint?: string }) =>
     api.post("/paymaster/sponsor", data),
 
