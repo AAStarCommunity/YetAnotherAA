@@ -1,4 +1,4 @@
-import { Injectable, Inject, BadRequestException } from "@nestjs/common";
+import { Injectable, Inject, BadRequestException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { getCanonicalAddresses } from "@aastar/sdk/core";
@@ -9,6 +9,8 @@ import { EstimateGasDto } from "./dto/estimate-gas.dto";
 
 @Injectable()
 export class TransferService {
+  private readonly logger = new Logger(TransferService.name);
+
   constructor(
     @Inject(YAAA_SERVER_CLIENT) private client: YAAAServerClient,
     private addressBookService: AddressBookService,
@@ -19,6 +21,21 @@ export class TransferService {
     if (!transferDto.passkeyAssertion) {
       throw new BadRequestException("Passkey assertion is required for transactions");
     }
+
+    this.logger.log(
+      `executeTransfer: userId=${userId} to=${transferDto.to} amount=${transferDto.amount} ` +
+        `token=${transferDto.tokenAddress || "ETH"} usePaymaster=${!!transferDto.usePaymaster}`
+    );
+    try {
+      return await this.executeTransferInner(userId, transferDto);
+    } catch (err: any) {
+      // Surface the real SDK/BLS/bundler/on-chain failure (otherwise it's an opaque 500).
+      this.logger.error(`executeTransfer FAILED: ${err?.message ?? err}`, err?.stack);
+      throw err;
+    }
+  }
+
+  private async executeTransferInner(userId: string, transferDto: ExecuteTransferDto) {
 
     // PMv4 requires the ERC-20 gas token address appended to paymasterData.
     // Its contract has no token() getter so we supply it explicitly. Addresses
