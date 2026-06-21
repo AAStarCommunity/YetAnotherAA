@@ -35,6 +35,7 @@ interface CommunityEntry {
   address: string;
   metadata: CommunityMeta | null;
   tokenAddress: string | null;
+  tokenInfo: TokenInfo | null;
 }
 
 interface Dashboard {
@@ -60,7 +61,10 @@ function resolveImageUrl(url: string): string {
 
 function CommunityCard({ entry }: { entry: CommunityEntry }) {
   const { t } = useTranslation();
-  const name = entry.metadata?.name || shortenAddr(entry.address);
+  // Name source priority: on-chain Registry metadata → token's communityName → address.
+  const name =
+    entry.metadata?.name || entry.tokenInfo?.communityName || shortenAddr(entry.address);
+  const ens = entry.metadata?.ensName;
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
       <div className="flex items-start gap-3">
@@ -79,14 +83,22 @@ function CommunityCard({ entry }: { entry: CommunityEntry }) {
         )}
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 dark:text-white truncate">{name}</p>
-          <p className="text-xs text-gray-500 font-mono">{shortenAddr(entry.address)}</p>
+          {ens && <p className="text-xs text-indigo-500 truncate">{ens}</p>}
+          <p className="text-xs text-gray-500 font-mono truncate">
+            owner {shortenAddr(entry.address)}
+          </p>
           {entry.metadata?.description && (
             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{entry.metadata.description}</p>
           )}
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
-        {entry.tokenAddress ? (
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+        {entry.tokenInfo ? (
+          <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+            <CheckBadgeIcon className="h-4 w-4" />
+            {entry.tokenInfo.name} ({entry.tokenInfo.symbol})
+          </span>
+        ) : entry.tokenAddress ? (
           <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
             <CheckBadgeIcon className="h-4 w-4" />
             {t("communityPage.card.tokenDeployed")}

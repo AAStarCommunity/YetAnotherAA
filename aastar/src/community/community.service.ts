@@ -213,15 +213,22 @@ export class CommunityService implements OnModuleInit {
       address: Address;
       metadata: Awaited<ReturnType<CommunityService["getCommunityMetadata"]>>;
       tokenAddress: Address | null;
+      tokenInfo: Awaited<ReturnType<CommunityService["getTokenInfo"]>> | null;
     }[]
   > {
     const members = await this.getCommunityAdmins();
     const results = await Promise.allSettled(
-      members.map(async addr => ({
-        address: addr,
-        metadata: await this.getCommunityMetadata(addr),
-        tokenAddress: await this.getDeployedTokenAddress(addr),
-      }))
+      members.map(async addr => {
+        const tokenAddress = await this.getDeployedTokenAddress(addr);
+        // Registry metadata (name/ENS/logo) is frequently unset on-chain; the token
+        // carries the authoritative community name + token name/symbol, so include it
+        // here as the display fallback (e.g. "AAStar", "Mycelium Community").
+        const [metadata, tokenInfo] = await Promise.all([
+          this.getCommunityMetadata(addr),
+          tokenAddress ? this.getTokenInfo(tokenAddress).catch(() => null) : Promise.resolve(null),
+        ]);
+        return { address: addr, metadata, tokenAddress, tokenInfo };
+      })
     );
     return results
       .filter(r => r.status === "fulfilled")
