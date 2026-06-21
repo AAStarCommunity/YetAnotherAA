@@ -8,6 +8,7 @@ export type { LegacyPasskeyAssertion };
 @Injectable()
 export class KmsService {
   private readonly kmsManager: KmsManager;
+  private readonly webauthnOrigin: string;
 
   constructor(private configService: ConfigService) {
     this.kmsManager = new KmsManager({
@@ -15,19 +16,60 @@ export class KmsService {
       kmsEnabled: configService.get<boolean>("kmsEnabled") === true,
       kmsApiKey: configService.get<string>("kmsApiKey"),
     });
+    this.webauthnOrigin =
+      configService.get<string>("kmsWebauthnOrigin") ?? "http://localhost:5173";
 
     if (this.kmsManager.isKmsEnabled()) {
       const endpoint = configService.get<string>("kmsEndpoint") ?? "https://kms1.aastar.io";
       console.log(`[KmsService] KMS service enabled with endpoint: ${endpoint}`);
-      this.installDiagnosticInterceptors();
+      console.log(`[KmsService] Forwarding Origin to KMS: ${this.webauthnOrigin}`);
+      this.installOriginForwarding();
+      // Verbose KMS request/response tracing — opt-in via KMS_DIAG=true to avoid
+      // spamming normal logs (it dumps full WebAuthn request bodies).
+      if (process.env.KMS_DIAG === "true") {
+        this.installDiagnosticInterceptors();
+      }
     } else {
       console.log("[KmsService] KMS service disabled");
     }
   }
 
+  /**
+   * Resolve the underlying axios instance. The SDK holds it at
+   * `KmsManager.client.http` (KmsHttpClient); older builds exposed it directly as
+   * `.http`. Try both so interceptors actually attach.
+   */
+  private getKmsHttp(): any {
+    const m = this.kmsManager as any;
+    return m?.client?.http ?? m?.httpClient?.http ?? m?.http ?? null;
+  }
+
+  /**
+   * Inject an Origin header on every backend→KMS request. The KMS resolves the
+   * WebAuthn rpId from the caller's Origin (resolve_rp_id); without this, the
+   * server-to-server SignHash call sends no Origin and the KMS falls back to its
+   * first configured rpId (aastar.io), mismatching localhost-origin assertions
+   * produced during BeginAuthentication (which the /kms-api proxy forwards as the
+   * browser origin). Forwarding the same Origin keeps begin + sign consistent.
+   */
+  private installOriginForwarding() {
+    const http = this.getKmsHttp();
+    if (!http) {
+      console.warn("[KmsService] Could not resolve KMS axios instance — Origin not forwarded");
+      return;
+    }
+    http.interceptors.request.use((config: any) => {
+      config.headers = config.headers ?? {};
+      if (!config.headers["Origin"] && !config.headers["origin"]) {
+        config.headers["Origin"] = this.webauthnOrigin;
+      }
+      return config;
+    });
+  }
+
   /** Attach axios request/response interceptors to log full KMS traffic for debugging. */
   private installDiagnosticInterceptors() {
-    const http = (this.kmsManager as any).http;
+    const http = this.getKmsHttp();
     if (!http) return;
 
     http.interceptors.request.use((config: any) => {

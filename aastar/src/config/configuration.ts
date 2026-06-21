@@ -80,6 +80,12 @@ export default () => {
     kmsEnabled: process.env.KMS_ENABLED === "true",
     kmsEndpoint: process.env.KMS_ENDPOINT || "https://kms1.aastar.io",
     kmsApiKey: process.env.KMS_API_KEY,
+    // HTTP Origin the backend forwards to the KMS so its resolve_rp_id() picks the
+    // SAME rpId the browser used during BeginAuthentication (which the frontend
+    // /kms-api proxy forwards as the browser origin). Without this, server-to-server
+    // SignHash calls send no Origin and the KMS falls back to its first KMS_RP_ID
+    // (aastar.io), causing an rpIdHash mismatch against localhost-origin assertions.
+    kmsWebauthnOrigin: process.env.KMS_WEBAUTHN_ORIGIN || "http://localhost:5173",
     // AAStar contract addresses (fallback to @aastar/core canonical after applyConfig)
     registryAddress: process.env.REGISTRY_ADDRESS,
     stakingAddress: process.env.STAKING_ADDRESS,
