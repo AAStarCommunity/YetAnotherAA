@@ -13,7 +13,6 @@ import { startRegistration } from "@simplewebauthn/browser";
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
-    username: "",
     password: "",
     confirmPassword: "",
   });
@@ -52,9 +51,11 @@ export default function RegisterPage() {
     try {
       // Step 1: Register user account (email/password) → get JWT
       loadingToast = toast.loading("Creating account...");
+      // Username is auto-derived from the email local part (the field was removed).
+      const derivedUsername = formData.email.split("@")[0];
       const registerResponse = await authAPI.register({
         email: formData.email,
-        username: formData.username || undefined,
+        username: derivedUsername,
         password: formData.password,
       });
 
@@ -68,7 +69,7 @@ export default function RegisterPage() {
       const beginResponse = await kmsClient.beginRegistration({
         Description: user.id,
         UserName: formData.email,
-        UserDisplayName: formData.username || formData.email.split("@")[0],
+        UserDisplayName: derivedUsername,
       });
 
       // Step 3: Browser WebAuthn registration ceremony
@@ -267,25 +268,6 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
                   placeholder="your.email@example.com"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <label
-                  htmlFor="username"
-                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
-                >
-                  Username
-                </label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
-                  placeholder="Optional"
                 />
               </div>
 
