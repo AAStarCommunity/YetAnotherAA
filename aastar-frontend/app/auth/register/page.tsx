@@ -165,26 +165,27 @@ export default function RegisterPage() {
     <Layout>
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          {/* Logo/Brand Section */}
+          {/* Brand Section — fingerprint inline with the heading, transparent bg */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900 dark:bg-slate-800 mb-4 shadow-lg">
+            <div className="flex items-center justify-center gap-2.5">
               <svg
-                className="w-8 h-8 text-emerald-400"
+                className="w-8 h-8 text-emerald-500 dark:text-emerald-400 shrink-0"
                 fill="none"
                 stroke="currentColor"
+                strokeWidth={1.5}
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                  d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 0 0 4.5 10.5a7.464 7.464 0 0 1-1.15 3.993m1.989 3.559A11.209 11.209 0 0 0 8.25 10.5a3.75 3.75 0 1 1 7.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 0 1-3.6 9.75m6.633-4.596a18.666 18.666 0 0 1-2.485 5.33"
                 />
               </svg>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Create Your Account
+              </h2>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Create Your Account
-            </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               Join us with secure passkey authentication
             </p>
@@ -247,13 +248,14 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              {/* Inline label + input on one row to keep the form compact */}
+              <div className="flex items-center gap-3">
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
                 >
-                  Email address *
+                  Email *
                 </label>
                 <input
                   id="email"
@@ -263,17 +265,17 @@ export default function RegisterPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all sm:text-sm"
+                  className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
                   placeholder="your.email@example.com"
                 />
               </div>
 
-              <div>
+              <div className="flex items-center gap-3">
                 <label
                   htmlFor="username"
-                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
                 >
-                  Username <span className="text-gray-400 font-normal">(optional)</span>
+                  Username
                 </label>
                 <input
                   id="username"
@@ -282,75 +284,80 @@ export default function RegisterPage() {
                   autoComplete="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all sm:text-sm"
-                  placeholder="Choose a username"
+                  className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                  placeholder="Optional"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
-                >
-                  Password *
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all sm:text-sm"
-                  placeholder="Create a strong password (min 6 characters)"
-                />
+                <div className="flex items-center gap-3">
+                  <label
+                    htmlFor="password"
+                    className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >
+                    Password *
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                    placeholder="Min 6 characters"
+                  />
+                </div>
                 {formData.password && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        Password strength:
-                      </span>
-                      <span
-                        className={`text-xs font-semibold ${
-                          passwordStrength.strength === 1
-                            ? "text-red-600 dark:text-red-500"
-                            : passwordStrength.strength === 2
-                              ? "text-orange-600 dark:text-orange-500"
-                              : passwordStrength.strength === 3
-                                ? "text-sky-600 dark:text-sky-500"
-                                : "text-emerald-600 dark:text-emerald-500"
-                        }`}
-                      >
-                        {passwordStrength.label}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                      <div
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          passwordStrength.strength === 1
-                            ? "bg-red-500"
-                            : passwordStrength.strength === 2
-                              ? "bg-orange-500"
-                              : passwordStrength.strength === 3
-                                ? "bg-sky-500"
-                                : "bg-emerald-500"
-                        }`}
-                        style={{ width: `${(passwordStrength.strength / 4) * 100}%` }}
-                      ></div>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <span className="w-24 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          Password strength:
+                        </span>
+                        <span
+                          className={`text-xs font-semibold ${
+                            passwordStrength.strength === 1
+                              ? "text-red-600 dark:text-red-500"
+                              : passwordStrength.strength === 2
+                                ? "text-orange-600 dark:text-orange-500"
+                                : passwordStrength.strength === 3
+                                  ? "text-sky-600 dark:text-sky-500"
+                                  : "text-emerald-600 dark:text-emerald-500"
+                          }`}
+                        >
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            passwordStrength.strength === 1
+                              ? "bg-red-500"
+                              : passwordStrength.strength === 2
+                                ? "bg-orange-500"
+                                : passwordStrength.strength === 3
+                                  ? "bg-sky-500"
+                                  : "bg-emerald-500"
+                          }`}
+                          style={{ width: `${(passwordStrength.strength / 4) * 100}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div>
+              <div className="flex items-center gap-3">
                 <label
                   htmlFor="confirmPassword"
-                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
                 >
-                  Confirm Password *
+                  Confirm *
                 </label>
-                <div className="relative">
+                <div className="relative flex-1 min-w-0">
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -359,8 +366,8 @@ export default function RegisterPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="appearance-none block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all sm:text-sm"
-                    placeholder="Confirm your password"
+                    className="w-full appearance-none px-3 py-2 pr-9 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                    placeholder="Re-enter password"
                   />
                   {formData.confirmPassword && formData.password === formData.confirmPassword && (
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
