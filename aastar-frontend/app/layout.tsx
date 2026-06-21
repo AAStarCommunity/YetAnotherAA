@@ -32,9 +32,10 @@ export const metadata: Metadata = {
     title: "AAStar",
   },
   icons: {
-    // 🍄 favicon comes from app/icon.svg (file convention); icon-512 for PWA/larger.
-    icon: [{ url: "/icon-512.png", sizes: "512x512", type: "image/png" }],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    // 🍄 emoji favicon (app/icon.svg) on every page — inline SVG, no raster asset.
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 
