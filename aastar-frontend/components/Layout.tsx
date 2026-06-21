@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { clearStoredAuth, getStoredAuth } from "@/lib/auth";
 import { User } from "@/lib/types";
@@ -226,12 +227,38 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
       {/* Footer — shown on mobile + desktop; extra bottom padding on mobile when the
           fixed bottom nav is present (logged in) so it isn't hidden behind it. */}
       <footer
-        className={`flex items-center justify-center gap-2 pt-4 text-xs text-gray-400 dark:text-gray-600 ${
-          user ? "pb-24 md:pb-4" : "pb-6"
+        className={`flex flex-col items-center justify-center gap-2 pt-6 text-xs text-gray-400 dark:text-gray-600 ${
+          user ? "pb-24 md:pb-6" : "pb-8"
         }`}
       >
-        <Image src="/aastar-logo.png" alt="AAStar" width={20} height={24} className="opacity-80" />
-        <span>Powered by AAStar 2023</span>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/aastar-logo.png"
+            alt="AAStar"
+            width={18}
+            height={22}
+            className="opacity-80"
+          />
+          <span className="text-gray-500 dark:text-gray-400">
+            Cos72 — an open-source cooperation system with value-added gas sponsorship.
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/about" className="hover:text-gray-600 dark:hover:text-gray-300">
+            About
+          </Link>
+          <Link href="/contact" className="hover:text-gray-600 dark:hover:text-gray-300">
+            Contact
+          </Link>
+          <Link href="/privacy" className="hover:text-gray-600 dark:hover:text-gray-300">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-gray-600 dark:hover:text-gray-300">
+            Terms
+          </Link>
+          <span className="text-gray-300 dark:text-gray-700">·</span>
+          <span>Powered by AAStar 2023</span>
+        </div>
       </footer>
 
       {/* Service Status - Desktop only (mobile version is embedded in Me menu) */}
