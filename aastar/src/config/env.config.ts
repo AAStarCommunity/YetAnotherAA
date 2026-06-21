@@ -21,13 +21,10 @@ export interface EnvironmentConfig {
   webauthnRpId: string;
   webauthnOrigin: string;
 
-  // Ethereum & Contracts
+  // Ethereum (contract addresses come from @aastar/sdk canonical table, not env)
   ethRpcUrl: string;
   bundlerRpcUrl: string;
   ethPrivateKey?: string;
-  entryPointAddress: string;
-  aastarAccountFactoryAddress: string;
-  validatorContractAddress: string;
 
   // BLS Network (Optional)
   blsSeedNodes?: string;
@@ -70,9 +67,6 @@ export class EnvConfigService {
       ethRpcUrl: this.configService.get<string>("ETH_RPC_URL"),
       bundlerRpcUrl: this.configService.get<string>("BUNDLER_RPC_URL"),
       ethPrivateKey: this.configService.get<string>("ETH_PRIVATE_KEY"),
-      entryPointAddress: this.configService.get<string>("ENTRY_POINT_ADDRESS"),
-      aastarAccountFactoryAddress: this.configService.get<string>("AASTAR_ACCOUNT_FACTORY_ADDRESS"),
-      validatorContractAddress: this.configService.get<string>("VALIDATOR_CONTRACT_ADDRESS"),
 
       // BLS Network (Optional)
       blsSeedNodes: this.configService.get<string>("BLS_SEED_NODES"),
@@ -99,18 +93,6 @@ export class EnvConfigService {
 
     if (!config.bundlerRpcUrl) {
       errors.push("BUNDLER_RPC_URL is required");
-    }
-
-    if (!config.entryPointAddress) {
-      errors.push("ENTRY_POINT_ADDRESS is required");
-    }
-
-    if (!config.aastarAccountFactoryAddress) {
-      errors.push("AASTAR_ACCOUNT_FACTORY_ADDRESS is required");
-    }
-
-    if (!config.validatorContractAddress) {
-      errors.push("VALIDATOR_CONTRACT_ADDRESS is required");
     }
 
     // Validate database configuration

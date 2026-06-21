@@ -15,25 +15,9 @@ export default () => {
     throw new Error('DATABASE_URL is required when DB_TYPE is "postgres"');
   }
 
-  // Check if at least one EntryPoint version is configured
-  const hasV6Config =
-    process.env.ENTRY_POINT_ADDRESS &&
-    process.env.AASTAR_ACCOUNT_FACTORY_ADDRESS &&
-    process.env.VALIDATOR_CONTRACT_ADDRESS;
-
-  const hasV7Config =
-    process.env.ENTRY_POINT_V7_ADDRESS &&
-    process.env.AASTAR_ACCOUNT_FACTORY_V7_ADDRESS &&
-    process.env.VALIDATOR_CONTRACT_V7_ADDRESS;
-
-  const hasV8Config =
-    process.env.ENTRY_POINT_V8_ADDRESS &&
-    process.env.AASTAR_ACCOUNT_FACTORY_V8_ADDRESS &&
-    process.env.VALIDATOR_CONTRACT_V8_ADDRESS;
-
-  if (!hasV6Config && !hasV7Config && !hasV8Config) {
-    throw new Error("At least one EntryPoint version must be configured");
-  }
+  // EntryPoint / factory / validator addresses are sourced from the @aastar/sdk
+  // canonical table (sepoliaV07Config) in sdk.providers.ts — NOT from .env — so
+  // there is nothing to validate here.
 
   console.log("✅ Environment configuration validated successfully");
 
@@ -54,20 +38,8 @@ export default () => {
     ethPrivateKey: process.env.ETH_PRIVATE_KEY,
     resendApiKey: process.env.RESEND_API_KEY,
     emailFrom: process.env.EMAIL_FROM || "hi@aastar.io",
-    // v0.6 configuration (backward compatibility)
-    entryPointAddress: process.env.ENTRY_POINT_ADDRESS,
-    aastarAccountFactoryAddress: process.env.AASTAR_ACCOUNT_FACTORY_ADDRESS,
-    validatorContractAddress: process.env.VALIDATOR_CONTRACT_ADDRESS,
-    // v0.7 configuration
-    entryPointV7Address: process.env.ENTRY_POINT_V7_ADDRESS,
-    aastarAccountFactoryV7Address: process.env.AASTAR_ACCOUNT_FACTORY_V7_ADDRESS,
-    validatorContractV7Address: process.env.VALIDATOR_CONTRACT_V7_ADDRESS,
-    // v0.8 configuration
-    entryPointV8Address: process.env.ENTRY_POINT_V8_ADDRESS,
-    aastarAccountFactoryV8Address: process.env.AASTAR_ACCOUNT_FACTORY_V8_ADDRESS,
-    validatorContractV8Address: process.env.VALIDATOR_CONTRACT_V8_ADDRESS,
-    // Default version (can be overridden per account)
-    defaultEntryPointVersion: process.env.DEFAULT_ENTRYPOINT_VERSION || "0.6",
+    // EntryPoint / factory / validator addresses are NOT configured here — they come
+    // from the @aastar/sdk canonical table (sepoliaV07Config) in sdk.providers.ts.
     blsSeedNodes: process.env.BLS_SEED_NODES,
     chainId: parseInt(process.env.CHAIN_ID, 10) || 10,
     // Single source for the operations-portal chain (registry/admin/operator/community).

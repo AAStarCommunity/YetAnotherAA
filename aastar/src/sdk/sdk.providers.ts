@@ -1,6 +1,10 @@
 import { Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AirAccountServerClient as YAAAServerClient, ServerConfig } from "@aastar/sdk/kms";
+import {
+  AirAccountServerClient as YAAAServerClient,
+  ServerConfig,
+  sepoliaV07Config,
+} from "@aastar/sdk/kms";
 import { BackendStorageAdapter } from "./backend-storage.adapter";
 import { BackendSignerAdapter } from "./backend-signer.adapter";
 
@@ -13,43 +17,11 @@ export const yaaaServerClientProvider: Provider = {
     storageAdapter: BackendStorageAdapter,
     signerAdapter: BackendSignerAdapter
   ): YAAAServerClient => {
-    const entryPoints: ServerConfig["entryPoints"] = {};
-
-    // V0.6
-    const epV6 = configService.get<string>("entryPointAddress");
-    const factoryV6 = configService.get<string>("aastarAccountFactoryAddress");
-    const validatorV6 = configService.get<string>("validatorContractAddress");
-    if (epV6 && factoryV6 && validatorV6) {
-      entryPoints.v06 = {
-        entryPointAddress: epV6,
-        factoryAddress: factoryV6,
-        validatorAddress: validatorV6,
-      };
-    }
-
-    // V0.7
-    const epV7 = configService.get<string>("entryPointV7Address");
-    const factoryV7 = configService.get<string>("aastarAccountFactoryV7Address");
-    const validatorV7 = configService.get<string>("validatorContractV7Address");
-    if (epV7 && factoryV7 && validatorV7) {
-      entryPoints.v07 = {
-        entryPointAddress: epV7,
-        factoryAddress: factoryV7,
-        validatorAddress: validatorV7,
-      };
-    }
-
-    // V0.8
-    const epV8 = configService.get<string>("entryPointV8Address");
-    const factoryV8 = configService.get<string>("aastarAccountFactoryV8Address");
-    const validatorV8 = configService.get<string>("validatorContractV8Address");
-    if (epV8 && factoryV8 && validatorV8) {
-      entryPoints.v08 = {
-        entryPointAddress: epV8,
-        factoryAddress: factoryV8,
-        validatorAddress: validatorV8,
-      };
-    }
+    // Contract addresses come straight from the SDK's canonical table
+    // (sepoliaV07Config) — NEVER hardcoded/maintained in YAA. v0.7 is the only
+    // supported version. This is the single source of truth; updating the SDK
+    // picks up new deployments automatically.
+    const entryPoints: ServerConfig["entryPoints"] = { v07: sepoliaV07Config() };
 
     // BLS seed nodes
     const blsSeedNodesStr =
@@ -57,8 +29,8 @@ export const yaaaServerClientProvider: Provider = {
     const blsSeedNodes = blsSeedNodesStr ? blsSeedNodesStr.split(",").map(s => s.trim()) : [];
 
     // Default version mapping
-    const defaultVersionRaw = configService.get<string>("defaultEntryPointVersion") || "0.6";
-    const defaultVersion = defaultVersionRaw as "0.6" | "0.7" | "0.8";
+    // Only v0.7 is wired (addresses from the SDK canonical table).
+    const defaultVersion = "0.7" as "0.6" | "0.7" | "0.8";
 
     const serverConfig: ServerConfig = {
       rpcUrl: configService.get<string>("ethRpcUrl"),
