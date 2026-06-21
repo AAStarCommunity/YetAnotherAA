@@ -33,10 +33,10 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  register: (data: { email: string; password: string; username?: string }) =>
-    api.post("/auth/register", data),
+  // Passwordless email OTP — register + login in one flow.
+  requestOtp: (email: string) => api.post("/auth/otp/request", { email }),
 
-  login: (data: { email: string; password: string }) => api.post("/auth/login", data),
+  verifyOtp: (email: string, code: string) => api.post("/auth/otp/verify", { email, code }),
 
   getProfile: () => api.get("/auth/profile"),
 

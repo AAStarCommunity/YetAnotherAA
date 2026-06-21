@@ -10,163 +10,127 @@ import { setStoredAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 import { startRegistration } from "@simplewebauthn/browser";
 
+const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [walletStatus, setWalletStatus] = useState<string | null>(null);
   const [showRecoveryInfo, setShowRecoveryInfo] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Step 1: email → send a 6-digit code
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-
-    if (!formData.email) {
-      toast.error("Please enter your email address");
+    if (!isEmail(email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
-
-    if (!formData.password) {
-      toast.error("Please enter a password");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
     setLoading(true);
-    let loadingToast: string | null = null;
-
+    const t = toast.loading("Sending your code…");
     try {
-      // Step 1: Register user account (email/password) → get JWT
-      loadingToast = toast.loading("Creating account...");
-      // Username is auto-derived from the email local part (the field was removed).
-      const derivedUsername = formData.email.split("@")[0];
-      const registerResponse = await authAPI.register({
-        email: formData.email,
-        username: derivedUsername,
-        password: formData.password,
-      });
-
-      const { access_token, user } = registerResponse.data;
-      setStoredAuth(access_token, user);
-
-      // Step 2: Begin KMS WebAuthn registration
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Starting passkey registration...");
-
-      const beginResponse = await kmsClient.beginRegistration({
-        Description: user.id,
-        UserName: formData.email,
-        UserDisplayName: derivedUsername,
-      });
-
-      // Step 3: Browser WebAuthn registration ceremony
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Please complete the passkey setup with your authenticator...");
-      const credential = await startRegistration({
-        optionsJSON: beginResponse.Options as any,
-      });
-
-      // Step 4: Complete KMS registration → get KeyId
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Completing passkey registration...");
-
-      const completeResponse = await kmsClient.completeRegistration({
-        ChallengeId: beginResponse.ChallengeId,
-        Credential: credential,
-        Description: user.id,
-      });
-
-      const { KeyId, CredentialId } = completeResponse;
-
-      // Step 5: Poll for key readiness (address derivation takes 60-75s on STM32)
-      toast.dismiss(loadingToast);
-      setWalletStatus("Creating your wallet... This may take up to 2 minutes.");
-      loadingToast = toast.loading("Deriving wallet address (this may take a moment)...");
-
-      const keyStatus = await kmsClient.pollUntilReady(KeyId, 150_000, 3_000);
-
-      if (!keyStatus.Address) {
-        throw new Error("Key derivation completed but no address returned");
-      }
-
-      // Step 6: Link wallet to user account
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Linking wallet to your account...");
-
-      await authAPI.linkWallet({
-        kmsKeyId: KeyId,
-        address: keyStatus.Address,
-        credentialId: CredentialId,
-      });
-
-      toast.dismiss(loadingToast);
-      setWalletStatus(null);
-      toast.success("Account created with passkey wallet!");
-      router.push("/dashboard");
+      await authAPI.requestOtp(email.trim());
+      toast.dismiss(t);
+      toast.success("Code sent — check your email");
+      setStep("otp");
     } catch (error: any) {
-      console.error("Registration error:", error);
-      let message = "Registration failed";
-
-      if (error.response?.data?.message) {
-        message = error.response.data.message;
-      } else if (error.name === "NotAllowedError") {
-        message = "Passkey registration was cancelled or not allowed";
-      } else if (error.name === "NotSupportedError") {
-        message = "Passkeys are not supported on this device";
-      } else if (error.name === "SecurityError") {
-        message = "Security error during passkey registration";
-      } else if (error.message) {
-        message = error.message;
-      }
-
-      if (loadingToast) {
-        toast.dismiss(loadingToast);
-      }
-      setWalletStatus(null);
-      toast.error(message);
+      toast.dismiss(t);
+      toast.error(error.response?.data?.message || "Failed to send code. Please try again.");
     } finally {
       setLoading(false);
-      if (loadingToast) {
-        toast.dismiss(loadingToast);
-      }
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+  // Provision the passkey + KMS wallet for a freshly verified account.
+  const runPasskeyWalletSetup = async (user: { id: string; email: string; username?: string }) => {
+    const displayName = user.username || user.email.split("@")[0];
+    const beginResponse = await kmsClient.beginRegistration({
+      Description: user.id,
+      UserName: user.email,
+      UserDisplayName: displayName,
     });
+    const credential = await startRegistration({ optionsJSON: beginResponse.Options as any });
+    const completeResponse = await kmsClient.completeRegistration({
+      ChallengeId: beginResponse.ChallengeId,
+      Credential: credential,
+      Description: user.id,
+    });
+    const { KeyId, CredentialId } = completeResponse;
+
+    setWalletStatus("Creating your wallet… this can take up to 2 minutes.");
+    const keyStatus = await kmsClient.pollUntilReady(KeyId, 150_000, 3_000);
+    if (!keyStatus.Address) {
+      throw new Error("Key derivation completed but no address was returned");
+    }
+    await authAPI.linkWallet({
+      kmsKeyId: KeyId,
+      address: keyStatus.Address,
+      credentialId: CredentialId,
+    });
+    setWalletStatus(null);
   };
 
-  const getPasswordStrength = (password: string) => {
-    if (password.length === 0) return { strength: 0, label: "", color: "" };
-    if (password.length < 6) return { strength: 1, label: "Weak", color: "bg-red-500" };
-    if (password.length < 10) return { strength: 2, label: "Fair", color: "bg-yellow-500" };
-    if (password.length < 14) return { strength: 3, label: "Good", color: "bg-blue-500" };
-    return { strength: 4, label: "Strong", color: "bg-green-500" };
+  // Step 2: verify code → login/create, then bind passkey + wallet if needed
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    if (!/^\d{6}$/.test(code)) {
+      toast.error("Enter the 6-digit code from your email");
+      return;
+    }
+    setLoading(true);
+    let t = toast.loading("Verifying…");
+    try {
+      const res = await authAPI.verifyOtp(email.trim(), code);
+      const { access_token, user, needsWallet } = res.data;
+      setStoredAuth(access_token, user);
+      toast.dismiss(t);
+
+      if (needsWallet) {
+        t = toast.loading("Now set up your passkey (Face ID / fingerprint)…");
+        await runPasskeyWalletSetup(user);
+        toast.dismiss(t);
+        toast.success("Account ready — secured by your passkey!");
+      } else {
+        toast.success("Signed in!");
+      }
+      router.push("/dashboard");
+    } catch (error: any) {
+      toast.dismiss(t);
+      setWalletStatus(null);
+      if (error?.name === "NotAllowedError") {
+        toast.error("Passkey setup was cancelled. You're verified — try the passkey step again.");
+      } else if (error?.name === "NotSupportedError") {
+        toast.error("Passkeys aren't supported on this device.");
+      } else {
+        toast.error(error.response?.data?.message || error.message || "Verification failed");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const passwordStrength = getPasswordStrength(formData.password);
+  const handleResend = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await authAPI.requestOtp(email.trim());
+      toast.success("New code sent");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Layout>
       <div className="flex items-start justify-center pt-20 sm:pt-28 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          {/* Brand Section — fingerprint inline with the heading, transparent bg */}
+          {/* Brand — fingerprint inline with the heading, transparent bg */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2.5">
               <svg
@@ -188,7 +152,7 @@ export default function RegisterPage() {
               </h2>
             </div>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Join us with secure passkey authentication
+              No password — just your email and a passkey
             </p>
           </div>
 
@@ -242,179 +206,108 @@ export default function RegisterPage() {
                   </p>
                   <p>
                     Lose one of your two? You can still recover with your remaining guardian + the
-                    community, which confirms it&apos;s really you through real social relationships
-                    (not a password).
+                    community, which confirms it&apos;s really you through real social
+                    relationships.
                   </p>
                 </div>
               )}
             </div>
 
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              {/* Inline label + input on one row to keep the form compact */}
-              <div className="flex items-center gap-3">
-                <label
-                  htmlFor="email"
-                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
-                >
-                  Email *
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
-              <div>
+            {step === "email" ? (
+              <form className="space-y-4" onSubmit={handleSendCode}>
                 <div className="flex items-center gap-3">
                   <label
-                    htmlFor="password"
-                    className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
+                    htmlFor="email"
+                    className="w-16 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
                   >
-                    Password *
+                    Email
                   </label>
                   <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
                     required
-                    value={formData.password}
-                    onChange={handleChange}
+                    autoFocus
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
                     className="flex-1 min-w-0 appearance-none px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
-                    placeholder="Min 6 characters"
+                    placeholder="your.email@example.com"
                   />
                 </div>
-                {formData.password && (
-                  <div className="mt-1.5 flex items-center gap-3">
-                    <span className="w-24 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">
-                          Password strength:
-                        </span>
-                        <span
-                          className={`text-xs font-semibold ${
-                            passwordStrength.strength === 1
-                              ? "text-red-600 dark:text-red-500"
-                              : passwordStrength.strength === 2
-                                ? "text-orange-600 dark:text-orange-500"
-                                : passwordStrength.strength === 3
-                                  ? "text-sky-600 dark:text-sky-500"
-                                  : "text-emerald-600 dark:text-emerald-500"
-                          }`}
-                        >
-                          {passwordStrength.label}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            passwordStrength.strength === 1
-                              ? "bg-red-500"
-                              : passwordStrength.strength === 2
-                                ? "bg-orange-500"
-                                : passwordStrength.strength === 3
-                                  ? "bg-sky-500"
-                                  : "bg-emerald-500"
-                          }`}
-                          style={{ width: `${(passwordStrength.strength / 4) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              <div className="flex items-center gap-3">
-                <label
-                  htmlFor="confirmPassword"
-                  className="w-24 shrink-0 text-right text-sm font-semibold text-gray-700 dark:text-gray-300"
+                <p className="text-xs text-gray-500 dark:text-gray-400 pl-[4.75rem]">
+                  We&apos;ll email you a 6-digit code to verify it&apos;s you. New here? This also
+                  creates your account.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-3.5 px-4 text-base font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
                 >
-                  Confirm *
-                </label>
-                <div className="relative flex-1 min-w-0">
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="w-full appearance-none px-3 py-2 pr-9 border border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
-                    placeholder="Re-enter password"
-                  />
-                  {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                      <svg
-                        className="h-5 w-5 text-emerald-500"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
+                  {loading ? "Sending…" : "Send code"}
+                </button>
+              </form>
+            ) : (
+              <form className="space-y-4" onSubmit={handleVerify}>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-medium text-gray-900 dark:text-white">{email}</span>.
+                </p>
+                <input
+                  id="code"
+                  name="code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={code}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="block w-full text-center tracking-[0.6em] font-mono text-2xl px-3 py-3 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-emerald-500 focus:border-transparent transition-all"
+                  placeholder="······"
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-3.5 px-4 text-base font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                >
+                  {loading ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                      Working…
+                    </span>
+                  ) : (
+                    "Verify & continue"
                   )}
-                </div>
-              </div>
+                </button>
 
-              {/* Progress Indicator */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 dark:bg-emerald-600">
-                      <span className="text-lg font-bold text-white">1</span>
-                    </div>
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      Step 1 of 3: Account Details
-                    </h3>
-                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                      <p>
-                        After submitting, you&apos;ll set up a passkey, then your wallet will be
-                        created automatically (takes ~1 minute).
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("email");
+                      setCode("");
+                    }}
+                    disabled={loading}
+                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+                  >
+                    ← Change email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={loading}
+                    className="font-medium text-slate-900 dark:text-emerald-400 hover:underline disabled:opacity-50"
+                  >
+                    Resend code
+                  </button>
                 </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3.5 px-4 border border-transparent text-base font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 dark:focus:ring-emerald-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Setting up passkey...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Continue to Passkey Setup
-                  </div>
-                )}
-              </button>
-            </form>
+              </form>
+            )}
           </div>
 
           {/* Footer Links */}
