@@ -22,7 +22,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Cos72: A Cooperation System, Open Source, Powerful and Easy to Use: Any time, Any Where, Any one",
+  title:
+    "Cos72: A Cooperation System, Open Source, Powerful and Easy to Use: Any one, Any Where, Any time",
   description: "ERC4337 Account Abstraction with BLS Signatures",
   manifest: "/manifest.json",
   appleWebApp: {
