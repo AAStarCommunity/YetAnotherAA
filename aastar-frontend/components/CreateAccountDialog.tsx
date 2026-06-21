@@ -7,7 +7,7 @@ import QRCode from "react-qr-code";
 import EntryPointVersionSelector from "./EntryPointVersionSelector";
 import { EntryPointVersion } from "@/lib/types";
 import { accountAPI } from "@/lib/api";
-import { createGuardianPasskey } from "@/lib/p256-guardian";
+import { createGuardianPasskey, type GuardianPasskey } from "@/lib/p256-guardian";
 import toast from "react-hot-toast";
 
 interface CreateAccountDialogProps {
@@ -51,6 +51,17 @@ export default function CreateAccountDialog({
   const [prepareResult, setPrepareResult] = useState<PrepareResult | null>(null);
   const [guardian1, setGuardian1] = useState<GuardianSig>({ address: "", sig: "" });
   const [guardian2, setGuardian2] = useState<GuardianSig>({ address: "", sig: "" });
+  // Passkey path: a P-256 guardian account requires exactly TWO guardian passkeys
+  // (the protocol is 2-of-3; the community multisig is the 3rd). Each should be saved
+  // to a DIFFERENT credential store (iCloud Keychain / Google Password Manager / a
+  // phone) so no single provider failure loses both.
+  const [passkeyGuardians, setPasskeyGuardians] = useState<(GuardianPasskey | null)[]>([
+    null,
+    null,
+  ]);
+  const [creatingSlot, setCreatingSlot] = useState<number | null>(null);
+  // Right-pane "how it works / where to store" guide — collapsed by default.
+  const [showGuide, setShowGuide] = useState(false);
 
   const handleReset = () => {
     setStep("config");
@@ -58,6 +69,9 @@ export default function CreateAccountDialog({
     setPrepareResult(null);
     setGuardian1({ address: "", sig: "" });
     setGuardian2({ address: "", sig: "" });
+    setPasskeyGuardians([null, null]);
+    setCreatingSlot(null);
+    setShowGuide(false);
     setSalt("");
     setDailyLimit("0.1");
     setShowAdvanced(false);
@@ -86,39 +100,73 @@ export default function CreateAccountDialog({
     }
   };
 
-  // Passkey path: create a P-256 guardian passkey (Face ID / fingerprint) and
-  // deploy the account with it in one step — no QR, no second device, no KMS.
-  const handleCreateWithPasskey = async () => {
-    if (!dailyLimit || parseFloat(dailyLimit) <= 0) {
-      toast.error("Set a daily limit (> 0) — a guardian set enables the on-chain guard.");
-      return;
-    }
-
-    setLoading(true);
+  // Passkey path step 1: create ONE guardian passkey for the given slot. Called
+  // twice (slot 0, slot 1) — the user should pick a DIFFERENT credential store each
+  // time (the native prompt's "Save another way" → iCloud / Google / a phone).
+  const handleCreateGuardianSlot = async (slot: number) => {
+    if (creatingSlot !== null) return;
+    setCreatingSlot(slot);
     try {
-      const passkey = await createGuardianPasskey({ userName: "AAStar account guardian" });
-      setStep("creating");
-      const response = await accountAPI.createWithP256Guardians({
-        p256Guardians: [{ x: passkey.x, y: passkey.y }],
-        dailyLimit,
-        salt: salt ? parseInt(salt) : undefined,
-        entryPointVersion: version,
+      const passkey = await createGuardianPasskey({
+        userName: `AAStar guardian ${slot + 1}`,
       });
-
-      toast.success("Smart Account created with a passkey guardian!");
-      handleReset();
-      onSuccess(response.data);
-      onClose();
+      // Reject the same credential in both slots (would collapse 2-of-3 to 1 store).
+      const other = passkeyGuardians[slot === 0 ? 1 : 0];
+      if (other && other.x.toLowerCase() === passkey.x.toLowerCase()) {
+        toast.error("That's the same passkey as the other guardian — pick a different store.");
+        return;
+      }
+      setPasskeyGuardians(prev => {
+        const next = [...prev];
+        next[slot] = passkey;
+        return next;
+      });
+      toast.success(`Guardian ${slot + 1} saved.`);
     } catch (error: any) {
       if (error?.name === "NotAllowedError") {
         toast.error("Passkey creation was cancelled.");
       } else if (error?.name === "NotSupportedError") {
         toast.error("This device doesn't support passkeys. Use ECDSA guardians instead.");
       } else {
-        const message =
-          error.response?.data?.message || error.message || "Failed to create account";
-        toast.error(message);
+        toast.error(error?.message || "Failed to create guardian passkey");
       }
+    } finally {
+      setCreatingSlot(null);
+    }
+  };
+
+  // Passkey path step 2: deploy the account with BOTH guardian passkeys (2-of-3).
+  const handleCreatePasskeyAccount = async () => {
+    const [g0, g1] = passkeyGuardians;
+    if (!g0 || !g1) {
+      toast.error("Create both guardian passkeys first.");
+      return;
+    }
+    if (!dailyLimit || parseFloat(dailyLimit) <= 0) {
+      toast.error("Set a daily limit (> 0) — a guardian set enables the on-chain guard.");
+      return;
+    }
+
+    setLoading(true);
+    setStep("creating");
+    try {
+      const response = await accountAPI.createWithP256Guardians({
+        p256Guardians: [
+          { x: g0.x, y: g0.y },
+          { x: g1.x, y: g1.y },
+        ],
+        dailyLimit,
+        salt: salt ? parseInt(salt) : undefined,
+        entryPointVersion: version,
+      });
+
+      toast.success("Smart Account created with 2 passkey guardians!");
+      handleReset();
+      onSuccess(response.data);
+      onClose();
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message || "Failed to create account";
+      toast.error(message);
       setStep("config");
     } finally {
       setLoading(false);
@@ -326,42 +374,7 @@ export default function CreateAccountDialog({
               </button>
             </div>
 
-            {guardianMode === "passkey" ? (
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 space-y-3 text-sm text-indigo-800 dark:text-indigo-300">
-                <p className="font-semibold">🛡️ Social recovery — no seed phrase, no KMS</p>
-                <p>
-                  Your guardian is a <span className="font-medium">passkey</span> (Face ID /
-                  fingerprint) that lives in your iCloud Keychain or Google Password Manager —{" "}
-                  <span className="font-medium">self-custodial</span>, synced across your devices,
-                  outside any server. If you lose this device, your passkey recovers the account on
-                  a new one.
-                </p>
-                <div className="rounded-md bg-white/60 dark:bg-black/20 p-3">
-                  <p className="font-medium mb-1">On your phone — about 10 seconds:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-indigo-700 dark:text-indigo-300/90">
-                    <li>
-                      Set the daily limit below, then tap{" "}
-                      <span className="font-medium">Create with passkey</span>.
-                    </li>
-                    <li>
-                      Your phone asks for{" "}
-                      <span className="font-medium">Face ID / Touch ID / fingerprint</span> —
-                      confirm it.
-                    </li>
-                    <li>
-                      The passkey is saved to <span className="font-medium">iCloud Keychain</span>{" "}
-                      (iPhone) or <span className="font-medium">Google Password Manager</span>{" "}
-                      (Android) and synced to your other devices.
-                    </li>
-                    <li>Done — that passkey is now your recovery guardian.</li>
-                  </ol>
-                  <p className="mt-2 text-xs text-indigo-600/90 dark:text-indigo-300/70">
-                    No QR, no second device, no app install. Keep your iCloud / Google account
-                    secure — that&apos;s what protects your guardian.
-                  </p>
-                </div>
-              </div>
-            ) : (
+            {guardianMode === "ecdsa" && (
               <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2 text-sm text-amber-800 dark:text-amber-300">
                 <p className="font-semibold">🛡️ Social recovery — no seed phrase</p>
                 <p>
@@ -385,56 +398,175 @@ export default function CreateAccountDialog({
               </div>
             )}
 
-            {/* Passkey mode requires a daily limit (a guardian set enables the on-chain guard). */}
+            {/* Passkey mode: 2-pane — left = actions, right = collapsible guide + diagram. */}
             {guardianMode === "passkey" && (
-              <div>
-                <label
-                  htmlFor="passkeyDailyLimit"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Daily <span className="font-semibold">ETH</span> limit
-                </label>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  This is the native <span className="font-medium">ETH</span> spend cap only. ERC20
-                  / token limits (USDC, aPNTs…) are a separate per-token policy you set later.
-                </p>
-
-                {/* Suggested presets */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {["0.1", "0.5", "1.0"].map(v => (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {/* LEFT — actions (kept short) */}
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 p-3 text-xs text-indigo-800 dark:text-indigo-300">
+                    Two guardian passkeys are your account&apos;s recovery.{" "}
+                    <span className="font-medium">Save each to a different place</span> and
+                    don&apos;t lose them — they&apos;re how you get the account back if this device
+                    is gone.{" "}
                     <button
-                      key={v}
                       type="button"
-                      onClick={() => setDailyLimit(v)}
-                      disabled={loading}
-                      className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
-                        dailyLimit === v
-                          ? "border-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
-                          : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-400"
-                      }`}
+                      onClick={() => setShowGuide(s => !s)}
+                      className="font-medium underline whitespace-nowrap"
                     >
-                      {v} ETH{v === "0.1" ? " · suggested" : ""}
+                      {showGuide ? "Hide guide" : "How & where ▸"}
                     </button>
-                  ))}
+                  </div>
+
+                  {/* Daily limit */}
+                  <div>
+                    <label
+                      htmlFor="passkeyDailyLimit"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Daily <span className="font-semibold">ETH</span> limit
+                    </label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {["0.1", "0.5", "1.0"].map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setDailyLimit(v)}
+                          disabled={loading}
+                          className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
+                            dailyLimit === v
+                              ? "border-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                              : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-400"
+                          }`}
+                        >
+                          {v} ETH{v === "0.1" ? " · suggested" : ""}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      id="passkeyDailyLimit"
+                      value={dailyLimit}
+                      onChange={e => setDailyLimit(e.target.value)}
+                      placeholder="or a custom amount, e.g. 0.25"
+                      min="0"
+                      step="0.01"
+                      disabled={loading}
+                      className="mt-2 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Transfers above this ask a guardian to approve. Native ETH only — token limits
+                      are set later. Must be &gt; 0.
+                    </p>
+                  </div>
+
+                  {/* Two guardian slots */}
+                  <div className="space-y-2">
+                    {[0, 1].map(slot => {
+                      const g = passkeyGuardians[slot];
+                      const busy = creatingSlot === slot;
+                      const hint =
+                        slot === 0
+                          ? "Save to e.g. Google Password Manager"
+                          : "Save to a DIFFERENT place, e.g. iCloud Keychain";
+                      return (
+                        <div
+                          key={slot}
+                          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
+                            g
+                              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+                              : "border-gray-300 dark:border-gray-600"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                              {g ? "✓ " : ""}Guardian {slot + 1} of 2
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {g ? `saved · ${g.x.slice(0, 12)}…` : hint}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCreateGuardianSlot(slot)}
+                            disabled={creatingSlot !== null || loading}
+                            className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                          >
+                            {busy ? "Creating…" : g ? "Redo" : "Create"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <input
-                  type="number"
-                  id="passkeyDailyLimit"
-                  value={dailyLimit}
-                  onChange={e => setDailyLimit(e.target.value)}
-                  placeholder="or type a custom amount, e.g. 0.25"
-                  min="0"
-                  step="0.01"
-                  disabled={loading}
-                  className="mt-2 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Everyday ETH transfers below this go through instantly; only transfers{" "}
-                  <span className="font-medium">above</span> it ask your passkey guardian to approve
-                  (extra safety for big amounts). <span className="font-medium">0.1 ETH</span> suits
-                  most people — change it anytime. Must be &gt; 0.
-                </p>
+                {/* RIGHT — collapsible guide + storage diagram */}
+                {showGuide && (
+                  <div className="rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 space-y-3">
+                    <div className="space-y-1.5">
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Why two guardians?
+                      </p>
+                      <p className="text-xs leading-relaxed">
+                        A guardian is a <span className="font-medium">recovery key</span>, separate
+                        from your login. If you lose this device, a guardian brings the account back
+                        on a new one. You keep <span className="font-medium">two</span>, in two
+                        different places, so one provider failing never locks you out. (On-chain
+                        it&apos;s 2-of-3 — the community multisig is the 3rd and can never move
+                        funds alone.)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Where to save each
+                      </p>
+                      <p className="text-xs">
+                        In the system passkey popup, the default is{" "}
+                        <span className="font-medium">Google Password Manager</span>. To pick a
+                        different store, tap{" "}
+                        <span className="rounded bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 font-semibold text-red-700 dark:text-red-300 ring-1 ring-red-400">
+                          Save another way
+                        </span>
+                        .
+                      </p>
+
+                      {/* Diagram: each guardian → a distinct store */}
+                      <div className="rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 text-xs space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white font-bold">
+                            1
+                          </span>
+                          <span>→</span>
+                          <span className="rounded bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-blue-700 dark:text-blue-300">
+                            🔑 Google Password Manager
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white font-bold">
+                            2
+                          </span>
+                          <span>→</span>
+                          <span className="rounded bg-purple-100 dark:bg-purple-900/40 px-2 py-0.5 text-purple-700 dark:text-purple-300">
+                            🍎 iCloud Keychain
+                          </span>
+                          <span className="text-gray-400">or</span>
+                          <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-amber-700 dark:text-amber-300">
+                            📱 a phone (scan QR)
+                          </span>
+                        </div>
+                        <p className="pt-1 text-amber-600 dark:text-amber-400">
+                          ⚠ Put the two in <span className="font-semibold">different</span> places —
+                          never both in the same one.
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        On a Mac you can do both here (Google for #1, iCloud for #2). Or use two
+                        phones — one Android, one iPhone — and scan each.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -534,8 +666,12 @@ export default function CreateAccountDialog({
           <>
             <button
               type="button"
-              onClick={guardianMode === "passkey" ? handleCreateWithPasskey : handlePrepare}
-              disabled={loading}
+              onClick={guardianMode === "passkey" ? handleCreatePasskeyAccount : handlePrepare}
+              disabled={
+                loading ||
+                creatingSlot !== null ||
+                (guardianMode === "passkey" && !(passkeyGuardians[0] && passkeyGuardians[1]))
+              }
               className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto ${
                 guardianMode === "passkey"
                   ? "bg-indigo-600 hover:bg-indigo-500"
@@ -548,7 +684,11 @@ export default function CreateAccountDialog({
                   {guardianMode === "passkey" ? "Creating…" : "Preparing..."}
                 </>
               ) : guardianMode === "passkey" ? (
-                "Create with passkey"
+                passkeyGuardians[0] && passkeyGuardians[1] ? (
+                  "Create account"
+                ) : (
+                  "Create both guardians first"
+                )
               ) : (
                 "Create Account"
               )}
@@ -661,7 +801,11 @@ export default function CreateAccountDialog({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+              <Dialog.Panel
+                className={`relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:p-6 ${
+                  guardianMode === "passkey" && step === "config" ? "sm:max-w-3xl" : "sm:max-w-lg"
+                }`}
+              >
                 {step !== "creating" && (
                   <div className="absolute right-0 top-0 pr-4 pt-4">
                     <button
@@ -675,8 +819,8 @@ export default function CreateAccountDialog({
                   </div>
                 )}
 
-                {/* Step progress indicator */}
-                {step !== "creating" && (
+                {/* Step progress indicator — ECDSA QR flow only (passkey is single-step). */}
+                {step !== "creating" && guardianMode === "ecdsa" && (
                   <div className="flex items-center space-x-2 mb-4">
                     {stepKeys.map((s, idx) => (
                       <div key={s} className="flex items-center">

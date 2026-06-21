@@ -12,6 +12,7 @@
 // (aastar-sdk#110) and are NOT done here.
 
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
+import { coseToP256XY } from "@aastar/sdk";
 
 export interface GuardianPasskey {
   /** 0x-prefixed 32-byte secp256r1 X coordinate. */
@@ -47,15 +48,6 @@ function b64urlToBytes(b64url: string): Uint8Array {
   return out;
 }
 
-// Extract (x, y) from an ES256 SPKI DER public key. The SPKI for a P-256 key ends with
-// the uncompressed EC point: 0x04 || X(32) || Y(32).
-function xyFromSpki(spki: Uint8Array): { x: string; y: string } {
-  if (spki.length < 65) throw new Error("Unexpected P-256 public key length");
-  const point = spki.slice(spki.length - 65);
-  if (point[0] !== 0x04) throw new Error("P-256 public key is not in uncompressed form");
-  return { x: bytesToHex(point.slice(1, 33)), y: bytesToHex(point.slice(33, 65)) };
-}
-
 /**
  * Provision a platform passkey (ES256 / secp256r1) and return its public key (x, y).
  * The challenge is irrelevant for a guardian key — we only need the pubkey — so a random
@@ -89,7 +81,12 @@ export async function createGuardianPasskey(opts: {
       "This device/browser didn't return a passkey public key. Use a platform passkey (Face ID / fingerprint) that syncs via iCloud or Google."
     );
   }
-  const { x, y } = xyFromSpki(b64urlToBytes(spkiB64));
+  // The WebAuthn SPKI DER ends with the uncompressed SEC1 point (0x04 || X || Y);
+  // hand the last 65 bytes to the SDK's coseToP256XY (validates + splits x/y) — no
+  // bespoke coordinate parsing here.
+  const spki = b64urlToBytes(spkiB64);
+  if (spki.length < 65) throw new Error("Unexpected P-256 public key length");
+  const { x, y } = coseToP256XY(spki.slice(spki.length - 65));
   return { x, y, credentialId: credential.id };
 }
 
