@@ -57,12 +57,38 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (error: any) {
       if (t) toast.dismiss(t);
-      if (error?.name === "NotAllowedError") {
-        toast.error("Authentication was cancelled.");
-      } else if (error?.response?.data?.message) {
-        toast.error(error.response.data.message);
+
+      const httpMsg: string | undefined = error?.response?.data?.message;
+      const status: number | undefined = error?.response?.status;
+      // Recoverable failures → guide the user to the email-code path (which both
+      // registers and logs in), pre-filling their email so it's one tap away.
+      const offerEmailCode = (msg: string) => {
+        toast.error(msg, { duration: 6000 });
+        setOtpEmail(email.trim());
+        setOtpStep("email");
+        setLoginMode("otp");
+      };
+
+      if (status === 404 || /user not found/i.test(httpMsg || "")) {
+        offerEmailCode(
+          "No account exists for this email yet. Sign in with an email code — it creates your account."
+        );
+      } else if (/no wallet|not initialized|passkey first/i.test(httpMsg || "")) {
+        offerEmailCode(
+          "This account hasn't set up a passkey yet. Sign in with an email code, then add a passkey."
+        );
+      } else if (error?.name === "NotAllowedError" || error?.name === "AbortError") {
+        // WebAuthn found no matching passkey on THIS device, or the prompt was dismissed —
+        // the two are indistinguishable in the spec, so cover both and offer the fallback.
+        offerEmailCode(
+          "No matching passkey on this device (or the prompt was dismissed). If you created it on another device, turn on iCloud Keychain / Google Password Manager sync — or just sign in with an email code."
+        );
+      } else if (status === 401 || /verification failed/i.test(httpMsg || "")) {
+        offerEmailCode(
+          "Passkey verification failed. You can sign in with an email code instead."
+        );
       } else {
-        toast.error(error.message || "Authentication failed");
+        toast.error(httpMsg || error?.message || "Sign-in failed. Try an email code instead.");
       }
     } finally {
       setLoading(false);

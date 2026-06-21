@@ -9,13 +9,15 @@ interface EntryPointVersionSelectorProps {
   showDescription?: boolean;
 }
 
-const versionInfo = {
-  [EntryPointVersion.V0_6]: {
-    label: "v0.6",
-    description: "Original ERC-4337 implementation with standard UserOperation format",
-    badge: "Stable",
-    badgeColor: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
-  },
+// Only versions listed here are shown. v0.6 is hidden by default (uncomment to
+// re-enable when needed); new accounts default to v0.7.
+const versionInfo: Partial<Record<EntryPointVersion, { label: string; description: string; badge: string; badgeColor: string }>> = {
+  // [EntryPointVersion.V0_6]: {
+  //   label: "v0.6",
+  //   description: "Original ERC-4337 implementation with standard UserOperation format",
+  //   badge: "Stable",
+  //   badgeColor: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
+  // },
   [EntryPointVersion.V0_7]: {
     label: "v0.7",
     description: "Optimized with PackedUserOperation format and improved gas efficiency",
@@ -49,8 +51,8 @@ export default function EntryPointVersionSelector({
       )}
 
       <div className="grid grid-cols-1 gap-2">
-        {Object.values(EntryPointVersion).map(version => {
-          const info = versionInfo[version];
+        {(Object.keys(versionInfo) as EntryPointVersion[]).map(version => {
+          const info = versionInfo[version]!;
           const isSelected = value === version;
 
           return (
