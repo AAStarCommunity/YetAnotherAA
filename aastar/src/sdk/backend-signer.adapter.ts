@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ISignerAdapter, PasskeyAssertionContext } from "@aastar/sdk/kms";
 import { AuthService } from "../auth/auth.service";
 
@@ -11,6 +11,8 @@ import { AuthService } from "../auth/auth.service";
  */
 @Injectable()
 export class BackendSignerAdapter implements ISignerAdapter {
+  private readonly logger = new Logger(BackendSignerAdapter.name);
+
   constructor(private authService: AuthService) {}
 
   async getAddress(userId: string): Promise<`0x${string}`> {
@@ -26,6 +28,16 @@ export class BackendSignerAdapter implements ISignerAdapter {
   ): Promise<`0x${string}`> {
     // Callers pass a 32-byte digest (raw bytes / 0x hex); KmsSigner.signMessage
     // applies EIP-191 personal-sign semantics. The assertion gates the KMS sign.
+    // No assertion here ⇒ the KMS SignHash will fail (challenge-binding: assertion
+    // required / "No pending challenge"), so log its presence to pinpoint such 500s.
+    const hasAssertion = !!ctx?.assertion;
+    this.logger.debug(`signMessage: userId=${userId} hasAssertion=${hasAssertion}`);
+    if (!hasAssertion) {
+      this.logger.warn(
+        `signMessage called WITHOUT a passkey assertion (userId=${userId}); ` +
+          `the KMS SignHash will be rejected (challenge-binding requires a fresh assertion).`
+      );
+    }
     const assertionProvider = ctx?.assertion ? () => Promise.resolve(ctx.assertion) : undefined;
     const signer = await this.authService.getUserWallet(userId, assertionProvider);
     return (await signer.signMessage(message)) as `0x${string}`;
@@ -33,6 +45,8 @@ export class BackendSignerAdapter implements ISignerAdapter {
 
   async ensureSigner(userId: string): Promise<{ address: `0x${string}` }> {
     const signer = await this.authService.ensureUserWallet(userId);
-    return { address: (await signer.getAddress()) as `0x${string}` };
+    const address = (await signer.getAddress()) as `0x${string}`;
+    this.logger.debug(`ensureSigner: userId=${userId} address=${address}`);
+    return { address };
   }
 }

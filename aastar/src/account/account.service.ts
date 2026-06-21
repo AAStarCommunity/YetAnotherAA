@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { CreateAccountDto, EntryPointVersionDto } from "./dto/create-account.dto";
@@ -13,6 +13,8 @@ import { ethers } from "ethers";
 
 @Injectable()
 export class AccountService {
+  private readonly logger = new Logger(AccountService.name);
+
   constructor(
     @Inject(YAAA_SERVER_CLIENT) private client: YAAAServerClient,
     private databaseService: DatabaseService,
@@ -211,15 +213,34 @@ export class AccountService {
     };
     const version = versionMap[versionDto] as any;
 
-    return this.client.accounts.createAccountWithP256Guardians(userId, {
-      p256Guardians: dto.p256Guardians.map(g => ({
-        x: g.x as `0x${string}`,
-        y: g.y as `0x${string}`,
-      })),
-      dailyLimit: dailyLimitWei,
-      salt: dto.salt,
-      entryPointVersion: version,
-    });
+    this.logger.log(
+      `createWithP256Guardians: userId=${userId} guardians=${dto.p256Guardians.length} ` +
+        `version=${version} dailyLimitWei=${dailyLimitWei} salt=${dto.salt ?? "random"}`
+    );
+
+    try {
+      const account = await this.client.accounts.createAccountWithP256Guardians(userId, {
+        p256Guardians: dto.p256Guardians.map(g => ({
+          x: g.x as `0x${string}`,
+          y: g.y as `0x${string}`,
+        })),
+        dailyLimit: dailyLimitWei,
+        salt: dto.salt,
+        entryPointVersion: version,
+      });
+      this.logger.log(
+        `createWithP256Guardians OK: address=${account.address} deployed=${account.deployed}`
+      );
+      return account;
+    } catch (err: any) {
+      // Surface the real SDK/KMS/on-chain failure (otherwise it bubbles up as an
+      // opaque 500). Includes the KMS "No pending challenge" challenge-binding case.
+      this.logger.error(
+        `createWithP256Guardians FAILED: ${err?.message ?? err}`,
+        err?.stack
+      );
+      throw err;
+    }
   }
 
   /**
