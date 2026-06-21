@@ -12,7 +12,9 @@
 // (aastar-sdk#110) and are NOT done here.
 
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
-import { coseToP256XY } from "@aastar/sdk";
+// Browser-safe subpath: the root "@aastar/sdk" pulls in the server bundle (imports
+// 'fs') and breaks the client build; "/core" is pure crypto.
+import { coseToP256XY } from "@aastar/sdk/core";
 
 export interface GuardianPasskey {
   /** 0x-prefixed 32-byte secp256r1 X coordinate. */
