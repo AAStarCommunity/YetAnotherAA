@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Pin the Turbopack workspace root to the monorepo root (where node_modules /
+  // the single package-lock.json live). Without this, `next dev` infers the root
+  // and can warn/fail ("inferred your workspace root … may not be correct"),
+  // restricting what it compiles. Must match outputFileTracingRoot.
+  turbopack: {
+    root: path.join(__dirname, ".."),
+  },
   // Only use standalone output when explicitly enabled (e.g., for Docker builds)
   // Set NEXT_BUILD_STANDALONE=true when building for Docker
   // This prevents warnings when using 'npm run start' locally
