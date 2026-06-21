@@ -163,7 +163,7 @@ export default function RegisterPage() {
 
   return (
     <Layout>
-      <div className="flex items-start justify-center pt-12 sm:pt-16 pb-8 px-4 sm:px-6 lg:px-8">
+      <div className="flex items-start justify-center pt-20 sm:pt-28 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           {/* Brand Section — fingerprint inline with the heading, transparent bg */}
           <div className="text-center mb-8">
