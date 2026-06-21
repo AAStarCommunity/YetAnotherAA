@@ -52,7 +52,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("dashboardDataLoaded") === "true";
+      // Only treat the cache as authoritative if it actually has an account. A cached
+      // "no account yet" state must NOT short-circuit the fetch — otherwise an account
+      // created after that cache (e.g. via create-with-guardians) never shows up until
+      // the session is cleared.
+      if (sessionStorage.getItem("dashboardDataLoaded") !== "true") return false;
+      try {
+        return !!JSON.parse(sessionStorage.getItem("dashboardData") || "{}").account;
+      } catch {
+        return false;
+      }
     }
     return false;
   });
@@ -161,10 +170,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           lastUpdated: new Date(),
         };
         setData(newData);
-        setHasLoaded(true);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("dashboardDataLoaded", "true");
-          sessionStorage.setItem("dashboardData", JSON.stringify(newData));
+        // Only cache as "loaded" once an account exists; never make a no-account
+        // state sticky (so a freshly-created account is picked up on the next load).
+        if (accountData) {
+          setHasLoaded(true);
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("dashboardDataLoaded", "true");
+            sessionStorage.setItem("dashboardData", JSON.stringify(newData));
+          }
+        } else {
+          setHasLoaded(false);
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("dashboardDataLoaded");
+            sessionStorage.removeItem("dashboardData");
+          }
         }
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
