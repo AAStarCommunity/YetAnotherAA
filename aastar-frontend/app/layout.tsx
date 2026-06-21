@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "AAStar - ERC4337 Account Abstraction",
+  title: "Cos72: A Cooperation System, Open Source, Powerfull & Easily to Use.",
   description: "ERC4337 Account Abstraction with BLS Signatures",
   manifest: "/manifest.json",
   appleWebApp: {

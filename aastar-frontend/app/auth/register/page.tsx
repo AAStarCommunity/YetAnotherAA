@@ -19,6 +19,7 @@ export default function RegisterPage() {
   });
   const [loading, setLoading] = useState(false);
   const [walletStatus, setWalletStatus] = useState<string | null>(null);
+  const [showRecoveryInfo, setShowRecoveryInfo] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,27 +201,53 @@ export default function RegisterPage() {
           )}
 
           {/* Main Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
-            {/* How your account is protected — shown up-front at account creation */}
-            <div className="mb-5 rounded-lg bg-slate-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 p-4 text-xs text-gray-600 dark:text-gray-400 space-y-1">
-              <p className="font-semibold text-gray-700 dark:text-gray-300">
-                🔑 No seed phrase — protected by social recovery
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700">
+            {/* How your account is protected — compact by default, expandable */}
+            <div className="mb-5 rounded-lg bg-slate-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
+              <button
+                type="button"
+                onClick={() => setShowRecoveryInfo(v => !v)}
+                className="flex w-full items-center justify-between gap-2 text-left"
+                aria-expanded={showRecoveryInfo}
+              >
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  🔑 No seed phrase — protected by social recovery
+                </span>
+                <svg
+                  className={`h-4 w-4 shrink-0 transition-transform ${showRecoveryInfo ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              <p className="mt-1">
+                <span className="font-medium">3 guardians</span> (2 yours + 1 community); any{" "}
+                <span className="font-medium">2</span> recover your account.
               </p>
-              <p>
-                Your account is guarded by <span className="font-medium">3 guardians</span>; any{" "}
-                <span className="font-medium">2</span> can help you move it to a new device.{" "}
-                <span className="font-medium">2 are yours, 1 is the community.</span>
-              </p>
-              <p>
-                Because the community is <span className="font-medium">only 1 of 3</span>, it can
-                never reach the 2 needed — so even a rogue community{" "}
-                <span className="font-medium">can never touch your funds</span>. Lose one of your
-                two? You can still recover with your remaining guardian + the community, which
-                confirms it&apos;s really you through real social relationships (not a password).
-              </p>
+              {showRecoveryInfo && (
+                <div className="mt-2 space-y-1 border-t border-gray-200 dark:border-gray-700 pt-2">
+                  <p>
+                    Because the community is <span className="font-medium">only 1 of 3</span>, it
+                    can never reach the 2 needed — so even a rogue community{" "}
+                    <span className="font-medium">can never touch your funds</span>.
+                  </p>
+                  <p>
+                    Lose one of your two? You can still recover with your remaining guardian + the
+                    community, which confirms it&apos;s really you through real social relationships
+                    (not a password).
+                  </p>
+                </div>
+              )}
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label
                   htmlFor="email"

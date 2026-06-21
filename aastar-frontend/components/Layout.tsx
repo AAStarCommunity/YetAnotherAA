@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { clearStoredAuth, getStoredAuth } from "@/lib/auth";
 import { User } from "@/lib/types";
@@ -259,8 +260,9 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
       <main className={user ? "md:py-6 pb-20 md:pb-6" : ""}>{children}</main>
 
       {/* Footer */}
-      <footer className="hidden md:block py-4 text-center text-xs text-gray-400 dark:text-gray-600">
-        Powered by AAStar 2023
+      <footer className="hidden md:flex items-center justify-center gap-2 py-4 text-xs text-gray-400 dark:text-gray-600">
+        <Image src="/aastar-logo.png" alt="AAStar" width={20} height={24} className="opacity-80" />
+        <span>Powered by AAStar 2023</span>
       </footer>
 
       {/* Service Status - Desktop only (mobile version is embedded in Me menu) */}
