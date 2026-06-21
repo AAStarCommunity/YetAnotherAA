@@ -11,13 +11,18 @@ stop_frontend() {
     PID=$(cat "$PID_FILE")
     if kill -0 "$PID" 2>/dev/null; then
       echo "Stopping frontend (PID $PID)..."
-      kill "$PID"
-      sleep 1
+      kill "$PID" 2>/dev/null || true
     fi
     rm -f "$PID_FILE"
   fi
-  # Also kill any stray next processes on port 5173
-  lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+  # Kill whatever is LISTENING on 5173 (the next dev child can outlive its parent),
+  # scoped to LISTEN, then WAIT until the port is free before the caller restarts —
+  # otherwise the new dev server can't bind 5173.
+  lsof -ti:5173 -sTCP:LISTEN 2>/dev/null | xargs kill -9 2>/dev/null || true
+  for _ in $(seq 1 20); do
+    lsof -ti:5173 -sTCP:LISTEN >/dev/null 2>&1 || break
+    sleep 0.5
+  done
 }
 
 case "${1:-start}" in
