@@ -7,7 +7,6 @@ import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { transferAPI, tokenAPI, paymasterAPI, addressBookAPI } from "@/lib/api";
-import { kmsClient } from "@/lib/yaaa";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
 import toast from "react-hot-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -259,25 +258,12 @@ export default function TransferPage() {
     let loadingToast: string | null = null;
 
     try {
-      // Step 1: KMS Passkey authentication
-      loadingToast = toast.loading("Starting transaction verification...");
-      const authResponse = await kmsClient.beginAuthentication({
-        Address: account?.signerAddress,
-      });
-
-      // Step 2: Browser WebAuthn authentication ceremony (bound to the challenge
-      // from BeginAuthentication — challenge-bound, replay-safe).
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Please verify with your passkey...");
-      const credential = await startAuthentication({ optionsJSON: authResponse.Options as any });
-
-      // Step 3: Execute transfer with the WebAuthn ceremony assertion. We forward
-      // the raw { ChallengeId, Credential } — the SDK/KMS consumes the challenge
-      // once via signHashWithWebAuthn. (Legacy raw-assertion extraction is gone:
-      // KMS rejects it as replayable.)
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Processing transfer...");
-      const requestData = {
+      // Phase 1: prepare. The backend (via the SDK) builds the UserOp, derives the
+      // tier-aware payload, calls KMS BeginAuthentication, and returns
+      // publicKeyOptions whose `challenge` is already the WYSIWYS commitment. We
+      // never compute commitChallenge or talk to KMS directly here.
+      loadingToast = toast.loading("Preparing transaction...");
+      const prep = await transferAPI.prepare({
         to: formData.to,
         amount: formData.amount,
         usePaymaster: formData.usePaymaster,
@@ -286,13 +272,25 @@ export default function TransferPage() {
             ? formData.paymasterAddress
             : undefined,
         tokenAddress: selectedToken?.address === "ETH" ? undefined : selectedToken?.address,
-        webAuthnAssertion: {
-          ChallengeId: authResponse.ChallengeId,
-          Credential: credential,
-        },
-      };
+      });
 
-      const response = await transferAPI.execute(requestData);
+      // Phase 2: browser ceremony — the user's device passkey signs the
+      // SDK-computed commitment. Use publicKeyOptions verbatim.
+      toast.dismiss(loadingToast);
+      loadingToast = toast.loading("Please verify with your passkey...");
+      const credential = await startAuthentication({
+        optionsJSON: prep.data.publicKeyOptions as any,
+      });
+
+      // Phase 3: submit. The committed digest matches what prepare bound, so the
+      // KMS accepts the assertion under strict mode.
+      toast.dismiss(loadingToast);
+      loadingToast = toast.loading("Processing transfer...");
+      const response = await transferAPI.submit({
+        transferId: prep.data.transferId,
+        challengeId: prep.data.challengeId,
+        credential,
+      });
       setTransferResult(response.data);
 
       if (loadingToast) {

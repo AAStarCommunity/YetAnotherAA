@@ -1,7 +1,8 @@
 import { Controller, Post, Get, Body, Query, Param, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { TransferService } from "./transfer.service";
-import { ExecuteTransferDto } from "./dto/execute-transfer.dto";
+import { PrepareTransferDto } from "./dto/prepare-transfer.dto";
+import { SubmitTransferDto } from "./dto/submit-transfer.dto";
 import { EstimateGasDto } from "./dto/estimate-gas.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
@@ -12,10 +13,18 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 export class TransferController {
   constructor(private transferService: TransferService) {}
 
-  @Post("execute")
-  @ApiOperation({ summary: "Execute ERC-4337 transfer" })
-  async executeTransfer(@Request() req, @Body() executeTransferDto: ExecuteTransferDto) {
-    return this.transferService.executeTransfer(req.user.sub, executeTransferDto);
+  @Post("prepare")
+  @ApiOperation({
+    summary: "Phase 1: prepare a strict device-passkey transfer (build + commitment)",
+  })
+  async prepareTransfer(@Request() req, @Body() prepareTransferDto: PrepareTransferDto) {
+    return this.transferService.prepareTransfer(req.user.sub, prepareTransferDto);
+  }
+
+  @Post("submit")
+  @ApiOperation({ summary: "Phase 3: submit a prepared transfer with the ceremony assertion" })
+  async submitTransfer(@Request() req, @Body() submitTransferDto: SubmitTransferDto) {
+    return this.transferService.submitPreparedTransfer(req.user.sub, submitTransferDto);
   }
 
   @Post("estimate")

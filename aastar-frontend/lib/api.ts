@@ -92,7 +92,10 @@ export const accountAPI = {
 
 // Transfer API
 export const transferAPI = {
-  execute: (data: {
+  // Phase 1: backend builds the UserOp + KMS challenge + WYSIWYS commitment.
+  // Returns publicKeyOptions whose `challenge` is already the SDK-computed
+  // commitment — feed it verbatim to the browser ceremony.
+  prepare: (data: {
     to: string;
     amount: string;
     data?: string;
@@ -100,14 +103,14 @@ export const transferAPI = {
     paymasterAddress?: string;
     paymasterData?: string;
     tokenAddress?: string;
-    // Challenge-bound WebAuthn ceremony assertion (KMS rejects the legacy raw
-    // passkey assertion). { ChallengeId } from BeginAuthentication + the browser
-    // credential from the passkey ceremony.
-    webAuthnAssertion: {
-      ChallengeId: string;
-      Credential: unknown;
-    };
-  }) => api.post("/transfer/execute", data),
+  }) =>
+    api.post<{ transferId: string; challengeId: string; publicKeyOptions: unknown }>(
+      "/transfer/prepare",
+      data
+    ),
+  // Phase 3: submit the prepared transfer with the browser ceremony credential.
+  submit: (data: { transferId: string; challengeId: string; credential: unknown }) =>
+    api.post("/transfer/submit", data),
 
   estimate: (data: {
     to: string;

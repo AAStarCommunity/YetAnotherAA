@@ -1,10 +1,11 @@
-import { Injectable, Inject, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, Inject, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
 import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { AddressBookService } from "./address-book.service";
-import { ExecuteTransferDto } from "./dto/execute-transfer.dto";
+import { PrepareTransferDto } from "./dto/prepare-transfer.dto";
+import { SubmitTransferDto } from "./dto/submit-transfer.dto";
 import { EstimateGasDto } from "./dto/estimate-gas.dto";
 
 @Injectable()
@@ -17,121 +18,94 @@ export class TransferService {
     private configService: ConfigService
   ) {}
 
-  async executeTransfer(userId: string, transferDto: ExecuteTransferDto) {
-    // KMS rejects the legacy raw passkey assertion (replayable). The current path
-    // is the challenge-bound WebAuthn ceremony assertion. Require it.
-    if (!transferDto.webAuthnAssertion) {
-      throw new BadRequestException(
-        "A WebAuthn ceremony assertion (webAuthnAssertion) is required for transactions"
-      );
-    }
-
+  /**
+   * Phase 1 of the strict device-passkey transfer. The SDK builds the UserOp,
+   * derives the tier-aware payload, calls KMS BeginAuthentication, and returns
+   * `publicKeyOptions` whose `challenge` is ALREADY the WYSIWYS commitment over
+   * the correct payload. We never compute commitChallenge or build the UserOp
+   * ourselves — the SDK owns all of it. No passkey signature yet.
+   */
+  async prepareTransfer(userId: string, dto: PrepareTransferDto) {
+    const paymasterTokenAddress = this.resolvePaymasterToken(dto);
     this.logger.log(
-      `executeTransfer: userId=${userId} to=${transferDto.to} amount=${transferDto.amount} ` +
-        `token=${transferDto.tokenAddress || "ETH"} usePaymaster=${!!transferDto.usePaymaster}`
+      `prepareTransfer: userId=${userId} to=${dto.to} amount=${dto.amount} ` +
+        `token=${dto.tokenAddress || "ETH"} usePaymaster=${!!dto.usePaymaster}`
     );
     try {
-      return await this.executeTransferInner(userId, transferDto);
+      // useAirAccountTiering: true is REQUIRED here — a one-time device-passkey
+      // ceremony assertion can only produce a single owner signature, which is
+      // exactly what the tiered path needs. (Non-tiered legacy BLS dual-signing
+      // cannot be prepared.)
+      const prep = await this.client.transfers.prepareTransfer(userId, {
+        to: dto.to,
+        amount: dto.amount,
+        data: dto.data,
+        tokenAddress: dto.tokenAddress,
+        usePaymaster: dto.usePaymaster,
+        paymasterAddress: dto.paymasterAddress,
+        paymasterData: dto.paymasterData,
+        paymasterTokenAddress,
+        useAirAccountTiering: true,
+      });
+      // Hand the frontend exactly what the ceremony needs. publicKeyOptions.challenge
+      // must be used verbatim (it is the SDK-computed commitment); challengeId is
+      // paired back with the credential in submit. userOpHash is omitted — the
+      // frontend signs the commitment, not the hash directly.
+      return {
+        transferId: prep.transferId,
+        challengeId: prep.challengeId,
+        publicKeyOptions: prep.publicKeyOptions,
+      };
     } catch (err: any) {
-      // Surface the real SDK/BLS/bundler/on-chain failure (otherwise it's an opaque 500).
-      this.logger.error(`executeTransfer FAILED: ${err?.message ?? err}`, err?.stack);
+      this.logger.error(`prepareTransfer FAILED: ${err?.message ?? err}`, err?.stack);
       throw err;
     }
   }
 
-  private async executeTransferInner(userId: string, transferDto: ExecuteTransferDto) {
-    // PMv4 requires the ERC-20 gas token address appended to paymasterData.
-    // Its contract has no token() getter so we supply it explicitly. Addresses
-    // come from the SDK's canonical set for the configured chain (the same source
-    // the paymaster list is built from) — never hardcoded.
-    // `canonical` is undefined for an unsupported CHAIN_ID; guard so a misconfig
-    // surfaces as "no paymaster token" rather than a TypeError that crashes every
-    // transfer (strictNullChecks is off, so tsc won't catch this).
-    const canonical = getCanonicalAddresses(this.configService.get<number>("chainId") ?? 11155111);
-    const paymasterTokenAddress =
-      canonical &&
-      transferDto.paymasterAddress?.toLowerCase() === canonical.paymasterV4?.toLowerCase()
-        ? canonical.aPNTs
-        : undefined;
-
-    // Pass the challenge-bound WebAuthn ceremony assertion through to the SDK,
-    // which forwards it to BLSSignatureService → KmsSignerAdapter → KMS SignHash.
-    // The challenge is consumed once (replay-safe); the tiered path needs a
-    // single owner signature.
-    //
-    // useAirAccountTiering: true enables Tier 1/2/3 routing based on transfer amount.
-    //   Tier 1 (<= tier1Limit): single passkey (P-256) signature
-    //   Tier 2 (<= tier2Limit): P-256 + BLS dual signature
-    //   Tier 3 (> tier2Limit):  P-256 + BLS + guardian ECDSA triple signature
-    //
-    // If the BLS seed node (https://v1.aastar.io) is unreachable the SDK will throw;
-    // we catch that here and degrade gracefully to a legacy BLS-only path so the
-    // transfer can still proceed.
-    let result: Awaited<ReturnType<typeof this.client.transfers.executeTransfer>>;
+  /**
+   * Phase 3: finish a prepared transfer with the browser ceremony assertion. The
+   * credential signed the commitment prepareTransfer bound, so the KMS accepts it
+   * under strict. The prepared handle is single-use and ~10min TTL; on failure the
+   * frontend must prepareTransfer again.
+   */
+  async submitPreparedTransfer(userId: string, dto: SubmitTransferDto) {
+    this.logger.log(`submitPreparedTransfer: userId=${userId} transferId=${dto.transferId}`);
+    let result: Awaited<ReturnType<typeof this.client.transfers.submitPreparedTransfer>>;
     try {
-      result = await this.client.transfers.executeTransfer(userId, {
-        to: transferDto.to,
-        amount: transferDto.amount,
-        data: transferDto.data,
-        tokenAddress: transferDto.tokenAddress,
-        usePaymaster: transferDto.usePaymaster,
-        paymasterAddress: transferDto.paymasterAddress,
-        paymasterData: transferDto.paymasterData,
-        paymasterTokenAddress,
-        webAuthnAssertion: transferDto.webAuthnAssertion,
-        p256Signature: transferDto.p256Signature,
-        useAirAccountTiering: true,
+      result = await this.client.transfers.submitPreparedTransfer(userId, {
+        transferId: dto.transferId,
+        webAuthnAssertion: { ChallengeId: dto.challengeId, Credential: dto.credential },
       });
-    } catch (tieringError: unknown) {
-      const msg = tieringError instanceof Error ? tieringError.message : String(tieringError);
-      // Detect BLS seed-node connectivity issues and fall back to legacy BLS path.
-      // Known error patterns: ECONNREFUSED, ENOTFOUND, fetch failed, timeout, ETIMEDOUT.
-      const isBLSNodeError =
-        /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|fetch failed|network error|timeout/i.test(msg);
-      if (isBLSNodeError) {
-        console.warn(
-          `[TransferService] BLS seed node unreachable (${msg}). ` +
-            `Falling back to legacy BLS-only signing. ` +
-            `To resolve, ensure the BLS node at https://v1.aastar.io is reachable.`
-        );
-        try {
-          result = await this.client.transfers.executeTransfer(userId, {
-            to: transferDto.to,
-            amount: transferDto.amount,
-            data: transferDto.data,
-            tokenAddress: transferDto.tokenAddress,
-            usePaymaster: transferDto.usePaymaster,
-            paymasterAddress: transferDto.paymasterAddress,
-            paymasterData: transferDto.paymasterData,
-            paymasterTokenAddress,
-            webAuthnAssertion: transferDto.webAuthnAssertion,
-            // useAirAccountTiering omitted → legacy BLS path. NOTE: the WebAuthn
-            // challenge is single-use; if the tiered attempt already consumed it,
-            // this retry needs a fresh ceremony and will surface that as the
-            // fallback error below.
-          });
-        } catch (fallbackError: unknown) {
-          const fallbackMsg =
-            fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-          throw new Error(
-            `Transfer failed on both tiered and legacy BLS paths. ` +
-              `Tiering error: ${msg}. Legacy BLS error: ${fallbackMsg}`
-          );
-        }
-      } else {
-        // Re-throw non-connectivity errors (guard pre-check failures, etc.)
-        throw tieringError;
-      }
+    } catch (err: any) {
+      // Surface the real KMS/BLS/bundler failure (#68 commitment, TTL expiry, tier
+      // drift, etc.) instead of an opaque 500.
+      this.logger.error(`submitPreparedTransfer FAILED: ${err?.message ?? err}`, err?.stack);
+      throw err;
     }
 
-    // Record in address book after successful submission (fire-and-forget)
-    if (result.success && result.transferId) {
-      this.recordAddressBookEntry(userId, transferDto.to, result.transferId).catch(err => {
+    // Record in address book after successful submission (fire-and-forget).
+    // The recipient comes from the SDK result (we don't have it in the submit body).
+    if (result.success && result.transferId && result.to) {
+      this.recordAddressBookEntry(userId, result.to, result.transferId).catch(err => {
         console.error("Failed to record transfer in address book:", err);
       });
     }
 
     return result;
+  }
+
+  /**
+   * PMv4 requires the ERC-20 gas token appended to paymasterData. Its contract has
+   * no token() getter, so we supply it explicitly from the SDK's canonical set for
+   * the configured chain — never hardcoded. `canonical` is undefined for an
+   * unsupported CHAIN_ID; guard so a misconfig surfaces as "no paymaster token"
+   * rather than a TypeError (strictNullChecks is off, so tsc won't catch this).
+   */
+  private resolvePaymasterToken(dto: PrepareTransferDto): string | undefined {
+    const canonical = getCanonicalAddresses(this.configService.get<number>("chainId") ?? 11155111);
+    return canonical && dto.paymasterAddress?.toLowerCase() === canonical.paymasterV4?.toLowerCase()
+      ? canonical.aPNTs
+      : undefined;
   }
 
   async estimateGas(userId: string, estimateDto: EstimateGasDto) {
