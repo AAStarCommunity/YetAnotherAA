@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -37,9 +37,32 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [showServiceStatus, setShowServiceStatus] = useState(false);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Close the avatar dropdown when clicking/tapping anywhere outside it, or on
+  // Escape — the GitHub-style behavior. A document-level pointerdown listener is
+  // more robust than a backdrop overlay, which a higher z-index sticky header
+  // would sit above (leaving header clicks unable to dismiss the menu).
+  useEffect(() => {
+    if (!avatarMenuOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAvatarMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [avatarMenuOpen]);
 
   useEffect(() => {
     const { token, user: storedUser } = getStoredAuth();
@@ -110,7 +133,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                 </button>
 
                 {/* Account avatar dropdown (GitHub-style) */}
-                <div className="relative">
+                <div className="relative" ref={avatarMenuRef}>
                   <button
                     onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
                     className="flex items-center gap-1 rounded-full focus:outline-none"
@@ -125,12 +148,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                     />
                   </button>
                   {avatarMenuOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setAvatarMenuOpen(false)}
-                      />
-                      <div className="absolute right-0 mt-2 w-64 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-20 py-1">
+                    <div className="absolute right-0 mt-2 w-64 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 py-1">
                         {/* Account header */}
                         <div className="flex items-center gap-3 px-4 py-3">
                           <span className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900 dark:bg-emerald-600 text-white text-sm font-semibold shrink-0">
@@ -211,8 +229,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                             Sign out
                           </button>
                         </div>
-                      </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
