@@ -18,8 +18,12 @@ export class TransferService {
   ) {}
 
   async executeTransfer(userId: string, transferDto: ExecuteTransferDto) {
-    if (!transferDto.passkeyAssertion) {
-      throw new BadRequestException("Passkey assertion is required for transactions");
+    // KMS rejects the legacy raw passkey assertion (replayable). The current path
+    // is the challenge-bound WebAuthn ceremony assertion. Require it.
+    if (!transferDto.webAuthnAssertion) {
+      throw new BadRequestException(
+        "A WebAuthn ceremony assertion (webAuthnAssertion) is required for transactions"
+      );
     }
 
     this.logger.log(
@@ -36,7 +40,6 @@ export class TransferService {
   }
 
   private async executeTransferInner(userId: string, transferDto: ExecuteTransferDto) {
-
     // PMv4 requires the ERC-20 gas token address appended to paymasterData.
     // Its contract has no token() getter so we supply it explicitly. Addresses
     // come from the SDK's canonical set for the configured chain (the same source
@@ -51,9 +54,10 @@ export class TransferService {
         ? canonical.aPNTs
         : undefined;
 
-    // Pass the Legacy assertion through to the SDK, which forwards it
-    // to BLSSignatureService → ISignerAdapter → KmsSigner → KMS SignHash.
-    // The Legacy format is reusable, enabling the two ECDSA signs needed for BLS.
+    // Pass the challenge-bound WebAuthn ceremony assertion through to the SDK,
+    // which forwards it to BLSSignatureService → KmsSignerAdapter → KMS SignHash.
+    // The challenge is consumed once (replay-safe); the tiered path needs a
+    // single owner signature.
     //
     // useAirAccountTiering: true enables Tier 1/2/3 routing based on transfer amount.
     //   Tier 1 (<= tier1Limit): single passkey (P-256) signature
@@ -74,7 +78,7 @@ export class TransferService {
         paymasterAddress: transferDto.paymasterAddress,
         paymasterData: transferDto.paymasterData,
         paymasterTokenAddress,
-        passkeyAssertion: transferDto.passkeyAssertion,
+        webAuthnAssertion: transferDto.webAuthnAssertion,
         p256Signature: transferDto.p256Signature,
         useAirAccountTiering: true,
       });
@@ -100,8 +104,11 @@ export class TransferService {
             paymasterAddress: transferDto.paymasterAddress,
             paymasterData: transferDto.paymasterData,
             paymasterTokenAddress,
-            passkeyAssertion: transferDto.passkeyAssertion,
-            // useAirAccountTiering omitted → legacy BLS path
+            webAuthnAssertion: transferDto.webAuthnAssertion,
+            // useAirAccountTiering omitted → legacy BLS path. NOTE: the WebAuthn
+            // challenge is single-use; if the tiered attempt already consumed it,
+            // this retry needs a fresh ceremony and will surface that as the
+            // fallback error below.
           });
         } catch (fallbackError: unknown) {
           const fallbackMsg =

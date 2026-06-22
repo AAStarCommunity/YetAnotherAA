@@ -1,7 +1,13 @@
 import { createHash } from "crypto";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { KmsManager, KmsSigner, LegacyPasskeyAssertion } from "@aastar/sdk/kms";
+import {
+  KmsManager,
+  KmsSigner,
+  KmsSignerAdapter,
+  KmsKeyResolver,
+  LegacyPasskeyAssertion,
+} from "@aastar/sdk/kms";
 
 export type { LegacyPasskeyAssertion };
 
@@ -16,8 +22,7 @@ export class KmsService {
       kmsEnabled: configService.get<boolean>("kmsEnabled") === true,
       kmsApiKey: configService.get<string>("kmsApiKey"),
     });
-    this.webauthnOrigin =
-      configService.get<string>("kmsWebauthnOrigin") ?? "http://localhost:5173";
+    this.webauthnOrigin = configService.get<string>("kmsWebauthnOrigin") ?? "http://localhost:5173";
 
     if (this.kmsManager.isKmsEnabled()) {
       const endpoint = configService.get<string>("kmsEndpoint") ?? "https://kms1.aastar.io";
@@ -165,5 +170,18 @@ export class KmsService {
         throw new Error("Passkey assertion is required for signing. Provide an assertionProvider.");
       });
     return this.kmsManager.createKmsSigner(keyId, address, ap);
+  }
+
+  /**
+   * Build the SDK's KMS-backed ISignerAdapter. This is the wiring seam the SDK
+   * uses to carry a per-call, challenge-bound WebAuthn ceremony assertion from
+   * `executeTransfer` through to KMS `/SignHash` — replacing the legacy raw
+   * passkey assertion path that KMS now rejects (challenge-binding, replay-safe).
+   *
+   * `resolveKey` maps a YAA userId to its KMS `{ keyId, address }` (app-specific;
+   * see AuthService.resolveKmsKey).
+   */
+  createSignerAdapter(resolveKey: KmsKeyResolver): KmsSignerAdapter {
+    return new KmsSignerAdapter(this.kmsManager, resolveKey);
   }
 }

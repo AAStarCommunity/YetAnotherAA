@@ -6,7 +6,8 @@ import {
   sepoliaV07Config,
 } from "@aastar/sdk/kms";
 import { BackendStorageAdapter } from "./backend-storage.adapter";
-import { BackendSignerAdapter } from "./backend-signer.adapter";
+import { KmsService } from "../kms/kms.service";
+import { AuthService } from "../auth/auth.service";
 
 export const YAAA_SERVER_CLIENT = "YAAA_SERVER_CLIENT";
 
@@ -15,7 +16,8 @@ export const yaaaServerClientProvider: Provider = {
   useFactory: (
     configService: ConfigService,
     storageAdapter: BackendStorageAdapter,
-    signerAdapter: BackendSignerAdapter
+    kmsService: KmsService,
+    authService: AuthService
   ): YAAAServerClient => {
     // Contract addresses come straight from the SDK's canonical table
     // (sepoliaV07Config) — NEVER hardcoded/maintained in YAA. v0.7 is the only
@@ -43,10 +45,14 @@ export const yaaaServerClientProvider: Provider = {
       kmsEndpoint: configService.get<string>("kmsEndpoint"),
       kmsEnabled: configService.get<boolean>("kmsEnabled") || false,
       storage: storageAdapter,
-      signer: signerAdapter,
+      // KMS-backed signer using the SDK's KmsSignerAdapter. It carries the
+      // per-call, challenge-bound WebAuthn ceremony assertion (from the transfer
+      // flow's `webAuthnAssertion`) through to KMS `/SignHash`. Replaces the
+      // legacy raw-passkey BackendSignerAdapter, which KMS now rejects (400).
+      signer: kmsService.createSignerAdapter(userId => authService.resolveKmsKey(userId)),
     };
 
     return new YAAAServerClient(serverConfig);
   },
-  inject: [ConfigService, BackendStorageAdapter, BackendSignerAdapter],
+  inject: [ConfigService, BackendStorageAdapter, KmsService, AuthService],
 };

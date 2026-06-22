@@ -100,10 +100,12 @@ export const transferAPI = {
     paymasterAddress?: string;
     paymasterData?: string;
     tokenAddress?: string;
-    passkeyAssertion: {
-      AuthenticatorData: string;
-      ClientDataHash: string;
-      Signature: string;
+    // Challenge-bound WebAuthn ceremony assertion (KMS rejects the legacy raw
+    // passkey assertion). { ChallengeId } from BeginAuthentication + the browser
+    // credential from the passkey ceremony.
+    webAuthnAssertion: {
+      ChallengeId: string;
+      Credential: unknown;
     };
   }) => api.post("/transfer/execute", data),
 

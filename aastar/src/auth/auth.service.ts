@@ -251,6 +251,23 @@ export class AuthService {
   }
 
   /**
+   * Resolve a userId to its KMS `{ keyId, address }` — the KmsKeyResolver the
+   * SDK's KmsSignerAdapter needs. Throws if the user has no linked wallet.
+   */
+  async resolveKmsKey(userId: string): Promise<{ keyId: string; address: `0x${string}` }> {
+    const user = await this.databaseService.findUserById(userId);
+    if (!user) {
+      throw new Error(`User not found for userId: ${userId}`);
+    }
+    if (!user.walletAddress || !user.kmsKeyId) {
+      throw new Error(
+        `User wallet not initialized for userId: ${userId}. Link a KMS wallet first.`
+      );
+    }
+    return { keyId: user.kmsKeyId, address: user.walletAddress as `0x${string}` };
+  }
+
+  /**
    * Ensure user has a KMS wallet linked. For backward compatibility,
    * returns a KmsSigner if wallet exists, but NOTE: signing will fail
    * without a proper assertion provider.

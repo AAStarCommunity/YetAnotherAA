@@ -7,7 +7,7 @@ import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { transferAPI, tokenAPI, paymasterAPI, addressBookAPI } from "@/lib/api";
-import { kmsClient, extractLegacyAssertion } from "@/lib/yaaa";
+import { kmsClient } from "@/lib/yaaa";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
 import toast from "react-hot-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -265,15 +265,16 @@ export default function TransferPage() {
         Address: account?.signerAddress,
       });
 
-      // Step 2: Browser WebAuthn authentication ceremony
+      // Step 2: Browser WebAuthn authentication ceremony (bound to the challenge
+      // from BeginAuthentication — challenge-bound, replay-safe).
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Please verify with your passkey...");
       const credential = await startAuthentication({ optionsJSON: authResponse.Options as any });
 
-      // Step 3: Extract Legacy assertion (reusable for BLS dual-signing)
-      const passkeyAssertion = await extractLegacyAssertion(credential);
-
-      // Step 4: Execute transfer with Legacy assertion
+      // Step 3: Execute transfer with the WebAuthn ceremony assertion. We forward
+      // the raw { ChallengeId, Credential } — the SDK/KMS consumes the challenge
+      // once via signHashWithWebAuthn. (Legacy raw-assertion extraction is gone:
+      // KMS rejects it as replayable.)
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Processing transfer...");
       const requestData = {
@@ -285,7 +286,10 @@ export default function TransferPage() {
             ? formData.paymasterAddress
             : undefined,
         tokenAddress: selectedToken?.address === "ETH" ? undefined : selectedToken?.address,
-        passkeyAssertion,
+        webAuthnAssertion: {
+          ChallengeId: authResponse.ChallengeId,
+          Credential: credential,
+        },
       };
 
       const response = await transferAPI.execute(requestData);

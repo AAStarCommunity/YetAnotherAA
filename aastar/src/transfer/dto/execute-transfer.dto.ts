@@ -23,6 +23,23 @@ export class PasskeyAssertionDto {
   Signature: string;
 }
 
+export class WebAuthnAssertionDto {
+  @ApiProperty({
+    description: "Challenge id returned by KMS BeginAuthentication",
+    example: "chal_...",
+  })
+  @IsString()
+  ChallengeId: string;
+
+  @ApiProperty({
+    description:
+      "WebAuthn authentication credential from the browser ceremony " +
+      "(navigator.credentials.get / startAuthentication result).",
+  })
+  @IsObject()
+  Credential: unknown;
+}
+
 export class ExecuteTransferDto {
   @ApiProperty({ description: "Recipient address", example: "0x..." })
   @IsEthereumAddress()
@@ -69,14 +86,31 @@ export class ExecuteTransferDto {
 
   @ApiProperty({
     description:
-      "Legacy Passkey assertion (extracted from WebAuthn authentication response). " +
-      "Reusable for BLS dual-signing.",
-    required: true,
+      "DEPRECATED — legacy raw Passkey assertion. KMS now rejects it (replayable, " +
+      "no challenge binding). Use `webAuthnAssertion` instead. Kept optional only " +
+      "for transition.",
+    required: false,
+    deprecated: true,
   })
+  @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => PasskeyAssertionDto)
-  passkeyAssertion: PasskeyAssertionDto;
+  passkeyAssertion?: PasskeyAssertionDto;
+
+  @ApiProperty({
+    description:
+      "Challenge-bound WebAuthn ceremony assertion `{ ChallengeId, Credential }` " +
+      "from KMS BeginAuthentication + the browser passkey ceremony. This is the " +
+      "current owner-signing path (challenge-binding, replay-safe).",
+    required: false,
+    type: WebAuthnAssertionDto,
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => WebAuthnAssertionDto)
+  webAuthnAssertion?: WebAuthnAssertionDto;
 
   @ApiProperty({
     description:
