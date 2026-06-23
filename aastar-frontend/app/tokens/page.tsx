@@ -9,7 +9,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
 import { formatUnits, isAddress, type Address, type PublicClient, type WalletClient } from "viem";
-import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
+import { CHAIN_SEPOLIA, checkDvtConnectivity } from "@aastar/sdk/core";
 import {
   usd,
   type SaleTokenKind,
@@ -58,6 +58,7 @@ export default function TokensPage() {
   const [quoteOut, setQuoteOut] = useState<bigint | null>(null);
   const [buying, setBuying] = useState(false);
   const [lastTx, setLastTx] = useState<string | null>(null);
+  const [dvt, setDvt] = useState<{ online: number; total: number } | null>(null);
 
   // Read-only sale client for prices/quotes before a wallet connects.
   const readSale = useMemo(() => buildTokenSaleClient(publicClient), [publicClient]);
@@ -75,6 +76,20 @@ export default function TokensPage() {
       .then(setPrices)
       .catch(() => null);
   }, [readSale]);
+
+  // DVT relay health — gasless buys are served by independent DVT nodes resolved
+  // from the SDK (no hardcoded URLs). Best-effort; never blocks the page.
+  useEffect(() => {
+    let cancelled = false;
+    checkDvtConnectivity()
+      .then(nodes => {
+        if (!cancelled) setDvt({ online: nodes.filter(n => n.ok).length, total: nodes.length });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshBalances = useCallback(
     async (addr: Address) => {
@@ -297,6 +312,16 @@ export default function TokensPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {mode === "GASLESS" ? t("tokensPage.gaslessDesc") : t("tokensPage.selfpayDesc")}
           </p>
+          {mode === "GASLESS" && dvt && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${
+                  dvt.online > 0 ? "bg-emerald-500" : "bg-red-500"
+                }`}
+              />
+              {t("tokensPage.dvtRelays", { online: dvt.online, total: dvt.total })}
+            </p>
+          )}
 
           {/* Pay token (self-pay only) */}
           {mode === "SELFPAY" && (

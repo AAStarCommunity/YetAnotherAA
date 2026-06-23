@@ -837,6 +837,7 @@
     "submitted": "Purchase submitted!",
     "purchaseFailed": "Purchase failed",
     "invalidRecipient": "Enter a valid recipient address (0x…)",
-    "amountTooSmall": "Amount too small — increase it to buy at least 1 token"
+    "amountTooSmall": "Amount too small — increase it to buy at least 1 token",
+    "dvtRelays": "Relayed by {{online}}/{{total}} independent DVT nodes — no ETH needed"
   }
 }

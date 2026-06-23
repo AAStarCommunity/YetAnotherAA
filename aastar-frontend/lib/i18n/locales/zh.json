@@ -837,6 +837,7 @@
     "submitted": "购买已提交！",
     "purchaseFailed": "购买失败",
     "invalidRecipient": "请输入有效的收款地址（0x…）",
-    "amountTooSmall": "金额太小——请增加到至少能买 1 个代币"
+    "amountTooSmall": "金额太小——请增加到至少能买 1 个代币",
+    "dvtRelays": "由 {{online}}/{{total}} 个独立 DVT 节点中继 —— 无需 ETH"
   }
 }
