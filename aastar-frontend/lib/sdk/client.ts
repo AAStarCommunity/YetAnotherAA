@@ -60,23 +60,16 @@ export async function connectWallet(
 
 /**
  * Build the SDK's launch-sale client (buy GToken / aPNTs — gasless USDC via the
- * relayer, or self-pay USDC/USDT). @aastar/sdk@0.26.4 made viem a
- * peerDependency (aastar-sdk#157), but our lockfile still keeps a nested viem
- * 2.43.3 under @aastar/sdk (removing it cleanly reshuffles the react/next tree
- * and breaks `next dev`), so the WalletClient/PublicClient generics still drift
- * vs the app's viem 2.47. Bridge it here until the lockfile nesting is cleaned.
+ * relayer, or self-pay USDC/USDT). viem is a single hoisted version across the
+ * monorepo (both workspaces on ^2.47 + a root `viem` override), and
+ * @aastar/sdk@0.26.4 declares viem as a peerDependency, so the SDK's types
+ * resolve against that one viem — no version-drift cast needed.
  */
 export function buildTokenSaleClient(
   publicClient: PublicClient,
   walletClient?: WalletClient
 ): TokenSaleClient {
-  return new TokenSaleClient(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- viem 2.47/2.43 nested-copy drift
-    publicClient as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- viem 2.47/2.43 nested-copy drift
-    walletClient as any,
-    { chainId: CHAIN_SEPOLIA }
-  );
+  return new TokenSaleClient(publicClient, walletClient, { chainId: CHAIN_SEPOLIA });
 }
 
 /** Ensure the injected wallet is on the expected chain; prompts a switch if not. */
