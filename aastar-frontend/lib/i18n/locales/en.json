@@ -835,6 +835,8 @@
     "signing": "Sign in your wallet (no tx, relayer pays gas)…",
     "confirming": "Confirm in your wallet…",
     "submitted": "Purchase submitted!",
-    "purchaseFailed": "Purchase failed"
+    "purchaseFailed": "Purchase failed",
+    "invalidRecipient": "Enter a valid recipient address (0x…)",
+    "amountTooSmall": "Amount too small — increase it to buy at least 1 token"
   }
 }

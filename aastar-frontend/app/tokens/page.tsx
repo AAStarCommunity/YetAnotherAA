@@ -8,7 +8,7 @@ import {
   WalletIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
-import { formatUnits, type Address, type PublicClient, type WalletClient } from "viem";
+import { formatUnits, isAddress, type Address, type PublicClient, type WalletClient } from "viem";
 import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
 import {
   usd,
@@ -141,6 +141,20 @@ export default function TokensPage() {
       toast.error(t("tokensPage.enterAmount"));
       return;
     }
+    // Resolve + validate the delivery address up front (gasless can deliver to a
+    // user-typed recipient; a typo must not silently send funds to a bad address).
+    const to: Address =
+      mode === "GASLESS" && recipient.trim() ? (recipient.trim() as Address) : eoa;
+    if (mode === "GASLESS" && !isAddress(to)) {
+      toast.error(t("tokensPage.invalidRecipient"));
+      return;
+    }
+    // Re-check the wallet is still on Sepolia — the user may have switched chains
+    // after connecting (ensureChain is a no-op prompt when already correct).
+    if (!(await ensureChain(CHAIN_SEPOLIA))) {
+      toast.error(t("tokensPage.switchSepolia"));
+      return;
+    }
     setBuying(true);
     setLastTx(null);
     const loading = toast.loading(
@@ -154,10 +168,13 @@ export default function TokensPage() {
       // anything) — see aastar-sdk / launch#20. Re-quote here so the floor isn't
       // stale. (aPNTs self-pay has no on-chain minOut param yet — aastar-sdk#147.)
       const quoted = await sale.quote(token, amount);
+      if (quoted === 0n) {
+        toast.error(t("tokensPage.amountTooSmall"));
+        return;
+      }
       const minOut = (quoted * 98n) / 100n;
       let result;
       if (mode === "GASLESS") {
-        const to = (recipient || eoa) as Address;
         result = await sale.buyGasless({ token, usdAmount: amount, recipient: to, minOut });
       } else {
         // aPNTs self-pay (buyAPNTs) has no on-chain minOut param yet — passing

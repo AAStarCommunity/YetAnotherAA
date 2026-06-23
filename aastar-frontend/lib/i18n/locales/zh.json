@@ -835,6 +835,8 @@
     "signing": "请在钱包中签名（不发交易，relayer 付 gas）…",
     "confirming": "请在钱包中确认…",
     "submitted": "购买已提交！",
-    "purchaseFailed": "购买失败"
+    "purchaseFailed": "购买失败",
+    "invalidRecipient": "请输入有效的收款地址（0x…）",
+    "amountTooSmall": "金额太小——请增加到至少能买 1 个代币"
   }
 }
