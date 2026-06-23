@@ -160,7 +160,16 @@ export default function TokensPage() {
         const to = (recipient || eoa) as Address;
         result = await sale.buyGasless({ token, usdAmount: amount, recipient: to, minOut });
       } else {
-        result = await sale.buySelfPay({ token, usdAmount: amount, payToken, minOut });
+        // aPNTs self-pay (buyAPNTs) has no on-chain minOut param yet — passing
+        // minOut>0 there is rejected by the SDK (aastar-sdk#147), and aPNTs +
+        // self-pay is the default landing path, so omit minOut for it. GToken
+        // self-pay (buyTokens) does take it.
+        result = await sale.buySelfPay({
+          token,
+          usdAmount: amount,
+          payToken,
+          ...(token === "GTOKEN" ? { minOut } : {}),
+        });
       }
       setLastTx(result.txHash);
       toast.success(t("tokensPage.submitted"));
