@@ -13,6 +13,7 @@ import type { Address, Chain, PublicClient, WalletClient } from "viem";
 import { sepolia } from "viem/chains";
 import { applyConfig, CHAIN_SEPOLIA } from "@aastar/sdk/core";
 import { TokenSaleClient } from "@aastar/sdk/tokens";
+import { GuardClient } from "@aastar/sdk/core";
 
 let sdkConfigured = false;
 
@@ -71,6 +72,16 @@ export function buildTokenSaleClient(
   chainId: number = CHAIN_SEPOLIA
 ): TokenSaleClient {
   return new TokenSaleClient(publicClient, walletClient, { chainId });
+}
+
+/**
+ * Build the SDK's GuardClient (read/encode an account's AAStarGlobalGuard spending
+ * policy). Its `ReadClient` param is a narrowed viem read-client type the app's
+ * `PublicClient` is runtime-compatible with but doesn't nominally satisfy; bridge
+ * the gap here in the SDK boundary, not in business code.
+ */
+export function buildGuardClient(publicClient: PublicClient, guardAddress: Address): GuardClient {
+  return new GuardClient(publicClient as never, guardAddress);
 }
 
 /** Ensure the injected wallet is on the expected chain; prompts a switch if not. */

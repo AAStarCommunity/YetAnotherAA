@@ -843,5 +843,33 @@
     "testnet": "testnet",
     "switchNetwork": "Please switch your wallet to {{network}}",
     "saleNotOnNetwork": "Sale not live on {{network}} yet — use Sepolia (testnet)"
+  },
+  "guardPage": {
+    "title": "Spending Guard",
+    "subtitle": "Your account's on-chain spending policy — daily limits, per-token tiers, and strict mode. Changes can only tighten (lower limits, add token configs).",
+    "noAccount": "Create an account first to manage its spending guard.",
+    "noGuard": "This account has no spending guard (it was created without a daily limit).",
+    "ethPolicy": "ETH policy",
+    "dailyLimit": "Daily limit",
+    "remaining": "Remaining today",
+    "spentToday": "Spent today",
+    "minLimit": "Floor",
+    "decreaseDailyLimit": "Lower the ETH daily limit",
+    "apply": "Apply",
+    "monotonicHint": "Can only decrease, and not below the floor.",
+    "onlyDecrease": "The guard only allows lowering the limit.",
+    "belowMin": "Cannot go below the floor (minDailyLimit).",
+    "strictOnDisable": "Strict mode ON — tap to disable",
+    "strictOffEnable": "Strict mode OFF — tap to enable (block unconfigured tokens)",
+    "tokenPolicy": "Per-token policy",
+    "lookup": "Look up",
+    "invalidToken": "Enter a valid token address",
+    "tokenReadFailed": "Failed to read the token's guard config",
+    "notConfigured": "This token has no config yet. Add tier limits (add-only — can't edit later).",
+    "newTokenDaily": "New daily limit",
+    "addConfig": "Add token config",
+    "confirming": "Confirm with your passkey…",
+    "updated": "Guard updated",
+    "failed": "Guard update failed"
   }
 }

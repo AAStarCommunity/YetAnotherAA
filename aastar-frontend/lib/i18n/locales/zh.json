@@ -843,5 +843,33 @@
     "testnet": "测试网",
     "switchNetwork": "请将钱包切换到 {{network}}",
     "saleNotOnNetwork": "{{network}} 上销售尚未上线 —— 请用 Sepolia（测试网）"
+  },
+  "guardPage": {
+    "title": "消费守卫",
+    "subtitle": "账户的链上消费策略——每日限额、每代币分级、严格模式。修改只能收紧（降限额、加代币配置）。",
+    "noAccount": "请先创建账户再管理消费守卫。",
+    "noGuard": "此账户没有消费守卫（创建时未设每日限额）。",
+    "ethPolicy": "ETH 策略",
+    "dailyLimit": "每日限额",
+    "remaining": "今日剩余",
+    "spentToday": "今日已用",
+    "minLimit": "下限",
+    "decreaseDailyLimit": "降低 ETH 每日限额",
+    "apply": "应用",
+    "monotonicHint": "只能降低，且不低于下限。",
+    "onlyDecrease": "守卫只允许降低限额。",
+    "belowMin": "不能低于下限（minDailyLimit）。",
+    "strictOnDisable": "严格模式已开 —— 点击关闭",
+    "strictOffEnable": "严格模式已关 —— 点击开启（拦截未配置的代币）",
+    "tokenPolicy": "每代币策略",
+    "lookup": "查询",
+    "invalidToken": "请输入有效的代币地址",
+    "tokenReadFailed": "读取代币守卫配置失败",
+    "notConfigured": "此代币尚无配置。添加分级限额（只能加、之后不可改）。",
+    "newTokenDaily": "新每日限额",
+    "addConfig": "添加代币配置",
+    "confirming": "请用 passkey 确认…",
+    "updated": "守卫已更新",
+    "failed": "守卫更新失败"
   }
 }
