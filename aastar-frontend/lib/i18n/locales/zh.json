@@ -810,7 +810,7 @@
     "Protocol Admin": "协议管理员"
   },
   "tokensPage": {
-    "title": "代币",
+    "title": "Tokens",
     "subtitle": "免 gas 获取两种 Mycelium 代币。GToken 是你的数字公共物品门票（治理与参与）；aPNTs 是驱动 gasless 服务的算力单元代币（经 SuperPaymaster 为你付 gas）。用 USDC 支付、relayer 代付 gas（免费），或用 USDC / USDT 自付（你的账户里有 ETH）。",
     "connected": "已连接",
     "connect": "连接钱包（MetaMask）",
@@ -838,6 +838,10 @@
     "purchaseFailed": "购买失败",
     "invalidRecipient": "请输入有效的收款地址（0x…）",
     "amountTooSmall": "金额太小——请增加到至少能买 1 个代币",
-    "dvtRelays": "由 {{online}}/{{total}} 个独立 DVT 节点中继 —— 无需 ETH"
+    "dvtRelays": "由 {{online}}/{{total}} 个独立 DVT 节点中继 —— 无需 ETH",
+    "network": "网络",
+    "testnet": "测试网",
+    "switchNetwork": "请将钱包切换到 {{network}}",
+    "saleNotOnNetwork": "{{network}} 上销售尚未上线 —— 请用 Sepolia（测试网）"
   }
 }

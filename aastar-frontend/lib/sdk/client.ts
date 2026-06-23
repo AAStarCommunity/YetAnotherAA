@@ -67,9 +67,10 @@ export async function connectWallet(
  */
 export function buildTokenSaleClient(
   publicClient: PublicClient,
-  walletClient?: WalletClient
+  walletClient?: WalletClient,
+  chainId: number = CHAIN_SEPOLIA
 ): TokenSaleClient {
-  return new TokenSaleClient(publicClient, walletClient, { chainId: CHAIN_SEPOLIA });
+  return new TokenSaleClient(publicClient, walletClient, { chainId });
 }
 
 /** Ensure the injected wallet is on the expected chain; prompts a switch if not. */

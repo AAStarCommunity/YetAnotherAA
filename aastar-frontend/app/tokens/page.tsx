@@ -8,8 +8,16 @@ import {
   WalletIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
-import { formatUnits, isAddress, type Address, type PublicClient, type WalletClient } from "viem";
-import { CHAIN_SEPOLIA, checkDvtConnectivity } from "@aastar/sdk/core";
+import {
+  formatUnits,
+  isAddress,
+  type Address,
+  type Chain,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
+import { sepolia, optimism, mainnet } from "viem/chains";
+import { checkDvtConnectivity, getDvtRelayerUrlsForChain } from "@aastar/sdk/core";
 import {
   usd,
   type SaleTokenKind,
@@ -31,18 +39,42 @@ import {
 
 type BuyMode = "GASLESS" | "SELFPAY";
 
+interface NetworkOption {
+  id: number;
+  name: string;
+  chain: Chain;
+  testnet?: boolean;
+}
+
+// Default to Sepolia (where the sale + DVT relays are live during the test
+// phase). OP / Ethereum mainnet are offered so the wallet can switch, but the
+// sale isn't deployed there yet — guarded below via `saleAvailable`.
+const NETWORKS: NetworkOption[] = [
+  { id: 11155111, name: "Sepolia", chain: sepolia, testnet: true },
+  { id: 10, name: "OP Mainnet", chain: optimism },
+  { id: 1, name: "Ethereum", chain: mainnet },
+];
+
 const SHORT = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "—");
-const ETHERSCAN_TX = (h: string) => `https://sepolia.etherscan.io/tx/${h}`;
 
 export default function TokensPage() {
   const { t } = useTranslation();
   const { data } = useDashboard();
   const airAccount = data.account?.address as Address | undefined;
 
-  const [publicClient] = useState<PublicClient>(() => {
-    ensureSdkConfig(CHAIN_SEPOLIA);
-    return getPublicClient();
-  });
+  const [chainId, setChainId] = useState<number>(NETWORKS[0].id);
+  const network = useMemo(() => NETWORKS.find(n => n.id === chainId) ?? NETWORKS[0], [chainId]);
+  // The launch sale + relays only exist on Sepolia for now (the SDK returns no
+  // DVT relayers for other chains). Gate buying on that single source of truth.
+  const saleAvailable = useMemo(() => getDvtRelayerUrlsForChain(chainId).length > 0, [chainId]);
+
+  // Read-only viem client for the selected chain; also points the SDK's canonical
+  // address table at that chain.
+  const publicClient = useMemo<PublicClient>(() => {
+    ensureSdkConfig(chainId);
+    return getPublicClient(undefined, network.chain);
+  }, [chainId, network.chain]);
+
   const [eoa, setEoa] = useState<Address | null>(null);
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -60,26 +92,43 @@ export default function TokensPage() {
   const [lastTx, setLastTx] = useState<string | null>(null);
   const [dvt, setDvt] = useState<{ online: number; total: number } | null>(null);
 
-  // Read-only sale client for prices/quotes before a wallet connects.
-  const readSale = useMemo(() => buildTokenSaleClient(publicClient), [publicClient]);
+  const explorerTx = (h: string) =>
+    `${network.chain.blockExplorers?.default?.url ?? "https://sepolia.etherscan.io"}/tx/${h}`;
+
+  // Read-only sale client for prices/quotes before a wallet connects (chain-aware).
+  const readSale = useMemo(
+    () => buildTokenSaleClient(publicClient, undefined, chainId),
+    [publicClient, chainId]
+  );
 
   // Gasless can deliver to any recipient — default to the user's AirAccount so
-  // points land where in-app gasless spending happens. Self-pay (USDC/USDT) has
-  // no recipient param in the SDK, so it always credits the paying EOA.
+  // points land where in-app gasless spending happens.
   useEffect(() => {
     if (airAccount && !recipient) setRecipient(airAccount);
   }, [airAccount, recipient]);
 
   useEffect(() => {
+    if (!saleAvailable) {
+      setPrices(null);
+      return;
+    }
+    let cancelled = false;
     readSale
       .getPrices()
-      .then(setPrices)
-      .catch(() => null);
-  }, [readSale]);
+      .then(p => !cancelled && setPrices(p))
+      .catch(() => !cancelled && setPrices(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [readSale, saleAvailable]);
 
-  // DVT relay health — gasless buys are served by independent DVT nodes resolved
-  // from the SDK (no hardcoded URLs). Best-effort; never blocks the page.
+  // DVT relay health (gasless is served by independent DVT nodes resolved from
+  // the SDK — no hardcoded URLs). Only meaningful where the sale is live.
   useEffect(() => {
+    if (!saleAvailable) {
+      setDvt(null);
+      return;
+    }
     let cancelled = false;
     checkDvtConnectivity()
       .then(nodes => {
@@ -89,7 +138,7 @@ export default function TokensPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [saleAvailable]);
 
   const refreshBalances = useCallback(
     async (addr: Address) => {
@@ -102,19 +151,49 @@ export default function TokensPage() {
     [readSale]
   );
 
+  // Reload balances whenever the account or chain changes (and the sale exists).
+  useEffect(() => {
+    if (eoa && saleAvailable) refreshBalances(eoa);
+    else setBalances(null);
+  }, [eoa, chainId, saleAvailable, refreshBalances]);
+
+  const handleSelectNetwork = async (id: number) => {
+    if (id === chainId) return;
+    setChainId(id);
+    setPrices(null);
+    setQuoteOut(null);
+    // If a wallet is connected, ask it to switch too (the user requested this),
+    // then re-bind the wallet client to the new chain so a later signature uses
+    // the right EIP-712 domain. connectWallet doesn't re-prompt an already-
+    // authorized wallet.
+    if (eoa) {
+      const target = NETWORKS.find(n => n.id === id) ?? NETWORKS[0];
+      const ok = await ensureChain(id);
+      if (!ok) {
+        toast.error(t("tokensPage.switchNetwork", { network: target.name }));
+        return;
+      }
+      try {
+        const { walletClient: wc } = await connectWallet(target.chain);
+        setWalletClient(wc);
+      } catch {
+        /* keep the existing client; buy re-checks the chain anyway */
+      }
+    }
+  };
+
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const { address, walletClient: wc } = await connectWallet();
-      const onChain = await ensureChain(CHAIN_SEPOLIA);
+      const { address, walletClient: wc } = await connectWallet(network.chain);
+      const onChain = await ensureChain(chainId);
       if (!onChain) {
-        toast.error(t("tokensPage.switchSepolia"));
+        toast.error(t("tokensPage.switchNetwork", { network: network.name }));
         return;
       }
       setEoa(address);
       setWalletClient(wc);
-      await refreshBalances(address);
-      // Smart default (mirrors launch): low ETH → gasless, else self-pay.
+      // Smart default: low ETH → gasless, else self-pay.
       const ethBal = await publicClient.getBalance({ address });
       setMode(ethBal < 5_000_000_000_000_000n ? "GASLESS" : "SELFPAY");
     } catch (e: unknown) {
@@ -127,7 +206,7 @@ export default function TokensPage() {
   // Quote (debounced) — tokens out for the entered USD amount.
   useEffect(() => {
     const amt = parseFloat(usdAmount);
-    if (!amt || amt <= 0) {
+    if (!amt || amt <= 0 || !saleAvailable) {
       setQuoteOut(null);
       return;
     }
@@ -142,7 +221,7 @@ export default function TokensPage() {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [usdAmount, token, readSale]);
+  }, [usdAmount, token, readSale, saleAvailable]);
 
   // Gasless is USDC-only (EIP-3009); force USDC when in gasless mode.
   useEffect(() => {
@@ -151,7 +230,7 @@ export default function TokensPage() {
 
   const handleBuy = async () => {
     const amt = parseFloat(usdAmount);
-    if (!walletClient || !eoa) return;
+    if (!walletClient || !eoa || !saleAvailable) return;
     if (!amt || amt <= 0) {
       toast.error(t("tokensPage.enterAmount"));
       return;
@@ -164,10 +243,10 @@ export default function TokensPage() {
       toast.error(t("tokensPage.invalidRecipient"));
       return;
     }
-    // Re-check the wallet is still on Sepolia — the user may have switched chains
-    // after connecting (ensureChain is a no-op prompt when already correct).
-    if (!(await ensureChain(CHAIN_SEPOLIA))) {
-      toast.error(t("tokensPage.switchSepolia"));
+    // Re-check the wallet is still on the selected chain (the user may have
+    // switched after connecting; ensureChain is a no-op prompt when correct).
+    if (!(await ensureChain(chainId))) {
+      toast.error(t("tokensPage.switchNetwork", { network: network.name }));
       return;
     }
     setBuying(true);
@@ -176,12 +255,12 @@ export default function TokensPage() {
       mode === "GASLESS" ? t("tokensPage.signing") : t("tokensPage.confirming")
     );
     try {
-      const sale = buildTokenSaleClient(publicClient, walletClient);
+      const sale = buildTokenSaleClient(publicClient, walletClient, chainId);
       const amount = usd(amt);
       // Slippage guard: require ≥98% of a fresh quote, so a price move / sandwich
-      // can't fill at an arbitrary rate. The SDK defaults minOut to 0n (accept
-      // anything) — see aastar-sdk / launch#20. Re-quote here so the floor isn't
-      // stale. (aPNTs self-pay has no on-chain minOut param yet — aastar-sdk#147.)
+      // can't fill at an arbitrary rate (the SDK defaults minOut to 0n). Re-quote
+      // here so the floor isn't stale. (aPNTs self-pay has no on-chain minOut yet
+      // — aastar-sdk#147.)
       const quoted = await sale.quote(token, amount);
       if (quoted === 0n) {
         toast.error(t("tokensPage.amountTooSmall"));
@@ -192,10 +271,6 @@ export default function TokensPage() {
       if (mode === "GASLESS") {
         result = await sale.buyGasless({ token, usdAmount: amount, recipient: to, minOut });
       } else {
-        // aPNTs self-pay (buyAPNTs) has no on-chain minOut param yet — passing
-        // minOut>0 there is rejected by the SDK (aastar-sdk#147), and aPNTs +
-        // self-pay is the default landing path, so omit minOut for it. GToken
-        // self-pay (buyTokens) does take it.
         result = await sale.buySelfPay({
           token,
           usdAmount: amount,
@@ -228,6 +303,38 @@ export default function TokensPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {t("tokensPage.subtitle")}
           </p>
+        </div>
+
+        {/* Network selector */}
+        <div>
+          <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1.5">
+            {t("tokensPage.network")}
+          </span>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {NETWORKS.map(n => (
+              <button
+                key={n.id}
+                onClick={() => handleSelectNetwork(n.id)}
+                className={`px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5 ${
+                  n.id === chainId
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
+                    : "border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {n.name}
+                {n.testnet && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                    {t("tokensPage.testnet")}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {!saleAvailable && (
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              {t("tokensPage.saleNotOnNetwork", { network: network.name })}
+            </p>
+          )}
         </div>
 
         {/* Wallet */}
@@ -401,11 +508,13 @@ export default function TokensPage() {
 
           <button
             onClick={handleBuy}
-            disabled={!eoa || buying}
+            disabled={!eoa || buying || !saleAvailable}
             className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
           >
             {buying ? (
               <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" />
+            ) : !saleAvailable ? (
+              t("tokensPage.saleNotOnNetwork", { network: network.name })
             ) : !eoa ? (
               t("tokensPage.connectFirst")
             ) : (
@@ -415,7 +524,7 @@ export default function TokensPage() {
 
           {lastTx && (
             <a
-              href={ETHERSCAN_TX(lastTx)}
+              href={explorerTx(lastTx)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
