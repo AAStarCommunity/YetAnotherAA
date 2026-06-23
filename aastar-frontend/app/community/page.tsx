@@ -62,8 +62,7 @@ function resolveImageUrl(url: string): string {
 function CommunityCard({ entry }: { entry: CommunityEntry }) {
   const { t } = useTranslation();
   // Name source priority: on-chain Registry metadata → token's communityName → address.
-  const name =
-    entry.metadata?.name || entry.tokenInfo?.communityName || shortenAddr(entry.address);
+  const name = entry.metadata?.name || entry.tokenInfo?.communityName || shortenAddr(entry.address);
   const ens = entry.metadata?.ensName;
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">

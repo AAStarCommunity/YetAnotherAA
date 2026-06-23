@@ -235,10 +235,7 @@ export class AccountService {
     } catch (err: any) {
       // Surface the real SDK/KMS/on-chain failure (otherwise it bubbles up as an
       // opaque 500). Includes the KMS "No pending challenge" challenge-binding case.
-      this.logger.error(
-        `createWithP256Guardians FAILED: ${err?.message ?? err}`,
-        err?.stack
-      );
+      this.logger.error(`createWithP256Guardians FAILED: ${err?.message ?? err}`, err?.stack);
       throw err;
     }
   }

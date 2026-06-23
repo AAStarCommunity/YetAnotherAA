@@ -84,9 +84,7 @@ export default function LoginPage() {
           "No matching passkey on this device (or the prompt was dismissed). If you created it on another device, turn on iCloud Keychain / Google Password Manager sync — or just sign in with an email code."
         );
       } else if (status === 401 || /verification failed/i.test(httpMsg || "")) {
-        offerEmailCode(
-          "Passkey verification failed. You can sign in with an email code instead."
-        );
+        offerEmailCode("Passkey verification failed. You can sign in with an email code instead.");
       } else {
         toast.error(httpMsg || error?.message || "Sign-in failed. Try an email code instead.");
       }

@@ -149,86 +149,86 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                   </button>
                   {avatarMenuOpen && (
                     <div className="absolute right-0 mt-2 w-64 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 py-1">
-                        {/* Account header */}
-                        <div className="flex items-center gap-3 px-4 py-3">
-                          <span className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900 dark:bg-emerald-600 text-white text-sm font-semibold shrink-0">
-                            {(user.username || user.email || "?").charAt(0).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                              {user.username || "Account"}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                              {user.email}
-                            </p>
-                          </div>
+                      {/* Account header */}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <span className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900 dark:bg-emerald-600 text-white text-sm font-semibold shrink-0">
+                          {(user.username || user.email || "?").charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                            {user.username || "Account"}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {user.email}
+                          </p>
                         </div>
+                      </div>
 
-                        {[
-                          {
-                            title: "Profile",
-                            items: [
-                              { label: "Dashboard", path: "/dashboard", Icon: HomeIcon },
-                              { label: "My Role", path: "/role", Icon: ShieldCheckIcon },
-                              { label: "Transfer", path: "/transfer", Icon: PaperAirplaneIcon },
-                              { label: "Recovery", path: "/recovery", Icon: ShieldCheckIcon },
-                              { label: "Tasks", path: "/tasks", Icon: ClipboardDocumentListIcon },
-                            ],
-                          },
-                          {
-                            title: "Organizations",
-                            items: [
-                              { label: "Community", path: "/community", Icon: UserGroupIcon },
-                              { label: "Operator", path: "/operator", Icon: ServerStackIcon },
-                              { label: "Protocol", path: "/admin", Icon: Cog6ToothIcon },
-                              { label: "Tokens", path: "/tokens", Icon: CreditCardIcon },
-                              { label: "Paymasters", path: "/paymaster", Icon: WalletIcon },
-                            ],
-                          },
-                          {
-                            title: "Settings",
-                            items: [
-                              { label: "Tokens", path: "/tokens", Icon: WalletIcon },
-                              { label: "NFTs", path: "/nfts", Icon: BookOpenIcon },
-                              { label: "Address Book", path: "/address-book", Icon: BookOpenIcon },
-                            ],
-                          },
-                        ].map(group => (
-                          <div
-                            key={group.title}
-                            className="border-t border-gray-100 dark:border-gray-700 py-1"
-                          >
-                            <p className="px-4 pt-1 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                              {group.title}
-                            </p>
-                            {group.items.map(item => {
-                              const Icon = item.Icon;
-                              return (
-                                <button
-                                  key={item.path}
-                                  onClick={() => {
-                                    router.push(item.path);
-                                    setAvatarMenuOpen(false);
-                                  }}
-                                  className="flex items-center w-full px-4 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                  <Icon className="w-4 h-4 mr-3 text-gray-400" />
-                                  {item.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ))}
-
-                        <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
-                          <button
-                            onClick={handleLogout}
-                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <ChevronRightIcon className="w-4 h-4 mr-3" />
-                            Sign out
-                          </button>
+                      {[
+                        {
+                          title: "Profile",
+                          items: [
+                            { label: "Dashboard", path: "/dashboard", Icon: HomeIcon },
+                            { label: "My Role", path: "/role", Icon: ShieldCheckIcon },
+                            { label: "Transfer", path: "/transfer", Icon: PaperAirplaneIcon },
+                            { label: "Recovery", path: "/recovery", Icon: ShieldCheckIcon },
+                            { label: "Tasks", path: "/tasks", Icon: ClipboardDocumentListIcon },
+                          ],
+                        },
+                        {
+                          title: "Organizations",
+                          items: [
+                            { label: "Community", path: "/community", Icon: UserGroupIcon },
+                            { label: "Operator", path: "/operator", Icon: ServerStackIcon },
+                            { label: "Protocol", path: "/admin", Icon: Cog6ToothIcon },
+                            { label: "Tokens", path: "/tokens", Icon: CreditCardIcon },
+                            { label: "Paymasters", path: "/paymaster", Icon: WalletIcon },
+                          ],
+                        },
+                        {
+                          title: "Settings",
+                          items: [
+                            { label: "Tokens", path: "/tokens", Icon: WalletIcon },
+                            { label: "NFTs", path: "/nfts", Icon: BookOpenIcon },
+                            { label: "Address Book", path: "/address-book", Icon: BookOpenIcon },
+                          ],
+                        },
+                      ].map(group => (
+                        <div
+                          key={group.title}
+                          className="border-t border-gray-100 dark:border-gray-700 py-1"
+                        >
+                          <p className="px-4 pt-1 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                            {group.title}
+                          </p>
+                          {group.items.map(item => {
+                            const Icon = item.Icon;
+                            return (
+                              <button
+                                key={item.path}
+                                onClick={() => {
+                                  router.push(item.path);
+                                  setAvatarMenuOpen(false);
+                                }}
+                                className="flex items-center w-full px-4 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
+                              >
+                                <Icon className="w-4 h-4 mr-3 text-gray-400" />
+                                {item.label}
+                              </button>
+                            );
+                          })}
                         </div>
+                      ))}
+
+                      <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <ChevronRightIcon className="w-4 h-4 mr-3" />
+                          Sign out
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

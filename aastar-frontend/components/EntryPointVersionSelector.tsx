@@ -11,7 +11,12 @@ interface EntryPointVersionSelectorProps {
 
 // Only versions listed here are shown. v0.6 is hidden by default (uncomment to
 // re-enable when needed); new accounts default to v0.7.
-const versionInfo: Partial<Record<EntryPointVersion, { label: string; description: string; badge: string; badgeColor: string }>> = {
+const versionInfo: Partial<
+  Record<
+    EntryPointVersion,
+    { label: string; description: string; badge: string; badgeColor: string }
+  >
+> = {
   // [EntryPointVersion.V0_6]: {
   //   label: "v0.6",
   //   description: "Original ERC-4337 implementation with standard UserOperation format",
