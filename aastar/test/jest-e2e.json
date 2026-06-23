@@ -1,0 +1,31 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "rootDir": "..",
+  "testRegex": ".e2e-spec.ts$",
+  "moduleFileExtensions": ["ts", "js", "json"],
+  "setupFiles": ["<rootDir>/test/setup-e2e.ts"],
+  "transform": {
+    "^.+\\.ts$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "target": "ES2020",
+          "module": "commonjs",
+          "strict": false,
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "experimentalDecorators": true,
+          "emitDecoratorMetadata": true
+        }
+      }
+    ]
+  },
+  "transformIgnorePatterns": ["node_modules/(?!((@aastar|@yaaa)/))"],
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^uuid$": "<rootDir>/test/uuid-stub.js"
+  },
+  "testTimeout": 60000,
+  "forceExit": true
+}
