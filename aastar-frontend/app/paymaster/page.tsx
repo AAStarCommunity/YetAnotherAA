@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Layout from "@/components/Layout";
 import { paymasterAPI } from "@/lib/api";
 import SwipeableListItem from "@/components/SwipeableListItem";
@@ -154,6 +155,21 @@ export default function PaymasterPage() {
   return (
     <Layout requireAuth={true}>
       <div className="max-w-4xl px-3 py-4 sm:px-4 sm:py-6 mx-auto lg:px-8">
+        {/* Buy-tokens banner: aPNTs funds gasless sponsorship, GToken is the
+            Digital Public Goods ticket. Link to the gasless purchase page. */}
+        <Link
+          href="/tokens"
+          className="flex items-center justify-between gap-3 mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+        >
+          <span className="text-sm text-emerald-800 dark:text-emerald-200">
+            Need <strong>aPNTs</strong> (gasless fuel) or <strong>GToken</strong> (ticket)? Buy them
+            gaslessly with USDC / USDT →
+          </span>
+          <span className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            Tokens
+          </span>
+        </Link>
+
         {/* Header - Desktop only */}
         <div className="hidden md:block mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

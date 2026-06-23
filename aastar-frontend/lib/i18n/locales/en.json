@@ -808,5 +808,33 @@
     "End User": "End User",
     "Admin": "Protocol Admin",
     "Protocol Admin": "Protocol Admin"
+  },
+  "tokensPage": {
+    "title": "Tokens",
+    "subtitle": "Get the two Mycelium tokens — gaslessly. GToken is your Digital Public Goods ticket (governance & participation); aPNTs is the Utility Computing Unit that powers gasless service (pays your gas via SuperPaymaster). Pay with USDC and the relayer covers gas (free), or self-pay with USDC / USDT (you have ETH in your account).",
+    "connected": "Connected",
+    "connect": "Connect wallet (MetaMask)",
+    "connecting": "Connecting…",
+    "gtokenSub": "Digital Public Goods ticket · governance",
+    "apntsSub": "Utility Computing Unit · gasless service",
+    "modeGasless": "Gasless (USDC)",
+    "modeSelfpay": "Self-pay (USDC / USDT)",
+    "gaslessDesc": "Pay with USDC — 2 wallet signatures (no tx), the relayer pays gas for you.",
+    "selfpayDesc": "You pay ETH gas: approve + buy (real txs). Choose USDC or USDT.",
+    "wethSoon": "WETH / WBTC (soon)",
+    "spend": "Spend ({{token}})",
+    "deliverTo": "Deliver to",
+    "deliverDefault": "(default: your AirAccount)",
+    "selfpayNote": "Self-pay credits the paying wallet ({{addr}}). To deliver into your AirAccount, use Gasless (USDC).",
+    "buy": "Buy {{token}}",
+    "connectFirst": "Connect a wallet first",
+    "viewTx": "View transaction",
+    "switchSepolia": "Please switch your wallet to Sepolia",
+    "connectFailed": "Failed to connect wallet",
+    "enterAmount": "Enter a USD amount",
+    "signing": "Sign in your wallet (no tx, relayer pays gas)…",
+    "confirming": "Confirm in your wallet…",
+    "submitted": "Purchase submitted!",
+    "purchaseFailed": "Purchase failed"
   }
 }

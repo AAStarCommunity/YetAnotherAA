@@ -1,559 +1,383 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Layout from "@/components/Layout";
-import { userTokenAPI, tokenAPI } from "@/lib/api";
-import { UserToken, Token } from "@/lib/types";
-import TokenIcon from "@/components/TokenIcon";
-import SwipeableListItem from "@/components/SwipeableListItem";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CurrencyDollarIcon,
+  ArrowPathIcon,
+  BoltIcon,
+  WalletIcon,
+  ArrowTopRightOnSquareIcon,
+} from "@heroicons/react/24/outline";
+import { formatUnits, type Address, type PublicClient, type WalletClient } from "viem";
+import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
+import {
+  usd,
+  type SaleTokenKind,
+  type PayToken,
+  type SaleBalances,
+  type SalePrices,
+} from "@aastar/sdk/tokens";
 import toast from "react-hot-toast";
-import { MagnifyingGlassIcon, PlusIcon, WalletIcon } from "@heroicons/react/24/outline";
-import { Dialog, Transition } from "@headlessui/react";
-import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
+import Layout from "@/components/Layout";
+import { useDashboard } from "@/contexts/DashboardContext";
+import {
+  buildTokenSaleClient,
+  connectWallet,
+  ensureChain,
+  ensureSdkConfig,
+  getPublicClient,
+} from "@/lib/sdk/client";
+
+type BuyMode = "GASLESS" | "SELFPAY";
+
+const SHORT = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "—");
+const ETHERSCAN_TX = (h: string) => `https://sepolia.etherscan.io/tx/${h}`;
 
 export default function TokensPage() {
-  const router = useRouter();
-  const [userTokens, setUserTokens] = useState<UserToken[]>([]);
-  const [filteredTokens, setFilteredTokens] = useState<UserToken[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showTokenModal, setShowTokenModal] = useState(false);
-  const [modalMode, setModalMode] = useState<"preset" | "custom">("preset"); // preset or custom
-  const [presetTokens, setPresetTokens] = useState<Token[]>([]);
-  const [selectedPresetTokens, setSelectedPresetTokens] = useState<Set<string>>(new Set());
-  const [customTokenAddress, setCustomTokenAddress] = useState("");
-  const [validatingToken, setValidatingToken] = useState(false);
-  const [loadingPresetTokens, setLoadingPresetTokens] = useState(false);
+  const { t } = useTranslation();
+  const { data } = useDashboard();
+  const airAccount = data.account?.address as Address | undefined;
+
+  const [publicClient] = useState<PublicClient>(() => {
+    ensureSdkConfig(CHAIN_SEPOLIA);
+    return getPublicClient();
+  });
+  const [eoa, setEoa] = useState<Address | null>(null);
+  const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
+  const [connecting, setConnecting] = useState(false);
+
+  const [token, setToken] = useState<SaleTokenKind>("APNTS");
+  const [mode, setMode] = useState<BuyMode>("GASLESS");
+  const [payToken, setPayToken] = useState<PayToken>("USDC");
+  const [usdAmount, setUsdAmount] = useState("10");
+  const [recipient, setRecipient] = useState<string>("");
+
+  const [prices, setPrices] = useState<SalePrices | null>(null);
+  const [balances, setBalances] = useState<SaleBalances | null>(null);
+  const [quoteOut, setQuoteOut] = useState<bigint | null>(null);
+  const [buying, setBuying] = useState(false);
+  const [lastTx, setLastTx] = useState<string | null>(null);
+
+  // Read-only sale client for prices/quotes before a wallet connects.
+  const readSale = useMemo(() => buildTokenSaleClient(publicClient), [publicClient]);
+
+  // Gasless can deliver to any recipient — default to the user's AirAccount so
+  // points land where in-app gasless spending happens. Self-pay (USDC/USDT) has
+  // no recipient param in the SDK, so it always credits the paying EOA.
+  useEffect(() => {
+    if (airAccount && !recipient) setRecipient(airAccount);
+  }, [airAccount, recipient]);
 
   useEffect(() => {
-    loadUserTokens();
-  }, []);
+    readSale
+      .getPrices()
+      .then(setPrices)
+      .catch(() => null);
+  }, [readSale]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [userTokens, searchQuery]);
+  const refreshBalances = useCallback(
+    async (addr: Address) => {
+      try {
+        setBalances(await readSale.getBalances(addr));
+      } catch {
+        /* balances are best-effort */
+      }
+    },
+    [readSale]
+  );
 
-  const loadUserTokens = async () => {
+  const handleConnect = async () => {
+    setConnecting(true);
     try {
-      setLoading(true);
-      const response = await userTokenAPI.getUserTokens({
-        activeOnly: true,
-        withBalances: false,
-      });
-      setUserTokens(response.data);
-    } catch (error: any) {
-      if (
-        error.response?.status === 404 ||
-        error.response?.data?.message?.includes("No tokens found")
-      ) {
-        // User has no tokens yet, return empty array
-        setUserTokens([]);
+      const { address, walletClient: wc } = await connectWallet();
+      const onChain = await ensureChain(CHAIN_SEPOLIA);
+      if (!onChain) {
+        toast.error(t("tokensPage.switchSepolia"));
+        return;
+      }
+      setEoa(address);
+      setWalletClient(wc);
+      await refreshBalances(address);
+      // Smart default (mirrors launch): low ETH → gasless, else self-pay.
+      const ethBal = await publicClient.getBalance({ address });
+      setMode(ethBal < 5_000_000_000_000_000n ? "GASLESS" : "SELFPAY");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t("tokensPage.connectFailed"));
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  // Quote (debounced) — tokens out for the entered USD amount.
+  useEffect(() => {
+    const amt = parseFloat(usdAmount);
+    if (!amt || amt <= 0) {
+      setQuoteOut(null);
+      return;
+    }
+    let cancelled = false;
+    const id = setTimeout(() => {
+      readSale
+        .quote(token, usd(amt))
+        .then(out => !cancelled && setQuoteOut(out))
+        .catch(() => !cancelled && setQuoteOut(null));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [usdAmount, token, readSale]);
+
+  // Gasless is USDC-only (EIP-3009); force USDC when in gasless mode.
+  useEffect(() => {
+    if (mode === "GASLESS") setPayToken("USDC");
+  }, [mode]);
+
+  const handleBuy = async () => {
+    const amt = parseFloat(usdAmount);
+    if (!walletClient || !eoa) return;
+    if (!amt || amt <= 0) {
+      toast.error(t("tokensPage.enterAmount"));
+      return;
+    }
+    setBuying(true);
+    setLastTx(null);
+    const loading = toast.loading(
+      mode === "GASLESS" ? t("tokensPage.signing") : t("tokensPage.confirming")
+    );
+    try {
+      const sale = buildTokenSaleClient(publicClient, walletClient);
+      let result;
+      if (mode === "GASLESS") {
+        const to = (recipient || eoa) as Address;
+        result = await sale.buyGasless({ token, usdAmount: usd(amt), recipient: to });
       } else {
-        toast.error("Failed to load tokens");
-        console.error(error);
+        result = await sale.buySelfPay({ token, usdAmount: usd(amt), payToken });
       }
+      setLastTx(result.txHash);
+      toast.success(t("tokensPage.submitted"));
+      await refreshBalances(eoa);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t("tokensPage.purchaseFailed"));
     } finally {
-      setLoading(false);
+      toast.dismiss(loading);
+      setBuying(false);
     }
   };
 
-  const loadPresetTokens = async () => {
-    try {
-      setLoadingPresetTokens(true);
-      const response = await tokenAPI.getPresetTokens();
-      setPresetTokens(response.data);
-    } catch (error: any) {
-      toast.error("Failed to load preset tokens");
-      console.error(error);
-    } finally {
-      setLoadingPresetTokens(false);
-    }
-  };
-
-  const openAddTokenModal = () => {
-    setModalMode("preset");
-    setCustomTokenAddress("");
-    setSelectedPresetTokens(new Set());
-    setShowTokenModal(true);
-    loadPresetTokens();
-  };
-
-  const addTokens = async () => {
-    if (modalMode === "custom") {
-      if (!customTokenAddress) {
-        toast.error("Please enter a token address");
-        return;
-      }
-
-      setValidatingToken(true);
-      try {
-        const response = await userTokenAPI.addUserToken({ address: customTokenAddress });
-        toast.success(`Added ${response.data.symbol} token`);
-        setCustomTokenAddress("");
-        setShowTokenModal(false);
-        await loadUserTokens();
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Failed to add token");
-      } finally {
-        setValidatingToken(false);
-      }
-    } else {
-      // Add selected preset tokens
-      if (selectedPresetTokens.size === 0) {
-        toast.error("Please select at least one token");
-        return;
-      }
-
-      setValidatingToken(true);
-      try {
-        const tokensToAdd = presetTokens.filter(token => selectedPresetTokens.has(token.address));
-
-        for (const token of tokensToAdd) {
-          await userTokenAPI.addUserToken({
-            address: token.address,
-            symbol: token.symbol,
-            name: token.name,
-            decimals: token.decimals,
-            logoUrl: token.logoUrl,
-          });
-        }
-
-        toast.success(`Added ${tokensToAdd.length} token(s)`);
-        setSelectedPresetTokens(new Set());
-        setShowTokenModal(false);
-        await loadUserTokens();
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Failed to add tokens");
-      } finally {
-        setValidatingToken(false);
-      }
-    }
-  };
-
-  const removeToken = async (tokenId: string, tokenSymbol: string) => {
-    try {
-      await userTokenAPI.removeUserToken(tokenId);
-      toast.success(`Removed ${tokenSymbol} from your list`);
-      await loadUserTokens();
-    } catch (error: any) {
-      toast.error("Failed to remove token");
-      console.error(error);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...userTokens];
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        token =>
-          token.symbol.toLowerCase().includes(query) ||
-          token.name.toLowerCase().includes(query) ||
-          token.address.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort: by sortOrder first, then alphabetically
-    filtered.sort((a, b) => {
-      if (a.sortOrder !== b.sortOrder) {
-        return a.sortOrder - b.sortOrder;
-      }
-      return a.symbol.localeCompare(b.symbol);
-    });
-
-    setFilteredTokens(filtered);
-  };
+  const tokenLabel = token === "GTOKEN" ? "GToken" : "aPNTs";
+  const priceFor = prices ? (token === "GTOKEN" ? prices.gToken : prices.aPNTs) : null;
 
   return (
-    <Layout requireAuth={true}>
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-950">
-        {/* Mobile Header with Back Button */}
-        <div className="md:hidden sticky top-0 bg-slate-100 dark:bg-slate-950 z-30 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="p-2 -ml-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white touch-manipulation active:scale-95"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <div className="flex items-center gap-2 flex-1">
-              <WalletIcon className="w-6 h-6 text-slate-900 dark:text-emerald-400 flex-shrink-0" />
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">My Tokens</h1>
-            </div>
-          </div>
+    <Layout requireAuth>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <CurrencyDollarIcon className="h-7 w-7 text-slate-700 dark:text-emerald-400" />
+            {t("tokensPage.title")}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {t("tokensPage.subtitle")}
+          </p>
         </div>
 
-        <div className="max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
-          {/* Header - Desktop only */}
-          <div className="hidden md:block mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Tokens</h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Manage your personal ERC20 token list
-            </p>
+        {/* Wallet */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+          {eoa ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                  <WalletIcon className="h-4 w-4" /> {t("tokensPage.connected")}
+                </span>
+                <span className="font-mono text-sm text-gray-900 dark:text-white">
+                  {SHORT(eoa)}
+                </span>
+              </div>
+              {balances && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  <Bal label="ETH" v={formatUnits(balances.eth, 18)} />
+                  <Bal label="USDC" v={formatUnits(balances.usdc, 6)} />
+                  <Bal label="USDT" v={formatUnits(balances.usdt, 6)} />
+                  <Bal label="GToken" v={formatUnits(balances.gToken, 18)} />
+                  <Bal label="aPNTs" v={formatUnits(balances.aPNTs, 18)} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              className="w-full py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
+            >
+              {connecting ? t("tokensPage.connecting") : t("tokensPage.connect")}
+            </button>
+          )}
+        </section>
+
+        {/* Buy form */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
+          {/* Token selector */}
+          <div className="grid grid-cols-2 gap-3">
+            {(["GTOKEN", "APNTS"] as SaleTokenKind[]).map(k => (
+              <button
+                key={k}
+                onClick={() => setToken(k)}
+                className={`rounded-xl border p-4 text-left transition-colors ${
+                  token === k
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="font-semibold text-gray-900 dark:text-white">
+                  {k === "GTOKEN" ? "GToken" : "aPNTs"}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {k === "GTOKEN" ? t("tokensPage.gtokenSub") : t("tokensPage.apntsSub")}
+                </div>
+              </button>
+            ))}
           </div>
 
-          {/* Mobile Add Button - Fixed position */}
-          <button
-            onClick={openAddTokenModal}
-            className="md:hidden fixed bottom-24 right-6 z-50 inline-flex items-center justify-center w-14 h-14 text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 border border-transparent rounded-full shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 dark:focus:ring-emerald-500 touch-manipulation active:scale-95"
-            aria-label="Add Token"
-          >
-            <PlusIcon className="w-6 h-6" />
-          </button>
+          {/* Mode tabs */}
+          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+            <button
+              onClick={() => setMode("GASLESS")}
+              className={`flex-1 py-2 flex items-center justify-center gap-1.5 ${
+                mode === "GASLESS"
+                  ? "bg-emerald-500 text-white"
+                  : "text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              <BoltIcon className="h-4 w-4" /> {t("tokensPage.modeGasless")}
+            </button>
+            <button
+              onClick={() => setMode("SELFPAY")}
+              className={`flex-1 py-2 ${
+                mode === "SELFPAY" ? "bg-slate-900 text-white" : "text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {t("tokensPage.modeSelfpay")}
+            </button>
+          </div>
 
-          {/* Search and Filters */}
-          <div className="mb-6 space-y-4">
-            {/* Search Bar */}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {mode === "GASLESS" ? t("tokensPage.gaslessDesc") : t("tokensPage.selfpayDesc")}
+          </p>
+
+          {/* Pay token (self-pay only) */}
+          {mode === "SELFPAY" && (
+            <div className="flex gap-2 text-sm">
+              {(["USDC", "USDT"] as PayToken[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPayToken(p)}
+                  className={`px-4 py-1.5 rounded-full border ${
+                    payToken === p
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300"
+                      : "border-gray-200 dark:border-gray-700 text-gray-500"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <span
+                className="px-4 py-1.5 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed"
+                title="Needs an oracle upgrade"
+              >
+                {t("tokensPage.wethSoon")}
+              </span>
+            </div>
+          )}
+
+          {/* Amount */}
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+              {t("tokensPage.spend", { token: mode === "GASLESS" ? "USDC" : payToken })}
+            </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              </div>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                $
+              </span>
               <input
-                type="text"
-                placeholder="Search tokens by name, symbol, or address..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck="false"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-xl leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-base sm:text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-emerald-400 focus:border-slate-900 dark:focus:border-emerald-400 transition-all"
+                type="number"
+                value={usdAmount}
+                onChange={e => setUsdAmount(e.target.value)}
+                placeholder="10"
+                className="w-full pl-7 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-
-            {/* Filter Controls */}
-            <div className="flex flex-wrap gap-4 items-center">
-              {/* Add Token Button - Desktop only */}
-              <button
-                onClick={openAddTokenModal}
-                className="hidden md:inline-flex items-center px-3 py-3 sm:py-2 border border-transparent rounded-xl text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 dark:focus:ring-emerald-500 touch-manipulation active:scale-95"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Token
-              </button>
-
-              {/* Results Count */}
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {filteredTokens.length} of {userTokens.length} tokens
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <span className="text-gray-400">
+                {priceFor ? `1 ${tokenLabel} ≈ $${formatUnits(priceFor, 6)}` : "—"}
+              </span>
+              <span className="text-gray-700 dark:text-gray-300">
+                ≈{" "}
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {quoteOut != null ? Number(formatUnits(quoteOut, 18)).toFixed(2) : "—"}{" "}
+                  {tokenLabel}
+                </span>
               </span>
             </div>
           </div>
 
-          {/* Token List - Mobile responsive */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {filteredTokens.map(token => (
-              <SwipeableListItem
-                key={token.id}
-                onDelete={() => removeToken(token.id, token.symbol)}
-                deleteText="Remove"
-                className="rounded-xl md:bg-white md:dark:bg-gray-800 md:rounded-2xl md:shadow-xl md:border md:border-gray-200 md:dark:border-gray-700 md:hover:shadow-2xl md:transition-all"
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg md:shadow-none border border-gray-200 dark:border-gray-700 md:border-0 p-4 md:p-6 lg:p-8">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      {/* Token Icon */}
-                      <TokenIcon token={token} size="xl" />
-
-                      {/* Token Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {token.symbol}
-                          </h3>
-                          {token.isCustom && (
-                            <span className="px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded">
-                              Custom
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{token.name}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                    {/* Address */}
-                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                      {token.address.slice(0, 6)}...{token.address.slice(-4)}
-                    </div>
-                  </div>
-                </div>
-              </SwipeableListItem>
-            ))}
-          </div>
-
-          {/* Empty State */}
-          {filteredTokens.length === 0 && !loading && (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 mx-auto mb-4 text-gray-400 dark:text-gray-500">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg sm:text-xl font-medium text-gray-900 dark:text-white mb-2">
-                No tokens found
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {searchQuery
-                  ? "Try adjusting your search query."
-                  : "Add tokens from our preset list or add custom tokens to get started."}
-              </p>
-              {!searchQuery && (
-                <button
-                  onClick={openAddTokenModal}
-                  className="inline-flex items-center px-4 py-3 sm:py-2 border border-transparent rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 dark:focus:ring-emerald-500 touch-manipulation active:scale-95"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Token
-                </button>
-              )}
+          {/* Recipient (gasless only — self-pay credits the paying EOA) */}
+          {mode === "GASLESS" && (
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                {t("tokensPage.deliverTo")} {airAccount ? t("tokensPage.deliverDefault") : ""}
+              </label>
+              <input
+                value={recipient}
+                onChange={e => setRecipient(e.target.value)}
+                placeholder="0x…"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
             </div>
           )}
-        </div>
+          {mode === "SELFPAY" && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t("tokensPage.selfpayNote", { addr: SHORT(eoa ?? undefined) })}
+            </p>
+          )}
 
-        {/* Add Token Modal */}
-        <Transition appear show={showTokenModal} as={Fragment}>
-          <Dialog
-            as="div"
-            className="relative z-50"
-            onClose={() => !validatingToken && setShowTokenModal(false)}
+          <button
+            onClick={handleBuy}
+            disabled={!eoa || buying}
+            className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
           >
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
+            {buying ? (
+              <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" />
+            ) : !eoa ? (
+              t("tokensPage.connectFirst")
+            ) : (
+              t("tokensPage.buy", { token: tokenLabel })
+            )}
+          </button>
+
+          {lastTx && (
+            <a
+              href={ETHERSCAN_TX(lastTx)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
             >
-              <div className="hidden md:block fixed inset-0 bg-black dark:bg-black bg-opacity-25 dark:bg-opacity-50" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto flex items-stretch md:items-center justify-center">
-              <div className="w-full h-full md:h-auto md:w-auto md:flex-shrink-0 md:p-4">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 md:scale-95"
-                  enterTo="opacity-100 md:scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 md:scale-100"
-                  leaveTo="opacity-0 md:scale-95"
-                >
-                  <Dialog.Panel className="h-full md:h-auto w-full max-w-full md:max-w-2xl p-0 md:p-6 md:sm:p-8 overflow-y-auto md:overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-gray-800 md:shadow-xl md:rounded-2xl">
-                    {/* Mobile Header */}
-                    <div className="md:hidden sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center z-10">
-                      <button
-                        onClick={() => !validatingToken && setShowTokenModal(false)}
-                        className="mr-3 p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                      >
-                        <svg
-                          className="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 19l-7-7 7-7"
-                          />
-                        </svg>
-                      </button>
-                      <Dialog.Title
-                        as="h3"
-                        className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-                      >
-                        Add Tokens
-                      </Dialog.Title>
-                    </div>
-
-                    {/* Desktop Title */}
-                    <Dialog.Title
-                      as="h3"
-                      className="hidden md:block text-lg sm:text-xl font-medium leading-6 text-gray-900 dark:text-gray-100"
-                    >
-                      Add Tokens
-                    </Dialog.Title>
-
-                    {/* Mode Tabs */}
-                    <div className="mt-4 px-4 md:px-0">
-                      <div className="flex space-x-1 rounded-xl bg-gray-100 dark:bg-gray-700 p-1">
-                        <button
-                          onClick={() => setModalMode("preset")}
-                          className={`w-full rounded-xl py-2.5 text-sm font-medium leading-5 transition-all touch-manipulation active:scale-95 ${
-                            modalMode === "preset"
-                              ? "bg-white dark:bg-gray-600 text-slate-900 dark:text-emerald-400 shadow"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-white/[0.12] hover:text-slate-900 dark:hover:text-emerald-400"
-                          }`}
-                        >
-                          Preset Tokens
-                        </button>
-                        <button
-                          onClick={() => setModalMode("custom")}
-                          className={`w-full rounded-xl py-2.5 text-sm font-medium leading-5 transition-all touch-manipulation active:scale-95 ${
-                            modalMode === "custom"
-                              ? "bg-white dark:bg-gray-600 text-slate-900 dark:text-emerald-400 shadow"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-white/[0.12] hover:text-slate-900 dark:hover:text-emerald-400"
-                          }`}
-                        >
-                          Custom Token
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Modal Content */}
-                    <div className="mt-6 px-4 md:px-0">
-                      {modalMode === "preset" ? (
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            Select tokens from our preset list to add to your wallet.
-                          </p>
-
-                          {loadingPresetTokens ? (
-                            <div className="flex items-center justify-center py-8">
-                              <div className="w-8 h-8 border-b-2 border-slate-900 dark:border-emerald-500 rounded-full animate-spin"></div>
-                            </div>
-                          ) : (
-                            <div className="max-h-96 overflow-y-auto space-y-2">
-                              {presetTokens
-                                .filter(
-                                  token =>
-                                    !userTokens.some(
-                                      userToken =>
-                                        userToken.address.toLowerCase() ===
-                                        token.address.toLowerCase()
-                                    )
-                                )
-                                .map(token => (
-                                  <div
-                                    key={token.address}
-                                    className="flex items-center space-x-3 p-3 rounded-xl border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedPresetTokens.has(token.address)}
-                                      onChange={e => {
-                                        const newSelected = new Set(selectedPresetTokens);
-                                        if (e.target.checked) {
-                                          newSelected.add(token.address);
-                                        } else {
-                                          newSelected.delete(token.address);
-                                        }
-                                        setSelectedPresetTokens(newSelected);
-                                      }}
-                                      className="rounded border-gray-300 text-slate-900 dark:text-emerald-500 focus:ring-slate-900 dark:focus:ring-emerald-400"
-                                    />
-                                    <TokenIcon token={token} size="md" />
-                                    <div className="flex-1">
-                                      <div className="font-medium text-gray-900 dark:text-white">
-                                        {token.symbol}
-                                      </div>
-                                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                                        {token.name}
-                                      </div>
-                                    </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      {token.address.slice(0, 6)}...{token.address.slice(-4)}
-                                    </div>
-                                  </div>
-                                ))}
-                              {presetTokens.filter(
-                                token =>
-                                  !userTokens.some(
-                                    userToken =>
-                                      userToken.address.toLowerCase() ===
-                                      token.address.toLowerCase()
-                                  )
-                              ).length === 0 && (
-                                <div className="text-center py-8">
-                                  <p className="text-gray-500 dark:text-gray-400">
-                                    All preset tokens have already been added to your list.
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Token Contract Address
-                          </label>
-                          <input
-                            type="text"
-                            value={customTokenAddress}
-                            onChange={e => setCustomTokenAddress(e.target.value)}
-                            placeholder="0x..."
-                            autoComplete="off"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck="false"
-                            className="block w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-sm placeholder-gray-400 dark:placeholder-gray-500 transition-all font-mono"
-                          />
-                          <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                            Enter the contract address of an ERC20 token. Token information will be
-                            automatically fetched.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row justify-end mt-6 gap-3 px-4 md:px-0 pb-4 md:pb-0">
-                      <button
-                        type="button"
-                        onClick={() => setShowTokenModal(false)}
-                        disabled={validatingToken}
-                        className="hidden md:inline-flex px-4 py-3 sm:py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-slate-900 dark:focus:ring-emerald-400 disabled:opacity-50 transition-all touch-manipulation active:scale-95"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={addTokens}
-                        disabled={
-                          validatingToken ||
-                          (modalMode === "custom" && !customTokenAddress) ||
-                          (modalMode === "preset" && selectedPresetTokens.size === 0)
-                        }
-                        className="inline-flex items-center justify-center w-full md:w-auto px-4 py-3 sm:py-2 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 border border-transparent rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-slate-900 dark:focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation active:scale-95"
-                      >
-                        {validatingToken ? (
-                          <>
-                            <div className="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></div>
-                            {modalMode === "preset" ? "Adding..." : "Validating..."}
-                          </>
-                        ) : (
-                          `Add ${modalMode === "preset" ? `${selectedPresetTokens.size} Token(s)` : "Token"}`
-                        )}
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
+              {t("tokensPage.viewTx")} <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            </a>
+          )}
+        </section>
       </div>
     </Layout>
+  );
+}
+
+function Bal({ label, v }: { label: string; v: string }) {
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg px-3 py-2">
+      <div className="text-gray-400">{label}</div>
+      <div className="font-mono text-gray-900 dark:text-white truncate">
+        {Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+      </div>
+    </div>
   );
 }

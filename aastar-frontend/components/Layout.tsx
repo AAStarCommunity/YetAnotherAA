@@ -163,7 +163,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                               { label: "Community", path: "/community", Icon: UserGroupIcon },
                               { label: "Operator", path: "/operator", Icon: ServerStackIcon },
                               { label: "Protocol", path: "/admin", Icon: Cog6ToothIcon },
-                              { label: "Sale", path: "/sale", Icon: CreditCardIcon },
+                              { label: "Tokens", path: "/tokens", Icon: CreditCardIcon },
                               { label: "Paymasters", path: "/paymaster", Icon: WalletIcon },
                             ],
                           },

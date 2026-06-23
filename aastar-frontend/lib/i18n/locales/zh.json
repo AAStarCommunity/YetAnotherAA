@@ -808,5 +808,33 @@
     "End User": "终端用户",
     "Admin": "协议管理员",
     "Protocol Admin": "协议管理员"
+  },
+  "tokensPage": {
+    "title": "代币",
+    "subtitle": "免 gas 获取两种 Mycelium 代币。GToken 是你的数字公共物品门票（治理与参与）；aPNTs 是驱动 gasless 服务的算力单元代币（经 SuperPaymaster 为你付 gas）。用 USDC 支付、relayer 代付 gas（免费），或用 USDC / USDT 自付（你的账户里有 ETH）。",
+    "connected": "已连接",
+    "connect": "连接钱包（MetaMask）",
+    "connecting": "连接中…",
+    "gtokenSub": "数字公共物品门票 · 治理",
+    "apntsSub": "算力单元代币 · gasless 服务",
+    "modeGasless": "免 gas（USDC）",
+    "modeSelfpay": "自付（USDC / USDT）",
+    "gaslessDesc": "用 USDC 支付——钱包签 2 次（不发交易），relayer 替你付 gas。",
+    "selfpayDesc": "你出 ETH gas：approve + 购买（真实交易）。可选 USDC 或 USDT。",
+    "wethSoon": "WETH / WBTC（即将支持）",
+    "spend": "支付（{{token}}）",
+    "deliverTo": "到账地址",
+    "deliverDefault": "（默认：你的 AirAccount）",
+    "selfpayNote": "自付会记到付款钱包（{{addr}}）。要到账 AirAccount，请用免 gas（USDC）。",
+    "buy": "购买 {{token}}",
+    "connectFirst": "请先连接钱包",
+    "viewTx": "查看交易",
+    "switchSepolia": "请将钱包切换到 Sepolia",
+    "connectFailed": "连接钱包失败",
+    "enterAmount": "请输入金额（USD）",
+    "signing": "请在钱包中签名（不发交易，relayer 付 gas）…",
+    "confirming": "请在钱包中确认…",
+    "submitted": "购买已提交！",
+    "purchaseFailed": "购买失败"
   }
 }

@@ -17,7 +17,7 @@
     "test:ci": "echo \"⚠️  No tests yet - skipping\""
   },
   "dependencies": {
-    "@aastar/sdk": "^0.26.2",
+    "@aastar/sdk": "^0.26.4",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@simplewebauthn/browser": "^13.3.0",
