@@ -148,12 +148,19 @@ export default function TokensPage() {
     );
     try {
       const sale = buildTokenSaleClient(publicClient, walletClient);
+      const amount = usd(amt);
+      // Slippage guard: require ≥98% of a fresh quote, so a price move / sandwich
+      // can't fill at an arbitrary rate. The SDK defaults minOut to 0n (accept
+      // anything) — see aastar-sdk / launch#20. Re-quote here so the floor isn't
+      // stale. (aPNTs self-pay has no on-chain minOut param yet — aastar-sdk#147.)
+      const quoted = await sale.quote(token, amount);
+      const minOut = (quoted * 98n) / 100n;
       let result;
       if (mode === "GASLESS") {
         const to = (recipient || eoa) as Address;
-        result = await sale.buyGasless({ token, usdAmount: usd(amt), recipient: to });
+        result = await sale.buyGasless({ token, usdAmount: amount, recipient: to, minOut });
       } else {
-        result = await sale.buySelfPay({ token, usdAmount: usd(amt), payToken });
+        result = await sale.buySelfPay({ token, usdAmount: amount, payToken, minOut });
       }
       setLastTx(result.txHash);
       toast.success(t("tokensPage.submitted"));
