@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { parseEther } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { registerAccount } from "./helpers/register";
 import { fundWithEth, getEthBalance, getCode, waitForBalanceIncrease } from "./helpers/fund";
 
@@ -7,8 +8,10 @@ import { fundWithEth, getEthBalance, getCode, waitForBalanceIncrease } from "./h
 // the passkey ceremony (KMS + BLS signer network + bundler). DVT/BLS must be online.
 // Proof of execution is the RECIPIENT's balance rising by the sent amount — not just
 // "account has bytecode" (deploy can succeed while the inner call reverts) — per Codex.
+// The recipient is a FRESH per-test EOA (zero balance, no external traffic) so no
+// concurrent tx can race the assertion; the final balance must equal EXACTLY the sent
+// amount.
 
-const RECIPIENT = "0xb5600060e6de5E11D3636731964218E53caadf0E" as const; // the test EOA
 const AMOUNT = "0.001";
 
 test("XFER-01: fresh account first transfer (deploy + execute via passkey)", async ({ page }) => {
@@ -17,10 +20,14 @@ test("XFER-01: fresh account first transfer (deploy + execute via passkey)", asy
   const { address } = await registerAccount(page);
   await fundWithEth(address as `0x${string}`, "0.02");
 
+  // Fresh recipient: a brand-new EOA with zero balance and no external traffic, so
+  // the balance assertion can't be satisfied by a concurrent unrelated tx (Codex).
+  const RECIPIENT = privateKeyToAccount(generatePrivateKey()).address;
+
   // Pre-condition: the account is NOT yet deployed (the transfer must deploy it),
   // so the post-checks can't pass vacuously.
   expect(await getCode(address as `0x${string}`), "account undeployed before transfer").toBe("0x");
-  const recipientBefore = await getEthBalance(RECIPIENT);
+  expect(await getEthBalance(RECIPIENT), "fresh recipient starts empty").toBe(0n);
 
   // Reload /dashboard so DashboardContext caches the just-created account, then
   // /transfer reads it from cache and renders the form.
@@ -52,8 +59,11 @@ test("XFER-01: fresh account first transfer (deploy + execute via passkey)", asy
     "submit returned a UserOpHash/txHash"
   ).toBeTruthy();
 
-  // The real proof the UserOp EXECUTED: the recipient actually received the ETH.
-  await waitForBalanceIncrease(RECIPIENT, recipientBefore, parseEther(AMOUNT));
+  // The real proof the UserOp EXECUTED: the fresh recipient received the ETH, and
+  // since it started at 0 with no other traffic, its balance must equal EXACTLY the
+  // sent amount.
+  const finalBal = await waitForBalanceIncrease(RECIPIENT, 0n, parseEther(AMOUNT));
+  expect(finalBal, "recipient received exactly the sent amount").toBe(parseEther(AMOUNT));
   // And the account got deployed in the same op.
   expect(await getCode(address as `0x${string}`), "account deployed by the transfer").not.toBe(
     "0x"
