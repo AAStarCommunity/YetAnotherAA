@@ -14,7 +14,7 @@
 | **S1** | D2 Tokens 买入/质押 | L1 viem（EOA 自签） | 🟢 进行中（本 PR） |
 | **S2** | 后端路由：鉴权守卫（确定性）+ 读端点发现 | L2 Jest e2e | 🟢 完成（10/10 绿） |
 | **S3** | 注册 passkey 流（CDP 虚拟认证器）+ 公开页/鉴权重定向 | L3 Playwright | 🟢 完成（5/5 绿） |
-| **S4** | AirAccount UserOp 流：转账(Tier1/2/3) + Guard 写 | L3 + 半自动 | ⬜ |
+| **S4** | AirAccount UserOp 流：转账(Tier1/2/3) + Guard 写 | L3 + 半自动 | 🟡 脚手架就绪，前置已验证，完整转账阻塞 |
 | **S5** | 社区/运营者：建社区、Gas 策略、加入/退出 | L1 + L3(测试钱包) | ⬜ |
 | **L4** | 真机 passkey / 真 MetaMask / 主网真金 | 🧑 人工 | ⬜ 全程人工 |
 
@@ -80,6 +80,21 @@
 **OTP mock（已确认方案 1）**：后端 `requestOtp` 在 `OTP_TEST_MODE=true` 且**非 production** 时，于响应里附带 `devCode`（6 位真验证码，验证逻辑不变），e2e 读取即可完成注册——**仅测试模式暴露，prod 永不**。
 
 > 基础设施：`aastar-frontend/playwright.config.ts` + `e2e/helpers/webauthn.ts`（CDP 虚拟认证器）+ `e2e/{public,register}.spec.ts`。
+
+---
+
+## S4 — AirAccount UserOp 流（L3，进行中）
+
+复用 S3 的 CDP 虚拟认证器。脚手架：`e2e/helpers/register.ts`（注册+建账户）、`e2e/helpers/fund.ts`（注资 ETH）、`e2e/transfer.spec.ts`。
+
+| 步骤 | 状态 | 说明 |
+|---|---|---|
+| 注册（CDP passkey）→ KMS wallet | ✅ 验证 | 复用 S3 |
+| **创建 AirAccount**（`POST /account/create`，`entryPointVersion:"0.7"`，counterfactual） | ✅ 验证 | 默认 v0.6 未配置会 500 → 必须传 0.7 |
+| **注资**（测试 EOA → 新账户 0.02 ETH） | ✅ 验证 | self-pay 部署+转账 gas |
+| **首次转账（部署+执行，passkey ceremony）** | 🟡 **阻塞** | `/transfer` 表单对**未部署新账户不渲染**（`loading.page` gate，疑似 balance 加载路径）；其后是完整严格 ceremony（KMS BeginAuth + **BLS signer 远程网络** + bundler + initCode 部署），含外部依赖。`transfer.spec.ts` 标 `test.fixme` 让套件保持绿 |
+
+**S4 小结**：前置全链路（注册→建账户→注资）**已自动化验证**；完整严格转账是深度多系统集成（含外部 BLS 网络），需 (a) 修 transfer 页对未部署账户的渲染，(b) 跑通 KMS+BLS+bundler+部署 ceremony——建议作为独立专项推进。Guard 写（GRD）依赖一个带 guard 的部署账户，排在转账之后。
 
 ---
 
