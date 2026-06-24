@@ -1,6 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { registerAccount } from "./helpers/register";
-import { fundWithEth, getGuardAddress, hasGuard, getStrictMode } from "./helpers/fund";
+import {
+  fundWithEth,
+  depositToEntryPoint,
+  getGuardAddress,
+  hasGuard,
+  getStrictMode,
+} from "./helpers/fund";
 import { deployAccount } from "./helpers/account";
 
 // S4 / GRD — Guard write via the AirAccount's two-phase passkey UserOp. An account
@@ -9,15 +15,16 @@ import { deployAccount } from "./helpers/account";
 // + the CDP passkey ceremony. Proof: the guard's strictMode flips on-chain.
 // Requires backend NODE_ENV=test OTP_TEST_MODE=true and DVT/BLS online.
 
-// fixme: scaffold complete + reuses the proven S4 chain, but a dailyLimit (guard)
-// account has two divergences from a plain account that need dedicated debugging:
-//  (1) it doesn't render in the dashboard/transfer UI ("No Smart Account Yet")
-//      after create — likely the counterfactual-guard account is treated differently
-//      from a plain counterfactual account by the account/context state;
-//  (2) its first (deploy) UserOp fails AA21 "didn't pay prefund" on the Pimlico
-//      bundler despite ample funding (required prefund ≈ 0.002 ETH, funded 0.2) —
-//      a bundler balance-view issue specific to the high-gas guard deploy (~1.35M
-//      verificationGas); a 30s propagation wait did not clear it.
+// fixme: deploying a dailyLimit (guard) account hits a CHAIN of guard-specific
+// issues in its first UserOp. Progress (each fix exposed the next):
+//  (1) UI render race — FIXED: deployAccount retries the dashboard/transfer load
+//      until the context shows the account.
+//  (2) AA21 "didn't pay prefund" — FIXED: pre-fund the account's EntryPoint deposit
+//      (depositToEntryPoint); a guard account can't pay prefund from plain balance.
+//  (3) AA24 "signature error" — OPEN (protocol-level): the guard account's first
+//      deploy+transfer fails signature validation. Likely the tiered-signing path
+//      (sig prefix 0x02 = Tier-2 P256+BLS) vs the guard's validation on a not-yet-
+//      deployed guard — needs backend/contract investigation, not a test tweak.
 // The guard-write mechanism itself ships + is unit-covered in PR #362 (/guard page
 // + GuardClient). Tracked in docs/TEST_RESULTS.md S4. fixme so the suite stays green.
 test.fixme("GRD-04: toggle Guard strict mode via passkey UserOp", async ({ page }) => {
@@ -28,7 +35,10 @@ test.fixme("GRD-04: toggle Guard strict mode via passkey UserOp", async ({ page 
   // A guard account's first UserOp deploys account + guard (~1.35M verification gas),
   // so the self-pay EntryPoint prefund (totalGas × maxFeePerGas) is much higher than
   // a plain account and spikes with Sepolia gas — fund generously to clear AA21.
-  await fundWithEth(address as `0x${string}`, "0.2");
+  await fundWithEth(address as `0x${string}`, "0.05");
+  // Also pre-fund the EntryPoint deposit so the deploy UserOp's prefund is covered
+  // directly (a guard account's deploy fails AA21 paying from plain balance).
+  await depositToEntryPoint(address as `0x${string}`, "0.05");
   await deployAccount(page, address as `0x${string}`);
 
   const guard = await getGuardAddress(address as `0x${string}`);

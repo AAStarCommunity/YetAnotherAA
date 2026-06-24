@@ -10,7 +10,22 @@ import {
 } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { AAStarAirAccountV7ABI, GuardClient, applyConfig } from "@aastar/sdk/core";
+import {
+  AAStarAirAccountV7ABI,
+  GuardClient,
+  applyConfig,
+  getCanonicalAddresses,
+} from "@aastar/sdk/core";
+
+const ENTRYPOINT_ABI = [
+  {
+    type: "function",
+    name: "depositTo",
+    stateMutability: "payable",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [],
+  },
+] as const;
 
 // On-chain helpers for S4 (fund a fresh AirAccount, read balances/code, wait for an
 // effect). Uses the same TEST_EOA_PRIVATE_KEY as the L1 harness. See TEST_PLAN S4.
@@ -61,6 +76,33 @@ export async function fundWithEth(to: Address, eth: string): Promise<string> {
 
 export async function getEthBalance(addr: Address): Promise<bigint> {
   return client().getBalance({ address: addr });
+}
+
+/**
+ * Pre-fund the account's EntryPoint DEPOSIT (EntryPoint.depositTo). A guard
+ * account's first/deploy UserOp fails AA21 paying prefund from its plain balance;
+ * a deposit covers the prefund directly.
+ */
+export async function depositToEntryPoint(account: Address, eth: string): Promise<string> {
+  const key = env("TEST_EOA_PRIVATE_KEY");
+  if (!key) throw new Error("TEST_EOA_PRIVATE_KEY unset");
+  const acct = privateKeyToAccount(key as `0x${string}`);
+  const transport = http(env("ETH_RPC_URL"));
+  const pc = createPublicClient({ chain: sepolia, transport });
+  const wc = createWalletClient({ account: acct, chain: sepolia, transport });
+  const entryPoint = getCanonicalAddresses(11155111).entryPoint as Address;
+  const hash = await wc.writeContract({
+    address: entryPoint,
+    abi: ENTRYPOINT_ABI,
+    functionName: "depositTo",
+    args: [account],
+    value: parseEther(eth),
+    maxFeePerGas: parseGwei("12"),
+    maxPriorityFeePerGas: parseGwei("2"),
+  });
+  const r = await pc.waitForTransactionReceipt({ hash, timeout: 120_000, pollingInterval: 3_000 });
+  if (r.status !== "success") throw new Error(`depositTo reverted: ${hash}`);
+  return hash;
 }
 
 export async function getCode(addr: Address): Promise<string> {
