@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { sepolia, mainnet, optimism } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { applyConfig } from "@aastar/sdk/core";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -38,6 +39,9 @@ export function ctx() {
   }
   if (!env.TEST_EOA_PRIVATE_KEY)
     throw new Error("TEST_EOA_PRIVATE_KEY unset (scripts/test/.env.test)");
+  // Point the SDK's global canonical-address config at the target chain. Clients
+  // that don't take an explicit chainId (e.g. FinanceClient) read from this.
+  applyConfig({ chainId });
   const account = privateKeyToAccount(env.TEST_EOA_PRIVATE_KEY);
   const transport = http(env.ETH_RPC_URL);
   return {

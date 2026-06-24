@@ -4,9 +4,9 @@
   "chainId": 11155111,
   "desc": "Self-pay GToken buy ($1, USDC) — EOA pays gas",
   "actor": "0xb5600060e6de5E11D3636731964218E53caadf0E",
-  "txHash": "0xab98b5b26d446be3df3c124642aebc8d446d74a4b4420c2da618ee3a3ea2e111",
+  "txHash": "0xf7c48d6aedf1e01498982fc2c458cb0a8ba745f5fdd9f87bd52884fe09936a62",
   "approveTxHash": null,
-  "blockNumber": 11127417,
+  "blockNumber": 11128319,
   "gasPayer": "0xb5600060e6de5e11d3636731964218e53caadf0e",
   "status": "success",
   "artifacts": {
@@ -16,5 +16,5 @@
     "expectedOut": "6.666666666666666666"
   },
   "by": "auto",
-  "runAt": "2026-06-24T04:06:29.821Z"
+  "runAt": "2026-06-24T07:09:26.149Z"
 }

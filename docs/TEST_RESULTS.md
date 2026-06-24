@@ -30,13 +30,16 @@
 | 用例 | 型 | 方法 | 状态 | 凭证 / 说明 |
 |---|---|---|---|---|
 | **TOK-03** self-pay 买 GToken（USDC，自付 gas） | ✅正向 | L1 自动 | ✅ **PASS** | tx [`0xab98b5b2…`](https://sepolia.etherscan.io/tx/0xab98b5b26d446be3df3c124642aebc8d446d74a4b4420c2da618ee3a3ea2e111) · block 11127417 · 自付 gas · 6.667 GToken · 证据 `test-evidence/sepolia/TOK-03.json` |
-| **TOK-01** gasless 买 aPNTs（USDC EIP-3009 → DVT relay） | ✅正向 | L1 自动 | 🟡 **部分** | 0.26.4 曾成功（tx `0x49040263…`）；0.26.5 签名回归→0.26.6 已修（relayer 接受）；当前 relayer 侧 tx **pending 未挖出** = infra 层，已报 [aastar-sdk#163](https://github.com/AAStarCommunity/aastar-sdk/issues/163) |
+| **TOK-01** gasless 买 aPNTs（USDC EIP-3009 → DVT relay） | ✅正向 | L1 自动 | ✅ **PASS（0.26.7）** | tx [`0x2360ce02…`](https://sepolia.etherscan.io/tx/0x2360ce021be026e9c3f7db9b8daae723d5d33649c3a4a5de5bcf86598b179832) · relayer 代付 · aPNTs 到账。回归史：0.26.4 成功 → 0.26.5 签名回归 → 0.26.6 relayer pending（[sdk#163](https://github.com/AAStarCommunity/aastar-sdk/issues/163)）→ **0.26.7 EIP-3009 改签 ReceiveWithAuthorization 闭合窗口**，本仓已 bump 0.26.7 |
 | **TOK-04** self-pay 买（USDT） | ✅正向 | L1 自动 | ⛔ **阻塞** | 测试 EOA **USDT 余额 = 0**，需注资后再跑（体检会提示） |
-| **TOK-06** 滑点保护（minOut=quoted×98%） | ⚠️异常 | L1 | ⬜ 待补 | 已在买入脚本内置 2% floor；专项构造劣价用例待补 |
+| **TOK-06** 滑点保护（demand 10× minOut 必须被拒） | ⚠️异常 | L1 自动 | ✅ **PASS** | **断言为合约 revert**（viem `ContractFunctionRevertedError`，非网络/余额错误才算）→ `buyTokens reverted`，滑点保护生效 · 证据 `TOK-06.json` |
 | **TOK-09** gasless 非法收款人拦截 | ⛔逆向 | L3 | ⬜ S3 | UI 层 `isAddress` 校验，归 L3 |
-| **TOK-11** 质押 GToken → ticket(SBT) | ✅正向 | L1 自动 | ⬜ 待补 | SDK 有 `stakeGToken/approveAndStake`，下一子步接入 |
+| **TOK-11** 质押 GToken → ticket(SBT) | ✅正向 | L1 | ⛔ **阻塞** | 见下 🐛：FinanceClient 实例方法在 node 解析错链；且质押是**角色制**（`getStakeInfo{operator,roleId}`），ticket→SBT 非简单 `stake(amount)`，需 SDK 澄清 ticket-mint 流程 |
 
-**S1 小结**：self-pay 买入路径**已真实跑通并留证**；gasless 受 relayer infra 影响（非 YAA 代码，已上报）；USDT/质押待注资/接 API。
+**S1 小结**：gasless（TOK-01，0.26.7 解封）+ self-pay（TOK-03）+ 滑点保护（TOK-06，经 Codex 4 轮加固）**3/3 真实跑通并留证**；USDT 待注资；质押→SBT 阻塞（角色制）。`npm run test:onchain` 默认 3 绿。
+
+### 🐛 S1 发现（待报 SDK）
+- **FinanceClient 实例方法在 node/L1 下解析错链**：`new FinanceClient(pc, wc).getGTokenBalance()/approveAndStake()` 即使先 `applyConfig({chainId:11155111})` 仍命中无代码地址 → `balanceOf returned 0x`。直接 `getCanonicalAddresses(11155111).gToken` 的 `balanceOf` 正常（379.67）。疑似 `@aastar/sdk/core` 与 `/tokens` 两个 entry 的 config state 不共享。**workaround**：用显式 `getCanonicalAddresses(chainId)` + 静态 `stakeGToken`（TOK-11 脚本已采用，但卡在角色制质押语义）。
 
 ---
 

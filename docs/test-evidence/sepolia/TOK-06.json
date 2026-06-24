@@ -1,0 +1,18 @@
+{
+  "caseId": "TOK-06",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "desc": "Slippage guard — impossible minOut reverts in buyTokens",
+  "actor": "0xb5600060e6de5E11D3636731964218E53caadf0E",
+  "txHash": null,
+  "status": "rejected-as-expected",
+  "artifacts": {
+    "test": "slippage guard (GToken self-pay)",
+    "usdcBalance": "284",
+    "quoted": "6.666666666666666666",
+    "demandedMinOut": "66.66666666666666666",
+    "contractRevert": "The contract function \"buyTokens\" reverted."
+  },
+  "by": "auto",
+  "runAt": "2026-06-24T07:09:42.264Z"
+}

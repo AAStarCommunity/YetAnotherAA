@@ -13,15 +13,22 @@
 import { ctx, writeEvidence } from "./_lib.mjs";
 import * as tok01 from "./tok-01-gasless-buy.mjs";
 import * as tok03 from "./tok-03-selfpay-buy.mjs";
+import * as tok06 from "./tok-06-slippage.mjs";
+import * as tok11 from "./tok-11-stake.mjs";
 
 // Registry — grows as cases land (one per TEST_PLAN case id).
-const CASES = [tok01, tok03];
+const CASES = [tok01, tok03, tok06, tok11];
 
 const filter = process.argv.find(a => /^[A-Z]+-\d+$/.test(a));
-const selected = filter ? CASES.filter(c => c.id === filter) : CASES;
+// A named case runs even if blocked (to re-check it); the default run skips blocked.
+const selected = filter ? CASES.filter(c => c.id === filter) : CASES.filter(c => !c.blocked);
 if (selected.length === 0) {
   console.error(`No case matches "${filter}". Known: ${CASES.map(c => c.id).join(", ")}`);
   process.exit(1);
+}
+const skipped = filter ? [] : CASES.filter(c => c.blocked);
+if (skipped.length) {
+  console.log(`(skipping blocked: ${skipped.map(c => `${c.id} — ${c.blocked}`).join("; ")})`);
 }
 
 const c = ctx();
@@ -33,7 +40,8 @@ for (const tc of selected) {
   try {
     const record = await tc.run(c);
     const file = writeEvidence(tc.id, c.chainId, { desc: tc.desc, ...record, by: "auto" });
-    console.log(`✅  ${c.explorer}/tx/${record.txHash}`);
+    // Negative tests (slippage/guard rejection) have no tx — show their status instead.
+    console.log(`✅  ${record.txHash ? `${c.explorer}/tx/${record.txHash}` : record.status}`);
     console.log(`   evidence: ${file}`);
   } catch (e) {
     failed++;

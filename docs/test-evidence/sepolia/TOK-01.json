@@ -1,0 +1,19 @@
+{
+  "caseId": "TOK-01",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "desc": "Gasless aPNTs buy ($1, USDC) — relayer pays gas",
+  "actor": "0xb5600060e6de5E11D3636731964218E53caadf0E",
+  "txHash": "0x730f0af9950bdb4fd45af18cfeb88c11d03233a34dad623fc9aec0c63a29913e",
+  "blockNumber": 11128317,
+  "gasPayer": "0x214de9df4442e130f095083ece3f67c8f2eab6b7",
+  "status": "success",
+  "artifacts": {
+    "token": "aPNTs",
+    "usdSpent": "1",
+    "expectedOut": "50",
+    "matchedRule": "TOKEN_BUY → aPNTs"
+  },
+  "by": "auto",
+  "runAt": "2026-06-24T07:09:02.298Z"
+}

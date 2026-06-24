@@ -120,3 +120,8 @@ Thumbs.db
 .playwright-mcp
 # Keep test env templates tracked (the real .env.test stays ignored above)
 !scripts/test/.env.test.example
+
+# Foundry dependency dirs — embedded git repos (forge install), never commit them.
+# Stops a stray add from staging lib/forge-std, 7702/lib/openzeppelin-contracts, etc.
+/lib/
+/7702/lib/
