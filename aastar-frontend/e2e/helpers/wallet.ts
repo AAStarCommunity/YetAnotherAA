@@ -28,8 +28,8 @@ function env(key: string): string | undefined {
   return process.env[key];
 }
 
-export async function installTestWallet(page: Page): Promise<string> {
-  const key = env("TEST_EOA_PRIVATE_KEY");
+export async function installTestWallet(page: Page, privateKey?: string): Promise<string> {
+  const key = privateKey || env("TEST_EOA_PRIVATE_KEY");
   if (!key) throw new Error("TEST_EOA_PRIVATE_KEY unset (scripts/test/.env.test)");
   const account = privateKeyToAccount(key as Hex);
   const transport = http(env("ETH_RPC_URL"));
