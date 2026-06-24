@@ -12,9 +12,10 @@
  */
 import { ctx, writeEvidence } from "./_lib.mjs";
 import * as tok01 from "./tok-01-gasless-buy.mjs";
+import * as tok03 from "./tok-03-selfpay-buy.mjs";
 
 // Registry — grows as cases land (one per TEST_PLAN case id).
-const CASES = [tok01];
+const CASES = [tok01, tok03];
 
 const filter = process.argv.find(a => /^[A-Z]+-\d+$/.test(a));
 const selected = filter ? CASES.filter(c => c.id === filter) : CASES;
