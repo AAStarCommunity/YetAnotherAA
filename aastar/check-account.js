@@ -1,6 +1,6 @@
 const { ethers } = require("ethers");
 
-const RPC_URL = "https://sepolia.infura.io/v3/7051eb377c77490881070faaf93aef20";
+const RPC_URL = process.env.ETH_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 const ACCOUNT_ADDRESS = "0x975961302a83090B1eb94676E1430B5baCa43F9E";
 
 // Simple Account ABI - just the owner() function

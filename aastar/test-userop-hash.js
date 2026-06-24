@@ -44,7 +44,7 @@ function calculateUserOpHashSDK() {
 // 方法2：调用 EntryPoint 合约（后端方式）
 async function calculateUserOpHashContract() {
   const provider = new ethers.JsonRpcProvider(
-    "https://sepolia.infura.io/v3/7051eb377c77490881070faaf93aef20"
+    process.env.ETH_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"
   );
 
   const entryPointABI = [
