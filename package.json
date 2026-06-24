@@ -16,6 +16,8 @@
     "test": "npm run test -ws",
     "test:ci": "npm run test:ci -ws",
     "audit": "npm audit && npm audit -ws",
+    "test:prereqs": "node scripts/test/check-prereqs.mjs",
+    "test:onchain": "node scripts/test/onchain/run.mjs",
     "ci": "npm run format:check && npm run lint && npm run build && npm run test:ci"
   },
   "devDependencies": {

@@ -118,3 +118,5 @@ ehthumbs.db
 Thumbs.db
 .secret
 .playwright-mcp
+# Keep test env templates tracked (the real .env.test stays ignored above)
+!scripts/test/.env.test.example
