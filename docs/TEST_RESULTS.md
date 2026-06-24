@@ -13,7 +13,7 @@
 |---|---|---|---|
 | **S1** | D2 Tokens 买入/质押 | L1 viem（EOA 自签） | 🟢 进行中（本 PR） |
 | **S2** | 后端路由：鉴权守卫（确定性）+ 读端点发现 | L2 Jest e2e | 🟢 完成（10/10 绿） |
-| **S3** | 注册/登录 passkey 流（CDP 虚拟认证器） | L3 Playwright | ⬜ |
+| **S3** | 注册 passkey 流（CDP 虚拟认证器）+ 公开页/鉴权重定向 | L3 Playwright | 🟢 完成（5/5 绿） |
 | **S4** | AirAccount UserOp 流：转账(Tier1/2/3) + Guard 写 | L3 + 半自动 | ⬜ |
 | **S5** | 社区/运营者：建社区、Gas 策略、加入/退出 | L1 + L3(测试钱包) | ⬜ |
 | **L4** | 真机 passkey / 真 MetaMask / 主网真金 | 🧑 人工 | ⬜ 全程人工 |
@@ -62,6 +62,24 @@
 | GET /admin/*、registry/info | 时好时坏（`fetch failed`） | **RPC 依赖**，e2e 负载下 Infura 限流/超时 | 同上：链读端点不适合裸 e2e 断言，需 RPC mock 或 warm-server |
 
 > **结论**：L2 e2e 适合测**确定性的鉴权/契约**；**链读端点本质 RPC-flaky**，归 L1 或 warm-server/手工。operator/status 的 500 是本阶段值得修的真 bug。
+
+---
+
+## S3 — 浏览器 E2E（L3 Playwright + CDP 虚拟认证器）
+
+跑法：`npm run test:e2e:ui -w aastar-frontend`（前端 :5173 + 后端 :3000 需在跑；注册流需后端 `OTP_TEST_MODE=true`）。**结果：5/5 绿。** passkey 用 **CDP `WebAuthn.addVirtualAuthenticator` 全自动**，无需真机。
+
+| 用例 | 型 | 状态 | 说明 |
+|---|---|---|---|
+| **AUTH-02** 注册全流程 | ✅正向 | ✅ **PASS（6s）** | email → **devCode OTP**（gated 测试模式）→ **passkey 注册 ceremony（CDP 虚拟认证器）→ KMS AirAccount** → 落 dashboard，**完全自动** |
+| **AUTH-10** 鉴权重定向 | ⛔逆向 | ✅ PASS | 未登录访问 `/dashboard` → 跳 `/auth/login` |
+| 公开 landing 加载 | ✅正向 | ✅ PASS | 标题 Cos72 |
+| register email step | ✅正向 | ✅ PASS | email 输入可见 |
+| CDP 虚拟认证器装载 | — | ✅ PASS | passkey 自动化基础设施 smoke |
+
+**OTP mock（已确认方案 1）**：后端 `requestOtp` 在 `OTP_TEST_MODE=true` 且**非 production** 时，于响应里附带 `devCode`（6 位真验证码，验证逻辑不变），e2e 读取即可完成注册——**仅测试模式暴露，prod 永不**。
+
+> 基础设施：`aastar-frontend/playwright.config.ts` + `e2e/helpers/webauthn.ts`（CDP 虚拟认证器）+ `e2e/{public,register}.spec.ts`。
 
 ---
 

@@ -15,6 +15,14 @@ export default () => {
     throw new Error('DATABASE_URL is required when DB_TYPE is "postgres"');
   }
 
+  // Refuse to boot if the e2e OTP test affordance is enabled outside a test env —
+  // it exposes the real OTP in the request response (see auth.service.requestOtp).
+  if (process.env.OTP_TEST_MODE === "true" && process.env.NODE_ENV !== "test") {
+    throw new Error(
+      "OTP_TEST_MODE=true is only allowed with NODE_ENV=test (it exposes OTP codes). Refusing to start."
+    );
+  }
+
   // EntryPoint / factory / validator addresses are sourced from the @aastar/sdk
   // canonical table (sepoliaV07Config) in sdk.providers.ts — NOT from .env — so
   // there is nothing to validate here.

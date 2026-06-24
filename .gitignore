@@ -125,3 +125,8 @@ Thumbs.db
 # Stops a stray add from staging lib/forge-std, 7702/lib/openzeppelin-contracts, etc.
 /lib/
 /7702/lib/
+
+# Playwright (L3 e2e) artifacts
+/aastar-frontend/test-results/
+/aastar-frontend/playwright-report/
+/aastar-frontend/e2e/.results.json

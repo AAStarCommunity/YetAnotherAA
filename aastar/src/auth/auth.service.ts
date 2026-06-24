@@ -51,7 +51,13 @@ export class AuthService {
       attempts: 0,
     });
     await this.emailService.sendOtp(email, code);
-    return { ok: true, message: "Verification code sent" };
+    // Test affordance (gated): expose the code so e2e (Playwright) can complete the
+    // passwordless flow without a real inbox. Fail-CLOSED — active ONLY when
+    // NODE_ENV === "test" AND OTP_TEST_MODE === "true" (not dev/staging/prod). The
+    // boot guard in AppConfigModule additionally aborts prod startup with the flag.
+    // See docs/TEST_PLAN.md S3.
+    const testMode = process.env.NODE_ENV === "test" && process.env.OTP_TEST_MODE === "true";
+    return { ok: true, message: "Verification code sent", ...(testMode ? { devCode: code } : {}) };
   }
 
   /**

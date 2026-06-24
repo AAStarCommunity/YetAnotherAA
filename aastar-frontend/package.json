@@ -14,7 +14,8 @@
     "type-check": "tsc --noEmit",
     "i18n:check": "node scripts/check-i18n-parity.mjs",
     "test": "echo \"⚠️  No tests yet - skipping\"",
-    "test:ci": "echo \"⚠️  No tests yet - skipping\""
+    "test:ci": "echo \"⚠️  No tests yet - skipping\"",
+    "test:e2e:ui": "playwright test"
   },
   "dependencies": {
     "@aastar/sdk": "^0.26.7",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.16",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
