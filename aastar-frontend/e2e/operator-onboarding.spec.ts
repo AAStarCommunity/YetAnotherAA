@@ -20,22 +20,20 @@ async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 220
   await cont.click();
 }
 
-// fixme: the full flow is built (fresh EOA → fund → connect → AOA → resources →
-// registerRole → deploy xPNTs → deploy Paymaster V4 → deposit → complete), but it's
-// blocked by RPC latency, not test logic: the 5 sequential on-chain writes + funding
-// are very sensitive to it, and on the current Infura endpoint even `getTransaction`
-// times out (receipt waits exceed 220s). Needs a retry-resilient wait layer and/or a
-// stable RPC to run green. The injected-wallet harness + connect + resource pre-check
-// are proven in operator.spec.ts (#373). Tracked in docs/TEST_RESULTS.md S5.
-// fixme — progress + two remaining blockers:
-//  ✓ funding / connect / AOA / resource pre-check all pass now (new Infura RPC +
+// fixme — the harness works; the blocker is a registry contract revert, not test code:
+//  ✓ funding / connect / AOA / resource pre-check all pass (new Infura RPC +
 //    withRetry on receipt waits + explicit gas on the injected wallet's sendTx).
-//  ✗ the FIRST write step ("Register Community" → approve + registerRole) does not
-//    advance to Continue — the registerRole step doesn't complete (revert / contract
-//    precondition / step UI). Needs the register revert reason captured.
-//  ✗ the shared test EOA's GToken is now depleted (each run funds 70 GT to a fresh
-//    operator EOA), so further runs need the GToken replenished (buy via the sale).
-// See docs/TEST_RESULTS.md S5.
+//  ✗ the first write step (Step3) reverts: registryActions.registerRole(ROLE_COMMUNITY)
+//    fails on-chain. DIAGNOSED via simulateContract:
+//      - a funded fresh EOA (70 GT, allowance 30 to BOTH GTokenStaking and the
+//        Registry) still reverts with a BARE "execution reverted" — no reason string,
+//        no decodable custom error → not an allowance/spender/balance issue.
+//      - the same call on an already-registered EOA decodes cleanly as
+//        RoleAlreadyGranted, so the ABI/encoding is right.
+//    Likely either a registry precondition that emits no reason, or registerRole is
+//    the wrong entrypoint for community onboarding (the SDK has CommunityClient.launch
+//    / a registerCommunity path). Needs an aastar-sdk/registry issue — external repo,
+//    so file feedback there rather than patching here. See docs/TEST_RESULTS.md S5.
 test.fixme("OPR-01: full AOA operator onboarding (fresh EOA, injected wallet)", async ({
   page,
 }) => {

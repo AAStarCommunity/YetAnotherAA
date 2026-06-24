@@ -45,7 +45,7 @@ test("OPR connect: operator wizard connects the injected EOA wallet", async ({ p
   await expect(
     page.getByText(/Resource pre-check|GToken|need|ETH/i).first(),
     "resource pre-check rendered (RPC passthrough read on-chain state)"
-  ).toBeVisible({ timeout: 40_000 });
+  ).toBeVisible({ timeout: 60_000 });
 
   // The next steps (registerRole / deploy xPNTs / paymaster) are non-idempotent
   // on-chain writes that permanently register the operator EOA — they need a fresh
