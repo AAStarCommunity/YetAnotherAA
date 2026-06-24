@@ -93,7 +93,7 @@
 | **创建 AirAccount**（`POST /account/create`，`entryPointVersion:"0.7"`，counterfactual） | ✅ 验证 | 默认 v0.6 未配置会 500 → 必须传 0.7 |
 | **注资**（测试 EOA → 新账户 0.02 ETH） | ✅ 验证 | self-pay 部署+转账 gas |
 | **XFER-01 首次转账（部署+执行，passkey ceremony）** | ✅ **PASS（~35s/1.5m）** | `/transfer` 填 to+amount → "Send Transfer" → **CDP passkey 断言 → KMS + BLS signer 网络 + bundler → 首次 UserOp 部署账户(initCode)+执行** → 提交返回 UserOpHash/txHash（断言）。**完全自动化** |
-| Guard 写（GRD-03~06） | ⬜ 待补 | 复用同一 register→create→fund→passkey 链；账户创建时设 dailyLimit>0 即带 guard，再经 `/guard` 页提交 encodeXxx UserOp |
+| **GRD-04** Guard 写（toggle strict mode） | 🟡 **脚手架就绪，fixme** | 脚手架完整（`guard.spec.ts` + `register(dailyLimit)` + `getGuardAddress/getStrictMode` + `deployAccount`），复用 S4 链路。**带 dailyLimit(guard) 的账户有两处分叉待调**：(1) 创建后 dashboard/transfer UI 不显示账户（"No Smart Account Yet"，与无 guard 的反事实账户行为不同）；(2) 首次部署 UserOp 在 Pimlico bundler 报 **AA21 didn't pay prefund**（所需 ≈0.002 ETH，已注资 0.2，30s 传播等待无效）——guard 部署 ~1.35M verGas 触发的 bundler 余额视图问题。Guard 写机制本身已在 **#362**（/guard 页 + GuardClient）交付。标 `test.fixme` 让套件保持绿 |
 
 **S4 小结**：**转账全链路自动化跑通**（注册→建账户(v0.7)→注资→dashboard 刷新→/transfer→passkey ceremony→部署+执行）。两个关键修复：(a) 建账户后回 /dashboard 刷新让 DashboardContext 缓存到新账户，/transfer 才渲染表单；(b) DVT/BLS 在线后完整严格 ceremony（KMS+BLS+bundler+部署）跑通。注资 helper 用显式 12/2 gwei 确保 Sepolia 及时上链。Guard 写沿用同一链路，下一子步。
 

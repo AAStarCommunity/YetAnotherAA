@@ -7,7 +7,8 @@ import { installVirtualAuthenticator } from "./webauthn";
  * backend started with NODE_ENV=test OTP_TEST_MODE=true. See docs/TEST_PLAN.md S4.
  */
 export async function registerAccount(
-  page: Page
+  page: Page,
+  opts: { dailyLimit?: string } = {}
 ): Promise<{ email: string; token: string; address: string }> {
   await installVirtualAuthenticator(page);
 
@@ -45,7 +46,12 @@ export async function registerAccount(
   if (res.status() === 204) {
     const created = await page.request.post("/api/v1/account/create", {
       ...auth,
-      data: { deploy: false, entryPointVersion: "0.7" },
+      // dailyLimit > 0 → the factory also deploys an AAStarGlobalGuard for the account.
+      data: {
+        deploy: false,
+        entryPointVersion: "0.7",
+        ...(opts.dailyLimit ? { dailyLimit: opts.dailyLimit } : {}),
+      },
     });
     expect(created.ok(), `account/create: ${created.status()}`).toBeTruthy();
     res = await page.request.get("/api/v1/account", auth);

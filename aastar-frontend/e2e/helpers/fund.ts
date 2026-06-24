@@ -10,6 +10,7 @@ import {
 } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { AAStarAirAccountV7ABI, GuardClient, applyConfig } from "@aastar/sdk/core";
 
 // On-chain helpers for S4 (fund a fresh AirAccount, read balances/code, wait for an
 // effect). Uses the same TEST_EOA_PRIVATE_KEY as the L1 harness. See TEST_PLAN S4.
@@ -64,6 +65,28 @@ export async function getEthBalance(addr: Address): Promise<bigint> {
 
 export async function getCode(addr: Address): Promise<string> {
   return (await client().getBytecode({ address: addr })) ?? "0x";
+}
+
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+/** The account's AAStarGlobalGuard address (0x0…0 if it has none). */
+export async function getGuardAddress(account: Address): Promise<Address> {
+  return (await client().readContract({
+    address: account,
+    abi: AAStarAirAccountV7ABI,
+    functionName: "guard",
+  })) as Address;
+}
+
+export function hasGuard(guard: Address): boolean {
+  return !!guard && guard.toLowerCase() !== ZERO;
+}
+
+/** Read the guard's strict-mode flag via the SDK GuardClient. */
+export async function getStrictMode(guard: Address): Promise<boolean> {
+  applyConfig({ chainId: 11155111 });
+  const gc = new GuardClient(client() as never, guard);
+  return (await gc.getConfig()).strictMode;
 }
 
 /**
