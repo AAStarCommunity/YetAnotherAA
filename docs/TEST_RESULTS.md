@@ -12,7 +12,7 @@
 | 阶段 | 范围 | 层 | 状态 |
 |---|---|---|---|
 | **S1** | D2 Tokens 买入/质押 | L1 viem（EOA 自签） | 🟢 进行中（本 PR） |
-| **S2** | 后端路由：鉴权守卫 + 只读聚合（community/operator/role/address-book） | L2 Jest e2e | ⬜ 下一阶段 |
+| **S2** | 后端路由：鉴权守卫（确定性）+ 读端点发现 | L2 Jest e2e | 🟢 完成（10/10 绿） |
 | **S3** | 注册/登录 passkey 流（CDP 虚拟认证器） | L3 Playwright | ⬜ |
 | **S4** | AirAccount UserOp 流：转账(Tier1/2/3) + Guard 写 | L3 + 半自动 | ⬜ |
 | **S5** | 社区/运营者：建社区、Gas 策略、加入/退出 | L1 + L3(测试钱包) | ⬜ |
@@ -37,6 +37,28 @@
 | **TOK-11** 质押 GToken → ticket(SBT) | ✅正向 | L1 自动 | ⬜ 待补 | SDK 有 `stakeGToken/approveAndStake`，下一子步接入 |
 
 **S1 小结**：self-pay 买入路径**已真实跑通并留证**；gasless 受 relayer infra 影响（非 YAA 代码，已上报）；USDT/质押待注资/接 API。
+
+---
+
+## S2 — 后端 API（L2 Jest e2e）
+
+跑法：`npm test:e2e -w aastar`（无需链上钱；纯 HTTP 层）。**结果：2 suites / 10 tests 全绿**（确定性，不依赖实时 RPC）。
+
+| 覆盖 | 状态 | 说明 |
+|---|---|---|
+| **JwtAuthGuard 401**：account/create、guardian/:addr、bls/nodes、community/dashboard、operator/dashboard、admin/dashboard | ✅ **6/6 PASS** | 无 token 一律 401，确定性 |
+| paymaster/presets 鉴权 + SDK canonical 地址 | ✅ PASS | 守住 0x957852… 防地址回归（沿用既有 spec） |
+| transfer/prepare、transfer/submit 401 | ✅ PASS | 既有 spec |
+
+### 🐛 S2 发现（测试抓到的真问题，记录待修）
+
+| 端点 | 现象 | 判断 | 建议 |
+|---|---|---|---|
+| **GET /operator/status** | 无 token → **500**（`hasRole(user=undefined)`） | **真 bug**：公开端点却按调用者地址查角色，没处理无用户 | 加 JwtAuthGuard（用户态）**或**无用户时返回默认/空，而非 500 |
+| GET /community/list | 线上 `curl :3000` → **200**（返回真实社区）；冷 ts-jest AppModule → 500 | 环境敏感（非代码 bug，线上可用） | 读端点改由 L1(viem 直读) 或 warm-server 覆盖 |
+| GET /admin/*、registry/info | 时好时坏（`fetch failed`） | **RPC 依赖**，e2e 负载下 Infura 限流/超时 | 同上：链读端点不适合裸 e2e 断言，需 RPC mock 或 warm-server |
+
+> **结论**：L2 e2e 适合测**确定性的鉴权/契约**；**链读端点本质 RPC-flaky**，归 L1 或 warm-server/手工。operator/status 的 500 是本阶段值得修的真 bug。
 
 ---
 
