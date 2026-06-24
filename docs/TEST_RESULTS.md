@@ -15,7 +15,7 @@
 | **S2** | 后端路由：鉴权守卫（确定性）+ 读端点发现 | L2 Jest e2e | 🟢 完成（10/10 绿） |
 | **S3** | 注册 passkey 流（CDP 虚拟认证器）+ 公开页/鉴权重定向 | L3 Playwright | 🟢 完成（5/5 绿） |
 | **S4** | AirAccount UserOp 流：转账 + Guard 写 | L3 Playwright | 🟢 转账全自动跑通（XFER-01 ✅）；Guard 写待补 |
-| **S5** | 社区/运营者：建社区、Gas 策略、加入/退出 | L1 + L3(测试钱包) | ⬜ |
+| **S5** | 社区/运营者：广场/角色/运营读流程 ✅；建社区/准入写流程待补 | L3 Playwright | 🟢 读流程通过（1/1） |
 | **L4** | 真机 passkey / 真 MetaMask / 主网真金 | 🧑 人工 | ⬜ 全程人工 |
 
 > 推进方式：每阶段**建脚本 → 实跑 → 回填本文档 + 证据 → TPR**，合并后进下一阶段。
@@ -96,6 +96,21 @@
 | **GRD-04** Guard 写（toggle strict mode） | 🟡 **fixme（连修两层，第三层协议墙）** | 脚手架完整复用 S4。带 guard 账户首次部署遇**连环三关**：(1) UI render race — **已修**（deployAccount 重试 dashboard/transfer 加载到账户出现）；(2) **AA21 didn't pay prefund** — **已修**（`depositToEntryPoint` 给账户的 EntryPoint deposit 充值；guard 账户无法用裸余额付 prefund，余额 85 倍仍 AA21）；(3) **AA24 signature error** — **未定论**：guard 账户首次 deploy+transfer 的分级签名（前缀 0x02=Tier2 P256+BLS）验证失败。该首次 UserOp 失败 ⇒ guard 从未真正上链，所以 AA24 是**真 bug** 还是**自动化 harness（CDP/KMS 模拟）伪影**尚不确定 → **已转人工真机复现** 🧑 `docs/test-manual/GRD-04-guard-write.md`（用户走真机判定，结果回填）。Guard 写机制本身已在 **#362**（/guard + GuardClient）交付。标 `test.fixme` 保持套件绿 |
 
 **S4 小结**：**转账全链路自动化跑通**（注册→建账户(v0.7)→注资→dashboard 刷新→/transfer→passkey ceremony→部署+执行）。两个关键修复：(a) 建账户后回 /dashboard 刷新让 DashboardContext 缓存到新账户，/transfer 才渲染表单；(b) DVT/BLS 在线后完整严格 ceremony（KMS+BLS+bundler+部署）跑通。注资 helper 用显式 12/2 gwei 确保 Sepolia 及时上链。Guard 写沿用同一链路，下一子步。
+
+---
+
+## S5 — 社区 / 运营者（L3 Playwright）
+
+跑法：`npm run test:e2e:ui -w aastar-frontend`（后端 NODE_ENV=test OTP_TEST_MODE=true）。
+
+| 用例 | 型 | 状态 | 说明 |
+|---|---|---|---|
+| 读流程：登录 → /community 广场 + /role + /operator 渲染 | ✅正向 | ✅ **PASS（17s）** | `community.spec.ts`：注册后三页都渲染（社区广场列出官方 AAStar/Mycelium；/role、/operator 对新账户正常渲染）。无链上写 |
+| COM-A 建社区（买 GToken→注册→发 xPNTs→Gas 策略） | ✅正向 | ⬜ 待补 | 重型多步**链上写**：与 GRD 同源（账户 UserOp 部署/签名），或运营者 EOA 经 MetaMask 签名——需 GRD 的 deploy 基建解决 **或** L3 注入式测试钱包自动化 |
+| COM-U 购 ticket/SBT、加入/退出社区 | ✅正向 | ⬜ 待补 | 同上（链上写） |
+| OPR 运营者准入（stake→register→deploy paymaster） | ✅正向 | ⬜ 待补 | 运营者 EOA 经 MetaMask；需注入式测试钱包 |
+
+**S5 小结**：**读/渲染流程全自动跑通**（社区广场 + 角色 + 运营者页）。**写流程**（建社区、购 ticket、运营者准入）是重型链上多步，分两类——(a) AirAccount UserOp（与 GRD 同源，待 deploy 基建）、(b) 运营者自有 EOA 经 MetaMask（需 L3 注入式测试钱包）——作为后续专项。
 
 ---
 
