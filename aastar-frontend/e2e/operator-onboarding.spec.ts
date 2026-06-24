@@ -13,7 +13,7 @@ import { fundWithEth, fundGToken } from "./helpers/fund";
 
 // Click a wizard step's action button, then wait for it to advance (Continue
 // enables once the on-chain tx confirms), and continue to the next step.
-async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 150_000) {
+async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 220_000) {
   await page.getByRole("button", { name: actionLabel }).first().click();
   const cont = page.getByRole("button", { name: /^continue$/i });
   await expect(cont, `${actionLabel} confirmed → continue`).toBeEnabled({ timeout });
@@ -27,6 +27,15 @@ async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 150
 // times out (receipt waits exceed 220s). Needs a retry-resilient wait layer and/or a
 // stable RPC to run green. The injected-wallet harness + connect + resource pre-check
 // are proven in operator.spec.ts (#373). Tracked in docs/TEST_RESULTS.md S5.
+// fixme — progress + two remaining blockers:
+//  ✓ funding / connect / AOA / resource pre-check all pass now (new Infura RPC +
+//    withRetry on receipt waits + explicit gas on the injected wallet's sendTx).
+//  ✗ the FIRST write step ("Register Community" → approve + registerRole) does not
+//    advance to Continue — the registerRole step doesn't complete (revert / contract
+//    precondition / step UI). Needs the register revert reason captured.
+//  ✗ the shared test EOA's GToken is now depleted (each run funds 70 GT to a fresh
+//    operator EOA), so further runs need the GToken replenished (buy via the sale).
+// See docs/TEST_RESULTS.md S5.
 test.fixme("OPR-01: full AOA operator onboarding (fresh EOA, injected wallet)", async ({
   page,
 }) => {

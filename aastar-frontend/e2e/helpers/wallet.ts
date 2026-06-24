@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { createPublicClient, createWalletClient, http, type Hex } from "viem";
+import { createPublicClient, createWalletClient, http, parseGwei, type Hex } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { withRetry } from "./fund";
 
 // An injected EIP-1193 wallet (a window.ethereum shim) for S5 operator/community
 // WRITE flows that are signed by the operator's own EOA via MetaMask. The private
@@ -45,6 +46,12 @@ export async function installTestWallet(page: Page, privateKey?: string): Promis
       data: tx.data as Hex | undefined,
       value: tx.value ? BigInt(tx.value) : undefined,
       gas: tx.gas ? BigInt(tx.gas) : undefined,
+      // Healthy gas fallback so wizard writes are included promptly on Sepolia when
+      // the dapp doesn't set fees (otherwise viem's estimate can stall the tx).
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : parseGwei("25"),
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas
+        ? BigInt(tx.maxPriorityFeePerGas)
+        : parseGwei("3"),
     })
   );
   await page.exposeFunction("__walletSign", async (method: string, params: string[]) => {
@@ -54,7 +61,7 @@ export async function installTestWallet(page: Page, privateKey?: string): Promis
     throw new Error(`unsupported sign method: ${method}`);
   });
   await page.exposeFunction("__walletRpc", async (method: string, params: unknown[]) =>
-    pc.request({ method: method as never, params: params as never })
+    withRetry(() => pc.request({ method: method as never, params: params as never }), 4, 2_000)
   );
 
   // Inject the provider before any app script runs.
