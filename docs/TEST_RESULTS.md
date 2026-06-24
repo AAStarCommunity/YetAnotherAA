@@ -14,7 +14,7 @@
 | **S1** | D2 Tokens 买入/质押 | L1 viem（EOA 自签） | 🟢 进行中（本 PR） |
 | **S2** | 后端路由：鉴权守卫（确定性）+ 读端点发现 | L2 Jest e2e | 🟢 完成（10/10 绿） |
 | **S3** | 注册 passkey 流（CDP 虚拟认证器）+ 公开页/鉴权重定向 | L3 Playwright | 🟢 完成（5/5 绿） |
-| **S4** | AirAccount UserOp 流：转账(Tier1/2/3) + Guard 写 | L3 + 半自动 | 🟡 脚手架就绪，前置已验证，完整转账阻塞 |
+| **S4** | AirAccount UserOp 流：转账 + Guard 写 | L3 Playwright | 🟢 转账全自动跑通（XFER-01 ✅）；Guard 写待补 |
 | **S5** | 社区/运营者：建社区、Gas 策略、加入/退出 | L1 + L3(测试钱包) | ⬜ |
 | **L4** | 真机 passkey / 真 MetaMask / 主网真金 | 🧑 人工 | ⬜ 全程人工 |
 
@@ -92,9 +92,10 @@
 | 注册（CDP passkey）→ KMS wallet | ✅ 验证 | 复用 S3 |
 | **创建 AirAccount**（`POST /account/create`，`entryPointVersion:"0.7"`，counterfactual） | ✅ 验证 | 默认 v0.6 未配置会 500 → 必须传 0.7 |
 | **注资**（测试 EOA → 新账户 0.02 ETH） | ✅ 验证 | self-pay 部署+转账 gas |
-| **首次转账（部署+执行，passkey ceremony）** | 🟡 **阻塞** | `/transfer` 表单对**未部署新账户不渲染**（`loading.page` gate，疑似 balance 加载路径）；其后是完整严格 ceremony（KMS BeginAuth + **BLS signer 远程网络** + bundler + initCode 部署），含外部依赖。`transfer.spec.ts` 标 `test.fixme` 让套件保持绿 |
+| **XFER-01 首次转账（部署+执行，passkey ceremony）** | ✅ **PASS（~35s/1.5m）** | `/transfer` 填 to+amount → "Send Transfer" → **CDP passkey 断言 → KMS + BLS signer 网络 + bundler → 首次 UserOp 部署账户(initCode)+执行** → 提交返回 UserOpHash/txHash（断言）。**完全自动化** |
+| Guard 写（GRD-03~06） | ⬜ 待补 | 复用同一 register→create→fund→passkey 链；账户创建时设 dailyLimit>0 即带 guard，再经 `/guard` 页提交 encodeXxx UserOp |
 
-**S4 小结**：前置全链路（注册→建账户→注资）**已自动化验证**；完整严格转账是深度多系统集成（含外部 BLS 网络），需 (a) 修 transfer 页对未部署账户的渲染，(b) 跑通 KMS+BLS+bundler+部署 ceremony——建议作为独立专项推进。Guard 写（GRD）依赖一个带 guard 的部署账户，排在转账之后。
+**S4 小结**：**转账全链路自动化跑通**（注册→建账户(v0.7)→注资→dashboard 刷新→/transfer→passkey ceremony→部署+执行）。两个关键修复：(a) 建账户后回 /dashboard 刷新让 DashboardContext 缓存到新账户，/transfer 才渲染表单；(b) DVT/BLS 在线后完整严格 ceremony（KMS+BLS+bundler+部署）跑通。注资 helper 用显式 12/2 gwei 确保 Sepolia 及时上链。Guard 写沿用同一链路，下一子步。
 
 ---
 

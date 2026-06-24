@@ -1,58 +1,61 @@
 import { test, expect } from "@playwright/test";
+import { parseEther } from "viem";
 import { registerAccount } from "./helpers/register";
-import { fundWithEth } from "./helpers/fund";
+import { fundWithEth, getEthBalance, getCode, waitForBalanceIncrease } from "./helpers/fund";
 
-// S4 / XFER-01 — the AirAccount two-phase device-passkey transfer, end to end:
-// register a fresh account (CDP passkey) → fund it with ETH → its FIRST transfer
-// deploys the account (initCode) and executes, with the passkey ceremony driven by
-// the CDP virtual authenticator. Self-pay (usePaymaster off) so it needs only ETH.
-// Requires the backend on NODE_ENV=test OTP_TEST_MODE=true. See docs/TEST_PLAN.md S4.
+// S4 / XFER-01 — a fresh account's first transfer deploys (initCode) + executes via
+// the passkey ceremony (KMS + BLS signer network + bundler). DVT/BLS must be online.
+// Proof of execution is the RECIPIENT's balance rising by the sent amount — not just
+// "account has bytecode" (deploy can succeed while the inner call reverts) — per Codex.
 
-const RECIPIENT = "0xb5600060e6de5E11D3636731964218E53caadf0E"; // the test EOA
+const RECIPIENT = "0xb5600060e6de5E11D3636731964218E53caadf0E" as const; // the test EOA
+const AMOUNT = "0.001";
 
-// WIP / blocked: register → account-create(v0.7) → fund all work (verified), but
-// the /transfer form doesn't render for a fresh UNDEPLOYED account (the page's load
-// path — likely the balance fetch — gates the form behind `loading.page`). Past
-// that lies the full strict ceremony (KMS BeginAuth + BLS signer network + bundler
-// + first-tx deploy), which has external deps. Tracked for follow-up; see
-// docs/TEST_RESULTS.md S4. fixme so the suite stays green.
-test.fixme("XFER-01: fresh account first transfer (deploy + execute via passkey)", async ({
-  page,
-}) => {
-  test.setTimeout(180_000);
+test("XFER-01: fresh account first transfer (deploy + execute via passkey)", async ({ page }) => {
+  test.setTimeout(240_000);
 
   const { address } = await registerAccount(page);
-
-  // Fund the new account for self-pay deploy + transfer gas.
   await fundWithEth(address as `0x${string}`, "0.02");
 
-  // Capture the submit result (UserOpHash / txHash) to confirm on-chain.
-  let submitBody: { userOpHash?: string; txHash?: string; transactionHash?: string } | null = null;
-  page.on("response", async resp => {
-    if (resp.url().includes("/transfer/submit")) {
-      try {
-        submitBody = await resp.json();
-      } catch {
-        /* non-JSON */
-      }
-    }
-  });
+  // Pre-condition: the account is NOT yet deployed (the transfer must deploy it),
+  // so the post-checks can't pass vacuously.
+  expect(await getCode(address as `0x${string}`), "account undeployed before transfer").toBe("0x");
+  const recipientBefore = await getEthBalance(RECIPIENT);
 
+  // Reload /dashboard so DashboardContext caches the just-created account, then
+  // /transfer reads it from cache and renders the form.
+  await page.goto("/dashboard");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
   await page.goto("/transfer");
-  await page.locator('input[name="to"]').fill(RECIPIENT);
-  await page.locator('input[name="amount"]').fill("0.001");
-  // The transfer button text varies; submit the form / click the primary action.
-  await page.locator('button[type="submit"]').first().click();
-
-  // The passkey assertion auto-completes via the virtual authenticator; the strict
-  // two-phase flow (KMS + BLS + bundler) then submits + deploys.
-  await expect(page.getByText(/submitted|success|tracking/i).first()).toBeVisible({
-    timeout: 150_000,
+  await expect(page.locator('input[name="to"]'), "transfer form rendered").toBeVisible({
+    timeout: 30_000,
   });
 
-  // The submit returned an on-chain handle.
+  await page.locator('input[name="to"]').fill(RECIPIENT);
+  await page.locator('input[name="amount"]').fill(AMOUNT);
+  const sendBtn = page.getByRole("button", { name: /^send (transfer|[a-z]+)/i });
+  await expect(sendBtn).toBeEnabled({ timeout: 30_000 });
+
+  // Capture the submit response synchronously (no unawaited listener race).
+  const [submitResp] = await Promise.all([
+    page.waitForResponse(r => r.url().includes("/transfer/submit"), { timeout: 180_000 }),
+    sendBtn.click(),
+  ]);
+  const submitBody = (await submitResp.json()) as {
+    userOpHash?: string;
+    txHash?: string;
+    transactionHash?: string;
+  };
   expect(
-    submitBody?.userOpHash || submitBody?.txHash || submitBody?.transactionHash,
+    submitBody.userOpHash || submitBody.txHash || submitBody.transactionHash,
     "submit returned a UserOpHash/txHash"
   ).toBeTruthy();
+
+  // The real proof the UserOp EXECUTED: the recipient actually received the ETH.
+  await waitForBalanceIncrease(RECIPIENT, recipientBefore, parseEther(AMOUNT));
+  // And the account got deployed in the same op.
+  expect(await getCode(address as `0x${string}`), "account deployed by the transfer").not.toBe(
+    "0x"
+  );
 });
