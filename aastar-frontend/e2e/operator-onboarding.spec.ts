@@ -7,7 +7,7 @@ import { fundWithEth, fundGToken } from "./helpers/fund";
 // S5 / OPR-01 — AOA operator onboarding via the injected EOA wallet, through the two
 // community-bootstrap writes: connect → AOA → resources → registerRole(ROLE_COMMUNITY)
 // → deploy xPNTs. registerRole carries an encoded community profile (encodeCommunityRoleData
-// from SDK 0.26.9) — the fix for the bare-revert in aastar-sdk#169; passing this asserts
+// from SDK 0.26.10) — the fix for the bare-revert in aastar-sdk#169; passing this asserts
 // that fix end to end. A FRESH operator EOA per run (registerRole is non-idempotent),
 // funded with GToken + ETH for gas.
 // The remaining onboarding steps (deploy Paymaster V4 + EntryPoint deposit) are a
@@ -60,7 +60,7 @@ test("OPR-01: operator onboarding — register community (sdk#169 fix) + deploy 
   await resourcesContinue.click();
 
   // Step 3 — register community: approve + registerRole(ROLE_COMMUNITY) carrying an
-  // encodeCommunityRoleData profile. This is the SDK 0.26.9 fix for aastar-sdk#169
+  // encodeCommunityRoleData profile. This is the SDK 0.26.10 fix for aastar-sdk#169
   // (an empty "0x" reverts bare on-chain). Reaching the next step proves it landed.
   await doStepThenContinue(page, /Register Community/i);
 

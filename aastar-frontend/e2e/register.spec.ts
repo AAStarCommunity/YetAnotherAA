@@ -53,9 +53,12 @@ test("AUTH-02: register an account end-to-end (OTP + passkey via CDP)", async ({
   expect(page.url()).not.toContain("/auth/register");
 
   // Prove the account was really created — not just a stray redirect:
-  // 1) the verify response authenticated THIS email and returned a token,
-  expect(verifyBody?.access_token, "verifyOtp returned a JWT").toBeTruthy();
-  expect(verifyBody?.user?.email).toBe(email);
+  // 1) the verify response authenticated THIS email and returned a token.
+  // (verifyBody is only assigned inside the response closure, so TS control-flow
+  // narrows it away at this point — re-assert the captured type.)
+  const verified = verifyBody as { access_token?: string; user?: { email?: string } } | null;
+  expect(verified?.access_token, "verifyOtp returned a JWT").toBeTruthy();
+  expect(verified?.user?.email).toBe(email);
   // 2) the token is persisted, and /auth/profile confirms it server-side.
   const token = await page.evaluate(() => localStorage.getItem("token"));
   expect(token).toBeTruthy();

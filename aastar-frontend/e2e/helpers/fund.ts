@@ -125,7 +125,7 @@ export async function fundGToken(to: Address, amount: string): Promise<string> {
   const transport = http(env("ETH_RPC_URL"));
   const pc = createPublicClient({ chain: sepolia, transport });
   const wc = createWalletClient({ account: acct, chain: sepolia, transport });
-  const gToken = getCanonicalAddresses(11155111).gToken as Address;
+  const gToken = getCanonicalAddresses(11155111)!.gToken as Address;
   const hash = await wc.writeContract({
     address: gToken,
     abi: ERC20_TRANSFER_ABI,
@@ -150,7 +150,7 @@ export async function depositToEntryPoint(account: Address, eth: string): Promis
   const transport = http(env("ETH_RPC_URL"));
   const pc = createPublicClient({ chain: sepolia, transport });
   const wc = createWalletClient({ account: acct, chain: sepolia, transport });
-  const entryPoint = getCanonicalAddresses(11155111).entryPoint as Address;
+  const entryPoint = getCanonicalAddresses(11155111)!.entryPoint as Address;
   const hash = await wc.writeContract({
     address: entryPoint,
     abi: ENTRYPOINT_ABI,
