@@ -30,10 +30,13 @@ async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 220
 //        no decodable custom error → not an allowance/spender/balance issue.
 //      - the same call on an already-registered EOA decodes cleanly as
 //        RoleAlreadyGranted, so the ABI/encoding is right.
-//    Likely either a registry precondition that emits no reason, or registerRole is
-//    the wrong entrypoint for community onboarding (the SDK has CommunityClient.launch
-//    / a registerCommunity path). Needs an aastar-sdk/registry issue — external repo,
-//    so file feedback there rather than patching here. See docs/TEST_RESULTS.md S5.
+//    Also: Step3 calls registerRole(roleId, USER, data) (the admin form), while the
+//    SDK's own OperatorClient flow uses the self form registerRoleSelf(roleId, data) —
+//    BUT registerRoleSelf ALSO reverts bare for the same funded fresh EOA, so the
+//    entrypoint alone isn't it; there's an unsurfaced registry precondition.
+//    Filed AAStarCommunity/aastar-sdk#169 (correct community-onboarding flow + add
+//    revert reasons + export the missing registerRoleSelf in RegistryABI). External
+//    repo → blocked on that answer, not patched here. See docs/TEST_RESULTS.md S5.
 test.fixme("OPR-01: full AOA operator onboarding (fresh EOA, injected wallet)", async ({
   page,
 }) => {
