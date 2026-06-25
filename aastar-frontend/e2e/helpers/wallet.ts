@@ -49,10 +49,10 @@ export async function installTestWallet(page: Page, privateKey?: string): Promis
       // Modest gas fallback: included promptly on Sepolia (base fee ~1 gwei) without
       // overpaying — the two contract deploys (xPNTs + Paymaster) are gas-heavy, so a
       // high price would drain the test EOA's limited ETH.
-      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : parseGwei("5"),
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : parseGwei("8"),
       maxPriorityFeePerGas: tx.maxPriorityFeePerGas
         ? BigInt(tx.maxPriorityFeePerGas)
-        : parseGwei("1"),
+        : parseGwei("1.5"),
     })
   );
   await page.exposeFunction("__walletSign", async (method: string, params: string[]) => {

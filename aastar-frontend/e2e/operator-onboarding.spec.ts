@@ -23,13 +23,7 @@ async function doStepThenContinue(page: Page, actionLabel: RegExp, timeout = 220
   await cont.click();
 }
 
-// fixme: VERIFIED, but blocked on test-wallet ETH, not code. The SDK 0.26.9 fix
-// (encodeCommunityRoleData, see Step3RegisterCommunity) makes this flow work — runs
-// reached the Paymaster step twice, proving the ROLE_COMMUNITY registration (aastar-sdk#169)
-// and the xPNTs deploy both land on-chain. It can't run green here only because the shared
-// test EOA is out of Sepolia ETH (each non-idempotent run funds + strands a fresh operator
-// EOA). Un-fixme once 0xb5600060e6de5E11D3636731964218E53caadf0E is topped up. See TEST_RESULTS S5.
-test.fixme("OPR-01: operator onboarding — register community (sdk#169 fix) + deploy xPNTs", async ({
+test("OPR-01: operator onboarding — register community (sdk#169 fix) + deploy xPNTs", async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -41,7 +35,7 @@ test.fixme("OPR-01: operator onboarding — register community (sdk#169 fix) + d
   await fundGToken(opAddr, "65");
   // Enough ETH for gas across registerRole + the xPNTs token deploy (at the wallet's
   // modest gas price). Kept small — abandoned per-run EOAs strand their balance.
-  await fundWithEth(opAddr, "0.06");
+  await fundWithEth(opAddr, "0.15");
 
   await installTestWallet(page, opKey);
   await registerAccount(page); // auth (operator pages require login)
