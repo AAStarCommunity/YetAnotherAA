@@ -46,12 +46,13 @@ export async function installTestWallet(page: Page, privateKey?: string): Promis
       data: tx.data as Hex | undefined,
       value: tx.value ? BigInt(tx.value) : undefined,
       gas: tx.gas ? BigInt(tx.gas) : undefined,
-      // Healthy gas fallback so wizard writes are included promptly on Sepolia when
-      // the dapp doesn't set fees (otherwise viem's estimate can stall the tx).
-      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : parseGwei("25"),
+      // Modest gas fallback: included promptly on Sepolia (base fee ~1 gwei) without
+      // overpaying — the two contract deploys (xPNTs + Paymaster) are gas-heavy, so a
+      // high price would drain the test EOA's limited ETH.
+      maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : parseGwei("5"),
       maxPriorityFeePerGas: tx.maxPriorityFeePerGas
         ? BigInt(tx.maxPriorityFeePerGas)
-        : parseGwei("3"),
+        : parseGwei("1"),
     })
   );
   await page.exposeFunction("__walletSign", async (method: string, params: string[]) => {

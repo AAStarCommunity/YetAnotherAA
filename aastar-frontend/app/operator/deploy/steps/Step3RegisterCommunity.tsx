@@ -17,6 +17,7 @@ import { UserPlusIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import {
   registryActions,
   tokenActions,
+  encodeCommunityRoleData,
   ROLE_COMMUNITY,
   REGISTRY_ADDRESS,
   GTOKEN_ADDRESS,
@@ -70,11 +71,20 @@ export default function Step3RegisterCommunity({
           });
           await pc.waitForTransactionReceipt({ hash: approveHash });
         }
-        // 2) register ROLE_COMMUNITY (empty roleData — metadata lives on xPNTs)
+        // 2) register ROLE_COMMUNITY. The registry decodes roleData as the community
+        // profile tuple — an empty "0x" reverts on-chain (bare "execution reverted",
+        // see aastar-sdk#169), so encode it via encodeCommunityRoleData. The community's
+        // display branding lives on the xPNTs token (Step 4); here the role only needs a
+        // valid profile, so carry whatever name/ENS the wizard has (else derive one) and
+        // declare the role's minimum stake.
         return registryActions(REGISTRY_ADDRESS)(walletClient as any).registerRole({
           roleId: ROLE_COMMUNITY,
           user: address,
-          data: "0x",
+          data: encodeCommunityRoleData({
+            name: data.communityName || `Community ${address.slice(0, 8)}`,
+            ensName: data.communityENS || "",
+            stakeAmount: cfg.minStake ?? 0n,
+          }),
         });
       },
       {
