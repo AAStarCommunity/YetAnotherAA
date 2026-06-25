@@ -120,3 +120,38 @@
 - [ ] 画像 preset 选择页 + 设置页调整（治理门控）
 
 > 以上 SDK 侧诉求已全部留言在 **#176**（补1：API+协签+fail-fast；补2：createAccountWithDefaults+preset+DVT 策略；补3：完整分支表+resolveTransfer+带外确认+ERC20 统一）。
+
+---
+
+## 9. Policy / Guard 管理界面（扩展现有 /guard 页）
+
+用户必须能自助管理自己账户的限额与策略，否则配置无从设置。**入口 = 扩展 `/guard` 成 policy 管理页。**
+
+### 9.1 哪些是"用户能管的"，哪些不是（关键区分）
+| 配置 | 归属 | 用户能管？ | 管理方式 |
+|---|---|---|---|
+| **ERC20 token 限额**（tier1/tier2/daily per token） | 用户账户的 guard | ✅ 能 | `GuardClient.encodeAddTokenConfig` → 经两段式 passkey UserOp 提交 |
+| ETH 日限额（**只能降**） | guard | ✅ 能 | `encodeDecreaseDailyLimit`（升额需 guardian，见下） |
+| 严格模式 | guard | ✅ 能（已在 /guard） | `encodeSetStrictMode` |
+| 账户 tier 金额阈值（tier1Limit/tier2Limit） | 账户 | ✅ 能 | `setTierLimits`（GuardClient 暂无 encoder，YAA 直接 encode 或求 SDK 补） |
+| **Layer-1 收款 allowlist / per-asset 策略** | 链上 `IPolicyRegistry`（per-account，治理门控） | ✅ 能（**这才是用户的 allowlist**） | `policyRegistryActions` |
+| **Layer-2 收款 allowlist / perTxMax** | **DVT 节点运营者 env** | ❌ **不能**（不是用户的，是运营者的） | 不在 YAA 管理界面 |
+
+> ⚠️ 用户说的"设置自己的 allowlist"= **Layer-1 链上 per-account policy**（`policyRegistryActions`），不是 Layer-2 节点 env。管理界面只管 Layer-1。
+
+### 9.2 现在能建 vs 受 guardian 流程阻塞
+- **现在可建（Tier-1，passkey 即可——都是"收紧"操作）**：加 ERC20 token 限额、**降低**日限额、开严格模式、读所有现状（getConfig/getTokenConfig/getTokenTodaySpent）。
+- **受阻（"放宽"操作需 guardian 协签，与 #176 同一阻塞）**：升高日限额/tier 限额（`modifyTierLimitsWithGuardians`）、放宽 Layer-1 策略。SDK 给协签 API 后再接。
+
+### 9.3 管理页要素
+1. **ERC20 token 管理**：列出已配 token（合约地址 + tier1/tier2/日限额 + 今日已花）；"添加 token"表单（合约地址 + 三个限额）→ `encodeAddTokenConfig`。
+2. **ETH 限额**：显示日限额/已花/剩余；降额入口。
+3. **tier 阈值**：显示/调整 tier1Limit/tier2Limit（受治理门控）。
+4. **Layer-1 收款策略**：增删允许的收款人/资产/上限（`policyRegistryActions`，治理门控延迟提示）。
+5. **严格模式**：开关（已有）。
+6. 所有"放宽"操作标注"需 guardian 协签"，未就绪前禁用并提示。
+
+### 9.4 对 SDK 的补充诉求（并入 #176）
+- 补 `setTierLimits` / `modifyTierLimitsWithGuardians` 的 encoder + guardian 协签收集。
+- `policyRegistryActions` 的读/写封装 + 治理门控状态（pending/生效时间）查询。
+- 统一"管理操作 → 所需签名档"的判定（哪些 Tier-1 可直接做、哪些需 guardian）。
