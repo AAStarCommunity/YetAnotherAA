@@ -4,8 +4,14 @@
  * crontab: */50 * * * * node /path/to/this/script.js
  */
 const { ethers } = require('ethers');
-const PRIVATE_KEY = '0x1b9c251d318c3c8576b96beddfdc4ec2ffbff762d70325787bde31559db83a21';
-const provider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/Bx4QRW1-vnwJUePSAAD7N');
+// Secrets come from the environment — never hard-code them (this is a public repo).
+const PRIVATE_KEY = process.env.PRICE_UPDATER_PRIVATE_KEY || process.env.PRIVATE_KEY;
+const RPC_URL = process.env.ETH_RPC_URL;
+if (!PRIVATE_KEY || !RPC_URL) {
+  console.error('Set PRICE_UPDATER_PRIVATE_KEY (or PRIVATE_KEY) and ETH_RPC_URL in the environment.');
+  process.exit(1);
+}
+const provider = new ethers.JsonRpcProvider(RPC_URL);
 const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 const abi = [
   'function updatePrice() external',
