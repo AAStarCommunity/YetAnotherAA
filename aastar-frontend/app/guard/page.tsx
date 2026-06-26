@@ -8,6 +8,7 @@ import {
   LockOpenIcon,
 } from "@heroicons/react/24/outline";
 import {
+  encodeFunctionData,
   formatEther,
   formatUnits,
   isAddress,
@@ -20,6 +21,7 @@ import {
   CHAIN_SEPOLIA,
   AAStarAirAccountV7ABI,
   ERC20ABI,
+  PolicyRegistryABI,
   getCanonicalAddresses,
   type GuardConfig,
   type GuardTokenConfig,
@@ -64,6 +66,18 @@ export default function GuardPage() {
   const [tokenDaily, setTokenDaily] = useState("");
   const [newTokenDaily, setNewTokenDaily] = useState("");
 
+  // Layer-1 PolicyRegistry (per-account on-chain policy the DVT network enforces).
+  type EthPolicy = {
+    dvtTriggerAmount: bigint;
+    perTxHardCap: bigint;
+    dailyLimit: bigint;
+    windowSeconds: bigint;
+    configured: boolean;
+  };
+  const [frozen, setFrozen] = useState<boolean | null>(null);
+  const [ethPol, setEthPol] = useState<EthPolicy | null>(null);
+  const policyAddr = getCanonicalAddresses(CHAIN_SEPOLIA)?.policyRegistry as Address | undefined;
+
   const guard = useMemo(
     () => (guardAddr ? buildGuardClient(publicClient, guardAddr) : null),
     [publicClient, guardAddr]
@@ -77,6 +91,51 @@ export default function GuardPage() {
       /* best-effort */
     }
   }, [guard]);
+
+  // Read the account's Layer-1 policy: frozen flag + native-ETH asset policy.
+  const loadPolicy = useCallback(async () => {
+    if (!account || !policyAddr) return;
+    try {
+      const sentinel = (await publicClient.readContract({
+        address: policyAddr,
+        abi: PolicyRegistryABI,
+        functionName: "ETH_SENTINEL",
+      })) as Address;
+      const [fz, pol] = await Promise.all([
+        publicClient.readContract({
+          address: policyAddr,
+          abi: PolicyRegistryABI,
+          functionName: "isFrozen",
+          args: [account],
+        }),
+        publicClient.readContract({
+          address: policyAddr,
+          abi: PolicyRegistryABI,
+          functionName: "getAssetPolicy",
+          args: [account, sentinel],
+        }),
+      ]);
+      setFrozen(fz as boolean);
+      setEthPol(pol as EthPolicy);
+    } catch {
+      /* registry unreachable — leave nulls */
+    }
+  }, [account, policyAddr, publicClient]);
+
+  useEffect(() => {
+    void loadPolicy();
+  }, [loadPolicy]);
+
+  // Freeze / unfreeze the account on the registry, routed through the AirAccount UserOp.
+  const policyCall = (fn: "freezeSender" | "unfreezeSender"): GuardCall => ({
+    to: policyAddr as Address,
+    data: encodeFunctionData({
+      abi: PolicyRegistryABI,
+      functionName: fn,
+      args: [account as Address],
+    }),
+    value: 0n,
+  });
 
   // Resolve the account's guard() and its config.
   useEffect(() => {
@@ -401,6 +460,75 @@ export default function GuardPage() {
                 </div>
               )}
             </section>
+
+            {/* Layer-1 recipient policy (PolicyRegistry) — read state + emergency freeze. */}
+            {policyAddr && (
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {t("guardPage.policyTitle")}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {t("guardPage.policySubtitle")}
+                </p>
+                {frozen === null ? (
+                  <ArrowPathIcon className="h-5 w-5 animate-spin text-gray-400 mx-auto mt-4" />
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <Stat
+                        label={t("guardPage.policyStatus")}
+                        v={frozen ? t("guardPage.policyFrozen") : t("guardPage.policyActive")}
+                      />
+                      {ethPol?.configured ? (
+                        <>
+                          <Stat
+                            label={t("guardPage.policyPerTx")}
+                            v={formatEther(ethPol.perTxHardCap)}
+                          />
+                          <Stat
+                            label={t("guardPage.policyDvtTrigger")}
+                            v={formatEther(ethPol.dvtTriggerAmount)}
+                          />
+                          <Stat
+                            label={t("guardPage.policyDaily")}
+                            v={formatEther(ethPol.dailyLimit)}
+                          />
+                        </>
+                      ) : (
+                        <div className="col-span-2 text-xs text-gray-400">
+                          {t("guardPage.policyNotConfigured")}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      disabled={submitting != null || !account}
+                      onClick={async () => {
+                        await submitGuardCall(
+                          "freeze",
+                          policyCall(frozen ? "unfreezeSender" : "freezeSender")
+                        );
+                        void loadPolicy();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm hover:border-gray-300 disabled:opacity-50"
+                    >
+                      {frozen ? (
+                        <LockOpenIcon className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <LockClosedIcon className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className={frozen ? "text-amber-600" : "text-red-600"}>
+                        {submitting === "freeze"
+                          ? "…"
+                          : frozen
+                            ? t("guardPage.policyUnfreeze")
+                            : t("guardPage.policyFreeze")}
+                      </span>
+                    </button>
+                    <p className="text-[11px] text-gray-400">{t("guardPage.policyLoosenHint")}</p>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>

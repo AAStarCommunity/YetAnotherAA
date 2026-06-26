@@ -870,6 +870,19 @@
     "addConfig": "Add token config",
     "confirming": "Confirm with your passkey…",
     "updated": "Guard updated",
-    "failed": "Guard update failed"
+    "failed": "Guard update failed",
+    "policyTitle": "Recipient policy (Layer-1)",
+    "policySubtitle": "On-chain per-account policy the DVT network enforces",
+    "policyStatus": "Status",
+    "policyFrozen": "Frozen",
+    "policyActive": "Active",
+    "policyPerTx": "Per-tx hard cap (ETH)",
+    "policyDvtTrigger": "DVT trigger (ETH)",
+    "policyDaily": "Daily limit (ETH)",
+    "policyWindow": "Window (s)",
+    "policyNotConfigured": "No Layer-1 policy set yet",
+    "policyFreeze": "Emergency freeze",
+    "policyUnfreeze": "Unfreeze",
+    "policyLoosenHint": "Loosening policy needs timelock governance + guardian (SDK #188)."
   }
 }

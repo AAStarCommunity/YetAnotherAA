@@ -870,6 +870,19 @@
     "addConfig": "添加代币配置",
     "confirming": "请用 passkey 确认…",
     "updated": "守卫已更新",
-    "failed": "守卫更新失败"
+    "failed": "守卫更新失败",
+    "policyTitle": "收款策略 (Layer-1)",
+    "policySubtitle": "DVT 网络强制的链上 per-account 策略",
+    "policyStatus": "状态",
+    "policyFrozen": "已冻结",
+    "policyActive": "正常",
+    "policyPerTx": "单笔上限 (ETH)",
+    "policyDvtTrigger": "DVT 触发额 (ETH)",
+    "policyDaily": "日限额 (ETH)",
+    "policyWindow": "窗口(秒)",
+    "policyNotConfigured": "尚未设置 Layer-1 策略",
+    "policyFreeze": "紧急冻结",
+    "policyUnfreeze": "解冻",
+    "policyLoosenHint": "放宽策略需 timelock 治理 + guardian(待 SDK #188)。"
   }
 }
