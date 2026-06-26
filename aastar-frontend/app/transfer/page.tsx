@@ -16,6 +16,10 @@ import {
   WalletIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { parseEther, parseUnits, type Address, type PublicClient } from "viem";
+import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
+import { resolveTransfer, type TransferResolution } from "@aastar/sdk/airaccount";
+import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 
 export default function TransferPage() {
   const { data, refreshBalance: contextRefreshBalance } = useDashboard();
@@ -29,6 +33,15 @@ export default function TransferPage() {
   });
   const [selectedToken, setSelectedToken] = useState<Token | null>(null); // null means ETH
   const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
+
+  // SDK-driven transfer judging (resolveTransfer): which tier + which signatures this
+  // transfer needs (ETH + ERC-20 unified), or whether it's hard-blocked. Replaces the
+  // old hand-rolled ETH-only dailyLimit guess.
+  const [publicClient] = useState<PublicClient>(() => {
+    ensureSdkConfig(CHAIN_SEPOLIA);
+    return getPublicClient();
+  });
+  const [resolution, setResolution] = useState<TransferResolution | null>(null);
   const [_loadingTokenBalance, setLoadingTokenBalance] = useState(false);
   const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
   const [savedPaymasters, setSavedPaymasters] = useState<any[]>([]);
@@ -56,6 +69,39 @@ export default function TransferPage() {
   useEffect(() => {
     loadPageData();
   }, []);
+
+  // Judge the transfer (tier + required signatures, ETH/ERC-20 unified) whenever the
+  // amount or token changes, debounced. Drives the indicator + fail-fast on block.
+  useEffect(() => {
+    const acct = account?.address as Address | undefined;
+    const amtStr = formData.amount;
+    if (!acct || !amtStr || !(parseFloat(amtStr) > 0)) {
+      setResolution(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const isEth = !selectedToken || selectedToken.address === "ETH";
+        const amount = isEth
+          ? parseEther(amtStr)
+          : parseUnits(amtStr, selectedToken?.decimals ?? 18);
+        const res = await resolveTransfer({
+          client: publicClient as never,
+          account: acct,
+          amount,
+          token: isEth ? "ETH" : (selectedToken!.address as Address),
+        });
+        if (!cancelled) setResolution(res);
+      } catch {
+        if (!cancelled) setResolution(null);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [account?.address, formData.amount, selectedToken, publicClient]);
 
   const loadPageData = async () => {
     setLoading(prev => ({ ...prev, page: true }));
@@ -1001,60 +1047,59 @@ export default function TransferPage() {
                       return null;
                     })()}
 
-                  {/* AirAccount guard indicator — only for ETH transfers when a daily limit is set */}
-                  {formData.amount &&
-                    (!selectedToken || selectedToken.address === "ETH") &&
-                    account?.dailyLimit &&
-                    (() => {
-                      const inputAmount = parseFloat(formData.amount);
-                      if (isNaN(inputAmount) || inputAmount <= 0) return null;
-
-                      // dailyLimit is stored in wei (decimal string) — convert to ETH for comparison.
-                      const dailyLimitEth = parseFloat(account.dailyLimit) / 1e18;
-                      // Tier 3 is triggered when a single transfer exceeds the on-chain daily limit guard.
-                      // Tier 1 vs Tier 2 thresholds (tier1Limit / tier2Limit) are separate contract-level
-                      // storage variables not available client-side — do not approximate them from dailyLimit.
-                      const exceedsDailyLimit = inputAmount > dailyLimitEth;
-
-                      return (
-                        <div
-                          className={`mt-3 p-3 border rounded-xl text-sm ${
-                            exceedsDailyLimit
-                              ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-700 dark:text-red-400"
-                              : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
-                          }`}
-                        >
+                  {/* SDK-driven tier indicator (resolveTransfer): exact required signatures
+                      for this amount/asset, or a hard-block reason. ETH + ERC-20 unified. */}
+                  {resolution && (
+                    <div
+                      className={`mt-3 p-3 border rounded-xl text-sm ${
+                        resolution.blockReason
+                          ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-700 dark:text-red-400"
+                          : !resolution.hasGuard
+                            ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400"
+                            : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
+                      }`}
+                    >
+                      {resolution.blockReason ? (
+                        <>
+                          <div className="font-semibold">Cannot send</div>
+                          <p className="mt-1 text-xs opacity-80">{resolution.blockReason}</p>
+                        </>
+                      ) : !resolution.hasGuard ? (
+                        <>
+                          <div className="font-semibold">No tier protection configured</div>
+                          <p className="mt-1 text-xs opacity-80">
+                            This account has no enforced limits for this asset — set up Tier
+                            Security to enable amount-based signing.
+                          </p>
+                        </>
+                      ) : (
+                        <>
                           <div className="flex items-center gap-2 font-semibold">
-                            {exceedsDailyLimit ? (
-                              <>
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200">
-                                  3
-                                </span>
-                                Tier 3 — Guardian approval required
-                              </>
-                            ) : (
-                              <>
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200">
-                                  ✓
-                                </span>
-                                Tiered signing active
-                              </>
-                            )}
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200">
+                              {resolution.tier}
+                            </span>
+                            Tier {resolution.tier} signing
                           </div>
                           <p className="mt-1 text-xs opacity-80">
-                            {exceedsDailyLimit
-                              ? `Transfer exceeds daily limit (${dailyLimitEth} ETH). Passkey + BLS + guardian ECDSA triple signature required.`
-                              : `Passkey + BLS signing active. Daily limit: ${dailyLimitEth} ETH. Exact tier (1 or 2) is determined by contract-level thresholds.`}
+                            Requires: passkey
+                            {resolution.requiredSigs.bls ? " + BLS (DVT)" : ""}
+                            {resolution.requiredSigs.guardian > 0
+                              ? ` + ${resolution.requiredSigs.guardian} guardian co-signature${
+                                  resolution.requiredSigs.guardian > 1 ? "s" : ""
+                                }`
+                              : ""}
+                            .
                           </p>
-                          {exceedsDailyLimit && (
+                          {resolution.requiredSigs.guardian > 0 && (
                             <p className="mt-2 text-xs font-medium">
-                              Guardian at <span className="font-mono">0x51eD...2E114</span> must
-                              co-sign this transaction.
+                              This transfer exceeds your tier-2 limit — guardian approval (Tier 3)
+                              is required.
                             </p>
                           )}
-                        </div>
-                      );
-                    })()}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Paymaster Option */}
