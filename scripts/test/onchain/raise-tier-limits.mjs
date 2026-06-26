@@ -6,15 +6,19 @@
  *   1. createAccountWithDefaults(owner, salt, g1, g1Sig, g2, g2Sig, dailyLimit) — deploy an
  *      account that actually HAS guardians (YAA's backend uses the free-form createAccount,
  *      which leaves guardians empty, so raise-limit can't work on those — see #382).
- *   2. modifyTierLimitsGuardianDigestFromChain(...) — reads tierLimitNonce, builds the digest.
- *   3. Each guardian RAW-ECDSA-signs the digest (contract recovers `changeHash.recover(sig)`,
- *      no eth-message prefix); RECOVERY_THRESHOLD = 2 distinct guardians.
+ *   2. modifyTierLimitsGuardianDigestFromChain(...) — reads tierLimitNonce, builds the digest;
+ *      VERIFIED to equal the contract's _guardianOpHash('MODIFY_TIER_LIMITS', ...).
+ *   3. Each guardian signs the digest with eth-prefixed signMessage (toEthSignedMessageHash —
+ *      NOT raw); RECOVERY_THRESHOLD = 2 distinct guardians.
  *   4. encodeModifyTierLimitsWithGuardians(account, t1, t2, deadline, [sig1, sig2]).
- *   5. simulateContract(modifyTierLimitsWithGuardians) AS THE ACCOUNT (onlyAccount) — a passing
- *      simulation proves the digest + signatures + call are all correct (the on-chain UserOp
- *      submission is the next step, gated on the owner passkey flow).
+ *   5. simulate then REALLY submit modifyTierLimitsWithGuardians — it's onlyOwner, so the
+ *      account's owner (here an EOA) calls it directly with the guardian sigs in calldata.
+ *      Asserts tier1Limit rises and tierLimitNonce increments on-chain.
  *
- * Run: node scripts/test/onchain/raise-tier-limits.mjs
+ * NB for the UI (#382): a real YAA account's owner is a passkey, not an EOA — wiring the
+ * owner-call path (UserOp vs direct) is the remaining UI work; the mechanism here is proven.
+ *
+ * Run: node scripts/test/onchain/raise-tier-limits.mjs  (spends Sepolia ETH — deploys an account)
  */
 import { readFileSync } from "node:fs";
 import {
