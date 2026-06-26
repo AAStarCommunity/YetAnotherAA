@@ -109,3 +109,36 @@ S2 e2e 发现 `GET operator/status` 在未注册/缺参时 `hasRole(undefined)` 
 - [ ] 5 高优先逆向用例全绿（D1 转账/Guard、D2 授权重放、D3 JWT、D4 权限、Guardian 恢复）
 - [ ] 4 主网关键路径冒烟通过
 - [ ] 代码库密钥扫描干净（含历史卫生收尾）
+- [ ] 6 分层签名（Tier 1/2/3）按设计触发 + Tier-3 guardian 协签可用（见下）
+- [ ] 7 带外确认（高额交易）端到端可用：bot ping → passkey 批准（方案2）
+- [ ] 8 浏览器 bundle 无 KMS/AES 泄漏（tree-shaking 或 node-only 兜底）
+
+---
+
+## 6. 分层安全签名 + 带外确认 + 联系方式绑定
+
+> 详细设计与分支表见 `docs/TIERED_SECURITY_PAYMENT_FLOWS.md`（业务视角）；SDK 封装诉求见 aastar-sdk#176；带外确认/绑定跨仓库设计见 aastar-sdk#193。
+
+**关键修正（contract-as-truth）**：超 guard **日限额 = 硬 block**（不是 guardian 升级）；判档看**累积消费**；账户 tier 阈值两个创建函数都不初始化 → 必须 `createAccountWithDefaults` + 创建后 `setTierLimits/setWeightConfig`（按画像 preset），否则分层形同虚设（实测超额转账缺签名 revert 的根因）。
+
+**带外确认（方案2，YAA 已背书）**：高额交易 → DVT 扣留 + 共享 bot **ping（深链回 YAA）** → 用户在批准屏做 **passkey ceremony 签 userOpHash**（复用现有转账 ceremony，非输 token）→ DVT 验签补签。
+
+**联系方式绑定**：绑定页（TG 一键深链/二维码 + email 降级）+ onboarding 接入 + 设置页管理；依赖 SDK `startContactBinding/confirmContactBinding/getContact`。
+
+## 7. SDK / DVT / 合约 依赖追踪
+
+| 场景（YAA 要建） | 依赖 | 追踪 | 状态 |
+|---|---|---|---|
+| 类型可用（升级基线） | /core 的 .d.ts | aastar-sdk#189 | ✅ 0.26.15 修复，YAA 已升 |
+| 画像页 + 转账判路 UI | `resolveTransfer/TIER_PROFILES` browser-safe | #195 / 0.26.16 | ⏳ 待发；或 YAA 后端封装出 REST（不等） |
+| 放宽限额 + Tier-3 guardian 协签 | 合约 `tierLimitNonce()` + SDK 建 MODIFY_TIER_LIMITS digest + guardian 收集 | airaccount-contract **#132（合约 getter ✅ 838 tests 过）** → aastar-sdk#188（SDK 接 readContract+encode） | 🔵 合约就绪，SDK 进行中 |
+| 带外确认轮询/批准凭证 | `/signature/confirm` 凭证格式（方案2）+ SDK approve 助手 | Validator#124 + #193 | ⏳ 待 DVT 回 |
+| 绑定页 | `startContactBinding/confirmContactBinding/getContact` | #193 + YetAnotherAA#378 | ⏳ 跨仓库收敛（YAA 已回 + 背书方案2） |
+| 浏览器 bundle 卫生 | CryptoUtil → node-only 子路径 | #190/#195 | ⏳ 已验证建议做（见 §8） |
+
+## 8. 浏览器 bundle 卫生（tree-shaking 验证）
+
+实测（0.26.15）：YAA 前端 bundle 2 个 chunk 含 `aes-256-gcm` + `scrypt`。源 = `lib/yaaa.ts` import `@aastar/sdk/kms` 的 `KmsManager`（register/login/guardian-sign 三页，仅用 WebAuthn 方法 begin/complete/poll/signHashWithWebAuthn，不用对称加密）→ CryptoUtil 是**死重量**。
+建议（已发 SDK）：CryptoUtil → **node-only 子路径**（物理隔离，比单靠 tree-shaking 确定）；0.26.16 落地后**重跑 bundle 扫描**确认无 `aes-256-gcm/scrypt`。
+
+> 本计划与 `docs/TIERED_SECURITY_PAYMENT_FLOWS.md` 配套：后者是分层安全业务流程与分支表，本文是上线总 checklist + 依赖追踪。
