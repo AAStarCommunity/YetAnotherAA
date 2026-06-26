@@ -884,5 +884,35 @@
     "policyFreeze": "紧急冻结",
     "policyUnfreeze": "解冻",
     "policyLoosenHint": "放宽策略需 timelock 治理 + guardian(待 SDK #188)。"
+  },
+  "tierSetup": {
+    "title": "分层安全设置",
+    "subtitle": "选一个画像——它设定你的分档限额与日限额。金额越大需要的签名越多。",
+    "noAccount": "请先创建智能账户。",
+    "applying": "正在应用分层配置…",
+    "step": "用 passkey 确认（{{i}}/{{n}}）",
+    "done": "分层配置已应用",
+    "failed": "应用分层配置失败",
+    "alreadyConfigured": "分层已配置（tier-1 ≤ {{v}} ETH）。可重新应用以更改。",
+    "tier1": "档1",
+    "tier2": "档2",
+    "daily": "日限",
+    "tierExplainer": "档1=仅 passkey；档2=+ DVT/BLS；超日限额会被硬拦截（提额需 guardian）。",
+    "apply": "应用并加固账户",
+    "reapply": "重新应用",
+    "profile": {
+      "web3-newbie": {
+        "name": "Web3 新手",
+        "desc": "小额度，最高安全"
+      },
+      "trader": {
+        "name": "交易员",
+        "desc": "更高额度，适合频繁操作"
+      },
+      "conservative": {
+        "name": "保守型",
+        "desc": "收紧额度，有经验"
+      }
+    }
   }
 }

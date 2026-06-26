@@ -884,5 +884,35 @@
     "policyFreeze": "Emergency freeze",
     "policyUnfreeze": "Unfreeze",
     "policyLoosenHint": "Loosening policy needs timelock governance + guardian (SDK #188)."
+  },
+  "tierSetup": {
+    "title": "Tier security setup",
+    "subtitle": "Pick a profile — it sets your per-tx tiers and daily limit. Larger amounts require more signatures.",
+    "noAccount": "Create your smart account first.",
+    "applying": "Applying tier config…",
+    "step": "Confirm with passkey ({{i}}/{{n}})",
+    "done": "Tier config applied",
+    "failed": "Failed to apply tier config",
+    "alreadyConfigured": "Tiers already configured (tier-1 ≤ {{v}} ETH). Re-apply to change.",
+    "tier1": "Tier1",
+    "tier2": "Tier2",
+    "daily": "Daily",
+    "tierExplainer": "Tier1 = passkey only; Tier2 = + DVT/BLS; above the daily limit is hard-blocked (raising it needs guardians).",
+    "apply": "Apply & secure account",
+    "reapply": "Re-apply",
+    "profile": {
+      "web3-newbie": {
+        "name": "Web3 newbie",
+        "desc": "Small limits, maximum safety"
+      },
+      "trader": {
+        "name": "Trader",
+        "desc": "Higher limits for frequent moves"
+      },
+      "conservative": {
+        "name": "Conservative",
+        "desc": "Tight limits, experienced users"
+      }
+    }
   }
 }

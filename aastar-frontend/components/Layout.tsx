@@ -174,6 +174,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                             { label: "Transfer", path: "/transfer", Icon: PaperAirplaneIcon },
                             { label: "Recovery", path: "/recovery", Icon: ShieldCheckIcon },
                             { label: "Guard", path: "/guard", Icon: ShieldExclamationIcon },
+                            { label: "Tier Security", path: "/tier-setup", Icon: ShieldCheckIcon },
                             { label: "Tasks", path: "/tasks", Icon: ClipboardDocumentListIcon },
                           ],
                         },
