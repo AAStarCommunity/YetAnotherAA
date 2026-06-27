@@ -104,13 +104,23 @@ export const transferAPI = {
     paymasterData?: string;
     tokenAddress?: string;
   }) =>
-    api.post<{ transferId: string; challengeId: string; publicKeyOptions: unknown }>(
-      "/transfer/prepare",
-      data
-    ),
+    api.post<{
+      transferId: string;
+      challengeId: string;
+      publicKeyOptions: unknown;
+      // Tier-aware fields (surfaced so the UI can collect a Tier-3 guardian co-sign).
+      tier: number | null;
+      requiredSigs: { passkey: boolean; bls: boolean; guardian: number };
+      userOpHash: string;
+    }>("/transfer/prepare", data),
   // Phase 3: submit the prepared transfer with the browser ceremony credential.
-  submit: (data: { transferId: string; challengeId: string; credential: unknown }) =>
-    api.post("/transfer/submit", data),
+  // guardianSignature is sent only for Tier-3 transfers (over the prepared userOpHash).
+  submit: (data: {
+    transferId: string;
+    challengeId: string;
+    credential: unknown;
+    guardianSignature?: string;
+  }) => api.post("/transfer/submit", data),
 
   estimate: (data: {
     to: string;

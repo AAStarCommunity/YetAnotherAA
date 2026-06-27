@@ -16,10 +16,41 @@ import {
   WalletIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { parseEther, parseUnits, type Address, type PublicClient } from "viem";
+import {
+  createWalletClient,
+  custom,
+  parseEther,
+  parseUnits,
+  type Address,
+  type PublicClient,
+} from "viem";
 import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
 import { resolveTransfer, type TransferResolution } from "@aastar/sdk/airaccount";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
+
+// Tier-3 only: collect a guardian co-signature over the prepared userOpHash from the
+// user's self-hosted guardian wallet (injected EIP-1193). signMessage({ raw }) is
+// eth-prefixed, matching the SDK GuardianSigner the backend wraps it in.
+async function collectGuardianSignature(userOpHash: string): Promise<string> {
+  const eth =
+    typeof window === "undefined"
+      ? undefined
+      : (
+          window as unknown as {
+            ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
+          }
+        ).ethereum;
+  if (!eth) {
+    throw new Error("A guardian wallet (e.g. MetaMask) is required to co-sign a Tier-3 transfer.");
+  }
+  const accounts = (await eth.request({ method: "eth_requestAccounts" })) as Address[];
+  if (!accounts?.length) throw new Error("No guardian account available to co-sign.");
+  const wallet = createWalletClient({ transport: custom(eth) });
+  return wallet.signMessage({
+    account: accounts[0],
+    message: { raw: userOpHash as `0x${string}` },
+  });
+}
 
 export default function TransferPage() {
   const { data, refreshBalance: contextRefreshBalance } = useDashboard();
@@ -328,14 +359,28 @@ export default function TransferPage() {
         optionsJSON: prep.data.publicKeyOptions as any,
       });
 
+      // Phase 2.5: Tier-3 guardian co-sign. When prepare resolves to Tier 3, a
+      // guardian must co-sign the userOpHash on top of the passkey + DVT/BLS. We
+      // collect it from the user's self-hosted guardian wallet (injected EIP-1193)
+      // via signMessage({ raw: userOpHash }) — eth-prefixed, matching the SDK
+      // GuardianSigner semantics the backend wraps it in (B1).
+      let guardianSignature: string | undefined;
+      if ((prep.data.requiredSigs?.guardian ?? 0) > 0) {
+        toast.dismiss(loadingToast);
+        loadingToast = toast.loading("Tier 3 — co-sign with your guardian wallet…");
+        guardianSignature = await collectGuardianSignature(prep.data.userOpHash);
+      }
+
       // Phase 3: submit. The committed digest matches what prepare bound, so the
-      // KMS accepts the assertion under strict mode.
+      // KMS accepts the assertion under strict mode. guardianSignature is sent only
+      // for Tier 3 (undefined otherwise).
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Processing transfer...");
       const response = await transferAPI.submit({
         transferId: prep.data.transferId,
         challengeId: prep.data.challengeId,
         credential,
+        guardianSignature,
       });
       setTransferResult(response.data);
 
