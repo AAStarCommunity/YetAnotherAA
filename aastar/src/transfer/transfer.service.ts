@@ -49,12 +49,16 @@ export class TransferService {
       });
       // Hand the frontend exactly what the ceremony needs. publicKeyOptions.challenge
       // must be used verbatim (it is the SDK-computed commitment); challengeId is
-      // paired back with the credential in submit. userOpHash is omitted — the
-      // frontend signs the commitment, not the hash directly.
+      // paired back with the credential in submit. The passkey signs the commitment,
+      // NOT the userOpHash. We also surface tier/requiredSigs/userOpHash so the UI
+      // knows whether a guardian co-sign is needed (Tier 3) and what to sign for it.
       return {
         transferId: prep.transferId,
         challengeId: prep.challengeId,
         publicKeyOptions: prep.publicKeyOptions,
+        tier: prep.tier,
+        requiredSigs: prep.requiredSigs,
+        userOpHash: prep.userOpHash,
       };
     } catch (err: any) {
       this.logger.error(`prepareTransfer FAILED: ${err?.message ?? err}`, err?.stack);
@@ -75,6 +79,15 @@ export class TransferService {
       result = await this.client.transfers.submitPreparedTransfer(userId, {
         transferId: dto.transferId,
         webAuthnAssertion: { ChallengeId: dto.challengeId, Credential: dto.credential },
+        // Tier 3 only: the client already collected the guardian's co-signature over
+        // the prepared userOpHash (self-hosted guardian). Wrap it as the SDK's
+        // GuardianSigner — signMessage returns the pre-collected sig verbatim (the
+        // SDK asks for exactly the userOpHash the guardian signed; no re-derivation
+        // drift per #143). Omitted for Tier 1/2; if a Tier-3 transfer arrives without
+        // it, the SDK fail-fasts before any gas.
+        ...(dto.guardianSignature
+          ? { guardianSigner: { signMessage: async () => dto.guardianSignature as string } }
+          : {}),
       });
     } catch (err: any) {
       // Surface the real KMS/BLS/bundler failure (#68 commitment, TTL expiry, tier

@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsObject } from "class-validator";
+import { IsString, IsObject, IsOptional } from "class-validator";
 
 /**
  * Phase-3 of the strict device-passkey transfer. Carries the opaque prepared
@@ -22,4 +22,16 @@ export class SubmitTransferDto {
   })
   @IsObject()
   credential: unknown;
+
+  @ApiProperty({
+    required: false,
+    description:
+      "Guardian co-signature (hex) over the prepared userOpHash — REQUIRED for a Tier-3 " +
+      "transfer (prepare returns tier:3 / requiredSigs.guardian>0). Collected client-side from " +
+      "the user's self-hosted guardian; the backend wraps it as the SDK GuardianSigner. Omit for " +
+      "Tier 1/2.",
+  })
+  @IsOptional()
+  @IsString()
+  guardianSignature?: string;
 }
