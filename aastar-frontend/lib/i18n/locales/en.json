@@ -914,5 +914,26 @@
         "desc": "Tight limits, experienced users"
       }
     }
+  },
+  "binding": {
+    "title": "Out-of-band approval contact",
+    "subtitle": "Bind a Telegram channel so high-value transfers can be approved out-of-band (Scheme 2). The bot only pings you — approval is your passkey, never a token.",
+    "noAccount": "Create your smart account first.",
+    "none": "No contact bound yet.",
+    "starting": "Starting binding (confirm with passkey)…",
+    "codeReady": "Binding code ready — send it to the bot",
+    "confirming": "Verifying (confirm with passkey)…",
+    "verified": "Telegram bound",
+    "removing": "Removing…",
+    "removed": "Contact removed",
+    "failed": "Binding failed",
+    "bindTelegram": "Bind Telegram",
+    "step2Title": "Send this to @AAStarBot on Telegram",
+    "step2Hint": "Open @AAStarBot, send the command below, then paste the verify token it replies with.",
+    "verifyTokenPlaceholder": "Verify token from the bot",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "privacyNote": "Your contact is stored by the KMS, not in the browser. The bot can only message you after you /start it."
   }
 }

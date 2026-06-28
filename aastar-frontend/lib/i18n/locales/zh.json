@@ -914,5 +914,26 @@
         "desc": "收紧额度，有经验"
       }
     }
+  },
+  "binding": {
+    "title": "带外批准联系方式",
+    "subtitle": "绑定 Telegram,让大额转账能带外批准(方案2)。bot 只给你发提醒——批准用你的 passkey,绝不是 token。",
+    "noAccount": "请先创建智能账户。",
+    "none": "还没绑定联系方式。",
+    "starting": "开始绑定(用 passkey 确认)…",
+    "codeReady": "绑定码已生成——发给 bot",
+    "confirming": "验证中(用 passkey 确认)…",
+    "verified": "Telegram 已绑定",
+    "removing": "移除中…",
+    "removed": "联系方式已移除",
+    "failed": "绑定失败",
+    "bindTelegram": "绑定 Telegram",
+    "step2Title": "在 Telegram 发给 @AAStarBot",
+    "step2Hint": "打开 @AAStarBot,发送下面的命令,然后把它回复的 verify token 粘贴进来。",
+    "verifyTokenPlaceholder": "bot 回复的 verify token",
+    "confirm": "确认",
+    "cancel": "取消",
+    "remove": "移除",
+    "privacyNote": "联系方式存在 KMS,不在浏览器。你 /start 之后 bot 才能给你发消息。"
   }
 }
