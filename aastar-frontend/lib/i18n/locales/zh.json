@@ -934,6 +934,7 @@
     "confirm": "确认",
     "cancel": "取消",
     "remove": "移除",
-    "privacyNote": "联系方式存在 KMS,不在浏览器。你 /start 之后 bot 才能给你发消息。"
+    "privacyNote": "联系方式存在 KMS,不在浏览器。你 /start 之后 bot 才能给你发消息。",
+    "removeConfirm": "移除 {{channel}} 审批联系方式?大额转账将无法再带外通知到你。"
   }
 }

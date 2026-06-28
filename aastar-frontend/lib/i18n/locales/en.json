@@ -934,6 +934,7 @@
     "confirm": "Confirm",
     "cancel": "Cancel",
     "remove": "Remove",
-    "privacyNote": "Your contact is stored by the KMS, not in the browser. The bot can only message you after you /start it."
+    "privacyNote": "Your contact is stored by the KMS, not in the browser. The bot can only message you after you /start it.",
+    "removeConfirm": "Remove the {{channel}} approval contact? High-value transfers will no longer reach you out-of-band."
   }
 }

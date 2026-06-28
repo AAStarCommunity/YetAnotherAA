@@ -105,6 +105,9 @@ export default function BindingPage() {
 
   const remove = async (channel: ContactChannel) => {
     if (!client || !account) return;
+    // Removing a contact silently disables the Scheme-2 out-of-band approval path —
+    // confirm so an accidental tap can't strip a security channel.
+    if (!window.confirm(t("binding.removeConfirm", { channel }))) return;
     setBusy(true);
     const id = toast.loading(t("binding.removing"));
     try {
