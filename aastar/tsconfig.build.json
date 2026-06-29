@@ -3,8 +3,14 @@
   "compilerOptions": {
     "noEmitOnError": false,
     "paths": {
-      "ox": ["./node_modules/ox/_types/index.d.ts"],
-      "ox/*": ["./node_modules/ox/_types/*.d.ts"],
+      "ox": [
+        "./node_modules/ox/_types/index.d.ts",
+        "../node_modules/ox/_types/index.d.ts"
+      ],
+      "ox/*": [
+        "./node_modules/ox/_types/*.d.ts",
+        "../node_modules/ox/_types/*.d.ts"
+      ],
       "@aastar/sdk/kms": [
         "./node_modules/@aastar/sdk/dist/kms.d.ts",
         "../node_modules/@aastar/sdk/dist/kms.d.ts"

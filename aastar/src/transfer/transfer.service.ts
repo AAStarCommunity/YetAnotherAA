@@ -49,6 +49,12 @@ export class TransferService {
         paymasterData: dto.paymasterData,
         paymasterTokenAddress,
         useAirAccountTiering: true,
+        // Tier-2/3 device-passkey path (#234): when the frontend's resolveTransfer says
+        // this transfer is Tier-2/3, the on-chain factor is the device WebAuthn passkey
+        // (algId 0x09/0x0a), so there is NO KMS owner ceremony — prepare returns no
+        // challengeId/publicKeyOptions and the browser signs the userOpHash directly.
+        // The SDK rejects this flag for Tier-1, so the frontend only sets it for tier>=2.
+        useWebAuthnPasskey: dto.useWebAuthnPasskey === true,
       });
       // Hand the frontend exactly what the ceremony needs. publicKeyOptions.challenge
       // must be used verbatim (it is the SDK-computed commitment); challengeId is
@@ -77,21 +83,43 @@ export class TransferService {
    */
   async submitPreparedTransfer(userId: string, dto: SubmitTransferDto) {
     this.logger.log(`submitPreparedTransfer: userId=${userId} transferId=${dto.transferId}`);
+    // Tier-3 only: the client already collected the guardian's co-signature over the
+    // prepared userOpHash (self-hosted guardian). Wrap it as the SDK's GuardianSigner —
+    // signMessage returns the pre-collected sig verbatim (the SDK asks for exactly the
+    // userOpHash the guardian signed; no re-derivation drift per #143). Omitted for
+    // Tier 1/2; if a Tier-3 transfer arrives without it, the SDK fail-fasts before gas.
+    const guardianSigner = dto.guardianSignature
+      ? { signMessage: async () => dto.guardianSignature as string }
+      : undefined;
+
     let result: Awaited<ReturnType<typeof this.client.transfers.submitPreparedTransfer>>;
     try {
-      result = await this.client.transfers.submitPreparedTransfer(userId, {
-        transferId: dto.transferId,
-        webAuthnAssertion: { ChallengeId: dto.challengeId, Credential: dto.credential },
-        // Tier 3 only: the client already collected the guardian's co-signature over
-        // the prepared userOpHash (self-hosted guardian). Wrap it as the SDK's
-        // GuardianSigner — signMessage returns the pre-collected sig verbatim (the
-        // SDK asks for exactly the userOpHash the guardian signed; no re-derivation
-        // drift per #143). Omitted for Tier 1/2; if a Tier-3 transfer arrives without
-        // it, the SDK fail-fasts before any gas.
-        ...(dto.guardianSignature
-          ? { guardianSigner: { signMessage: async () => dto.guardianSignature as string } }
-          : {}),
-      });
+      if (dto.deviceWebAuthn) {
+        // Tier-2/3 WebAuthn passkey path (#234): the browser ran ONE
+        // navigator.credentials.get() with challenge = userOpHash. Forward the three
+        // assertion fields verbatim — the frontend already normalised them to the
+        // encodings packWebAuthnBlob expects (authenticatorData/signature as 0x-hex,
+        // clientDataJSON as raw JSON text). The SDK derives the on-chain passkey factor,
+        // fetches + aggregates the DVT BLS co-signatures, and packs the 0x09/0x0a
+        // composite — no KMS owner ceremony, no manual packing here.
+        result = await this.client.transfers.submitPreparedTransfer(userId, {
+          transferId: dto.transferId,
+          deviceWebAuthn: {
+            authenticatorData: dto.deviceWebAuthn.authenticatorData as `0x${string}`,
+            clientDataJSON: dto.deviceWebAuthn.clientDataJSON,
+            signature: dto.deviceWebAuthn.signature as `0x${string}`,
+          },
+          ...(guardianSigner ? { guardianSigner } : {}),
+        });
+      } else {
+        // Tier-1 KMS owner-ceremony path: the credential signed the WYSIWYS commitment
+        // prepareTransfer bound, so the KMS accepts it under strict.
+        result = await this.client.transfers.submitPreparedTransfer(userId, {
+          transferId: dto.transferId,
+          webAuthnAssertion: { ChallengeId: dto.challengeId, Credential: dto.credential },
+          ...(guardianSigner ? { guardianSigner } : {}),
+        });
+      }
     } catch (err: any) {
       // Scheme 2: a DVT node withheld its co-signature on a high-value op pending out-of-band
       // approval. Don't 500 — return a structured pending result so the client can drive the

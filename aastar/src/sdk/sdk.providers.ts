@@ -1,10 +1,11 @@
-import { Provider } from "@nestjs/common";
+import { Provider, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   AirAccountServerClient as YAAAServerClient,
   ServerConfig,
   sepoliaV07Config,
 } from "@aastar/sdk/kms";
+import { AAStarAirAccountV7ABI } from "@aastar/sdk/core";
 import { BackendStorageAdapter } from "./backend-storage.adapter";
 import { KmsService } from "../kms/kms.service";
 import { AuthService } from "../auth/auth.service";
@@ -52,7 +53,49 @@ export const yaaaServerClientProvider: Provider = {
       signer: kmsService.createSignerAdapter(userId => authService.resolveKmsKey(userId)),
     };
 
-    return new YAAAServerClient(serverConfig);
+    const client = new YAAAServerClient(serverConfig);
+
+    // ── Workaround: @aastar/sdk@0.29.7 GuardChecker ABI gap ─────────────────────────────
+    // The tiered path (`useAirAccountTiering: true`, which every YAA transfer uses) routes
+    // through TransferManager.resolveSignStrategy → GuardChecker.preCheck → fetchTierConfig,
+    // which reads the standalone `tier1Limit()` / `tier2Limit()` getters. But the SDK's
+    // internal server-side account ABI (EthereumProvider.getAccountContract) omits those two
+    // fragments, so fetchTierConfig throws `AbiFunctionNotFoundError: Function "tier1Limit"
+    // not found on ABI` before any tier can be resolved — blocking ALL tiered transfers
+    // (Tier-1 self-calls included), not just the new WebAuthn path.
+    //
+    // Fix it at the seam the SDK leaves public: replace the GuardChecker's fetchTierConfig
+    // with one that reads the SAME getters via the SDK's EXPORTED `AAStarAirAccountV7ABI`
+    // (which does include them — this is exactly what the frontend tier-setup + fund helper
+    // read) through the client's own EthereumProvider. No raw ABIs, no extra RPC client. The
+    // `.catch(() => 0n)` mirrors a not-yet-deployed account (tiers read as 0 → an amount-0
+    // self-call resolves to Tier-1). Remove once the SDK ships the missing getters.
+    const ethereum = (client as unknown as { ethereum?: { getProvider(): any } }).ethereum;
+    const guardChecker = (
+      client.transfers as unknown as {
+        guardChecker?: { fetchTierConfig: (a: string) => Promise<unknown> };
+      }
+    ).guardChecker;
+    if (ethereum && guardChecker) {
+      const provider = ethereum.getProvider();
+      guardChecker.fetchTierConfig = async (accountAddress: string) => {
+        const read = (functionName: "tier1Limit" | "tier2Limit") =>
+          provider
+            .readContract({ address: accountAddress, abi: AAStarAirAccountV7ABI, functionName })
+            .catch(() => 0n);
+        const [tier1Limit, tier2Limit] = await Promise.all([
+          read("tier1Limit"),
+          read("tier2Limit"),
+        ]);
+        return { tier1Limit: BigInt(tier1Limit), tier2Limit: BigInt(tier2Limit) };
+      };
+    } else {
+      new Logger("SdkProvider").warn(
+        "Could not install GuardChecker.fetchTierConfig shim (SDK internals changed); tiered transfers may fail on 0.29.7."
+      );
+    }
+
+    return client;
   },
   inject: [ConfigService, BackendStorageAdapter, KmsService, AuthService],
 };

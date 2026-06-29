@@ -9,8 +9,40 @@ import { kmsClient } from "@/lib/yaaa";
 import { setStoredAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 import { startRegistration } from "@simplewebauthn/browser";
+// Browser-safe subpath: "/core" is pure crypto (the root pulls in the server bundle).
+import { coseToP256XY } from "@aastar/sdk/core";
 
 const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+
+function b64urlToBytes(b64url: string): Uint8Array {
+  const b64 =
+    b64url.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (b64url.length % 4)) % 4);
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * Extract the device WebAuthn credential's secp256r1 public key (x, y) from the
+ * registration response. `response.publicKey` is the SPKI DER (base64url); its last 65
+ * bytes are the uncompressed SEC1 point (0x04 ‖ X ‖ Y), which the SDK's coseToP256XY
+ * validates + splits. Returns undefined if the authenticator didn't surface a public key
+ * (then the account just can't enable Tier-2/3 — Tier-1 still works).
+ */
+function extractPasskeyXY(
+  credential: Awaited<ReturnType<typeof startRegistration>>
+): { x: string; y: string } | undefined {
+  const spkiB64 = credential.response?.publicKey;
+  if (!spkiB64) return undefined;
+  try {
+    const spki = b64urlToBytes(spkiB64);
+    if (spki.length < 65) return undefined;
+    return coseToP256XY(spki.slice(spki.length - 65));
+  } catch {
+    return undefined;
+  }
+}
 
 export default function RegisterPage() {
   const [step, setStep] = useState<"email" | "otp">("email");
@@ -53,6 +85,10 @@ export default function RegisterPage() {
       UserDisplayName: displayName,
     });
     const credential = await startRegistration({ optionsJSON: beginResponse.Options as any });
+    // Capture the device passkey's on-chain factor (x, y) now, while we have the
+    // registration attestation — navigator.credentials.get() later only yields assertions,
+    // never the public key. Persisting it lets a Tier-2/3 account register it via setP256Key.
+    const passkeyXY = extractPasskeyXY(credential);
     const completeResponse = await kmsClient.completeRegistration({
       ChallengeId: beginResponse.ChallengeId,
       Credential: credential,
@@ -69,6 +105,7 @@ export default function RegisterPage() {
       kmsKeyId: KeyId,
       address: keyStatus.Address,
       credentialId: CredentialId,
+      ...(passkeyXY ? { passkeyX: passkeyXY.x, passkeyY: passkeyXY.y } : {}),
     });
     setWalletStatus(null);
   };

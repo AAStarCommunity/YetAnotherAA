@@ -1,5 +1,11 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
-import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
+import {
+  AirAccountServerClient as YAAAServerClient,
+  ALG_ECDSA,
+  ALG_P256,
+  ALG_CUMULATIVE_T2_WA,
+  ALG_CUMULATIVE_T3_WA,
+} from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { CreateAccountDto, EntryPointVersionDto } from "./dto/create-account.dto";
 import {
@@ -10,6 +16,9 @@ import {
 import { DatabaseService } from "../database/database.service";
 import { ConfigService } from "@nestjs/config";
 import { ethers } from "ethers";
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { sepolia } from "viem/chains";
 
 @Injectable()
 export class AccountService {
@@ -213,8 +222,18 @@ export class AccountService {
     };
     const version = versionMap[versionDto] as any;
 
+    // Approve the full Tier-1/2/3 algorithm set so this account can validate every tier:
+    //   0x02 ECDSA (Tier-1 / KMS owner + deploy), 0x03 P-256 (the device-passkey factor),
+    //   0x09 WebAuthn cumulative Tier-2, 0x0a WebAuthn cumulative Tier-3 (#234).
+    // buildInitConfig would otherwise default to just [0x02(, 0x03)], leaving Tier-2/3
+    // un-approved. Keep ECDSA so Tier-1 and the lazy first-UserOp deploy still work.
+    const approvedAlgIds = [ALG_ECDSA, ALG_P256, ALG_CUMULATIVE_T2_WA, ALG_CUMULATIVE_T3_WA];
+
+    const ecdsaGuardians = dto.ecdsaGuardians?.map(a => a as `0x${string}`);
+
     this.logger.log(
-      `createWithP256Guardians: userId=${userId} guardians=${dto.p256Guardians.length} ` +
+      `createWithP256Guardians: userId=${userId} p256Guardians=${dto.p256Guardians.length} ` +
+        `ecdsaGuardians=${ecdsaGuardians?.length ?? 0} approvedAlgIds=[${approvedAlgIds.join(",")}] ` +
         `version=${version} dailyLimitWei=${dailyLimitWei} salt=${dto.salt ?? "random"}`
     );
 
@@ -224,10 +243,40 @@ export class AccountService {
           x: g.x as `0x${string}`,
           y: g.y as `0x${string}`,
         })),
+        ...(ecdsaGuardians && ecdsaGuardians.length > 0 ? { ecdsaGuardians } : {}),
+        approvedAlgIds,
         dailyLimit: dailyLimitWei,
         salt: dto.salt,
         entryPointVersion: version,
       });
+      // Router-delegated algIds (0x09/0x0a cumulative WebAuthn) CANNOT be bootstrapped by the
+      // factory's lazy first-UserOp deploy — the SDK requires deployAndWireValidator (deploy +
+      // setValidator(router) in one tx) via a FUNDED deployer (the manager holds no signer).
+      // Gasless users have no ETH, so a backend deployer key funds it; without this the first
+      // tiered prepareTransfer reverts AbiDecodingZeroDataError (reads validator on an undeployed
+      // account) and Tier-2/3 can't validate.
+      const deployerKey =
+        this.configService.get<string>("deployerPrivateKey") || process.env.DEPLOYER_PRIVATE_KEY;
+      if (deployerKey) {
+        const walletClient = createWalletClient({
+          account: privateKeyToAccount(
+            (deployerKey.startsWith("0x") ? deployerKey : `0x${deployerKey}`) as `0x${string}`
+          ),
+          chain: sepolia,
+          transport: http(this.configService.get<string>("ethRpcUrl")),
+        });
+        const wired = await this.client.accounts.deployAndWireValidator(userId, {
+          walletClient: walletClient as any,
+        });
+        this.logger.log(
+          `deployAndWireValidator: deployTx=${wired.deployTx ?? "(already deployed)"} ` +
+            `validator=${JSON.stringify(wired.validator)}`
+        );
+      } else {
+        this.logger.warn(
+          "DEPLOYER_PRIVATE_KEY unset — Tier-2/3 account not deployed+wired (only Tier-1 works)."
+        );
+      }
       this.logger.log(
         `createWithP256Guardians OK: address=${account.address} deployed=${account.deployed}`
       );

@@ -119,6 +119,20 @@ export class CreateWithP256GuardiansDto {
 
   @ApiProperty({
     description:
+      "Optional ECDSA guardian addresses installed via the SAME full-config path (no acceptance " +
+      "signatures — the config-hash-in-salt binding stands in for them). Used as the Tier-3 guardian " +
+      "co-signers for the WebAuthn cumulative path (algId 0x0a). Total guardians (P-256 + ECDSA) ≤ 3.",
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsEthereumAddress({ each: true })
+  ecdsaGuardians?: string[];
+
+  @ApiProperty({
+    description:
       "Daily transfer limit in ETH. MUST be > 0 — a guardian set enables the on-chain guard.",
     example: "1.0",
   })

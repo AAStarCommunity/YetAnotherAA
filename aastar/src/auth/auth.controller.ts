@@ -99,13 +99,17 @@ export class AuthController {
       kmsKeyId: string;
       address: string;
       credentialId?: string;
+      // The device WebAuthn credential's secp256r1 public key (x, y), captured from the
+      // registration attestation. Persisted so a Tier-2/3-capable account can register it
+      // on-chain via setP256Key — it is the cumulative on-chain passkey factor (#234).
+      passkeyX?: string;
+      passkeyY?: string;
     }
   ) {
-    return this.authService.linkWallet(
-      req.user.sub,
-      body.kmsKeyId,
-      body.address,
-      body.credentialId
-    );
+    return this.authService.linkWallet(req.user.sub, body.kmsKeyId, body.address, {
+      credentialId: body.credentialId,
+      passkeyX: body.passkeyX,
+      passkeyY: body.passkeyY,
+    });
   }
 }

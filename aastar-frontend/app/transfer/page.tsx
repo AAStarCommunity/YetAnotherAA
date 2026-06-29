@@ -67,6 +67,56 @@ function bufToB64url(buf: ArrayBuffer | Uint8Array): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+function b64urlToBytes(b64url: string): Uint8Array {
+  const b64 =
+    b64url.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (b64url.length % 4)) % 4);
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let h = "0x";
+  for (const b of bytes) h += b.toString(16).padStart(2, "0");
+  return h;
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const h = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const out = new Uint8Array(h.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+type DeviceWebAuthn = { authenticatorData: string; clientDataJSON: string; signature: string };
+
+/**
+ * Tier-2/3 WebAuthn passkey path (#234): run ONE navigator.credentials.get() ceremony with
+ * `challenge = userOpHash` (32 raw bytes), then normalise the assertion's three response fields
+ * into the encodings the SDK's packWebAuthnBlob expects:
+ *   - authenticatorData, signature: 0x-hex
+ *   - clientDataJSON: the RAW JSON text (must start with {"type":"webauthn.get","challenge":"…)
+ * The browser returns base64url for all three, so we decode here. The clientDataJSON challenge
+ * the browser writes is base64url(userOpHash) — exactly what the SDK + contract re-derive.
+ */
+async function runWebAuthnPasskeyAssertion(userOpHash: string): Promise<DeviceWebAuthn> {
+  const assertion = await startAuthentication({
+    optionsJSON: {
+      challenge: bufToB64url(hexToBytes(userOpHash)),
+      rpId: window.location.hostname,
+      userVerification: "required",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  });
+  const r = assertion.response;
+  return {
+    authenticatorData: bytesToHex(b64urlToBytes(r.authenticatorData)),
+    clientDataJSON: new TextDecoder().decode(b64urlToBytes(r.clientDataJSON)),
+    signature: bytesToHex(b64urlToBytes(r.signature)),
+  };
+}
+
 async function runDvtConfirmation(userOpHash: string, nodeEndpoint: string): Promise<boolean> {
   const req = confirmationCredentialRequest(userOpHash, { rpId: window.location.hostname });
   const assertion = await startAuthentication({
@@ -374,6 +424,31 @@ export default function TransferPage() {
       // tier-aware payload, calls KMS BeginAuthentication, and returns
       // publicKeyOptions whose `challenge` is already the WYSIWYS commitment. We
       // never compute commitChallenge or talk to KMS directly here.
+      // Decide the signing path BEFORE prepare. Tier-2/3 (the transfer needs the on-chain
+      // BLS/guardian factors) use the device-passkey cumulative path (algId 0x09/0x0a, #234):
+      // the SDK skips the KMS ceremony and the passkey signs the userOpHash directly. Tier-1
+      // keeps the KMS owner-ceremony commitment path. resolveTransfer (the same judging the
+      // indicator shows) gives the tier; fall back to a fresh resolve if it hasn't settled.
+      let tier: number | null = resolution?.tier ?? null;
+      if (tier == null && account?.address) {
+        try {
+          const isEth = !selectedToken || selectedToken.address === "ETH";
+          const amt = isEth
+            ? parseEther(formData.amount)
+            : parseUnits(formData.amount, selectedToken?.decimals ?? 18);
+          const res = await resolveTransfer({
+            client: publicClient as never,
+            account: account.address as Address,
+            amount: amt,
+            token: isEth ? "ETH" : (selectedToken!.address as Address),
+          });
+          tier = res.tier;
+        } catch {
+          /* keep null → Tier-1 KMS path */
+        }
+      }
+      const useWebAuthnPasskey = (tier ?? 1) >= 2;
+
       loadingToast = toast.loading("Preparing transaction...");
       const prep = await transferAPI.prepare({
         to: formData.to,
@@ -384,15 +459,24 @@ export default function TransferPage() {
             ? formData.paymasterAddress
             : undefined,
         tokenAddress: selectedToken?.address === "ETH" ? undefined : selectedToken?.address,
+        useWebAuthnPasskey,
       });
 
-      // Phase 2: browser ceremony — the user's device passkey signs the
-      // SDK-computed commitment. Use publicKeyOptions verbatim.
+      // Phase 2: browser ceremony. On the WebAuthn passkey path (no publicKeyOptions) the
+      // passkey signs the userOpHash itself; on the KMS path it signs the SDK-computed
+      // commitment (publicKeyOptions verbatim).
+      const isWebAuthnPath = !prep.data.publicKeyOptions;
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Please verify with your passkey...");
-      const credential = await startAuthentication({
-        optionsJSON: prep.data.publicKeyOptions as any,
-      });
+      let credential: unknown;
+      let deviceWebAuthn: DeviceWebAuthn | undefined;
+      if (isWebAuthnPath) {
+        deviceWebAuthn = await runWebAuthnPasskeyAssertion(prep.data.userOpHash);
+      } else {
+        credential = await startAuthentication({
+          optionsJSON: prep.data.publicKeyOptions as any,
+        });
+      }
 
       // Phase 2.5: Tier-3 guardian co-sign. When prepare resolves to Tier 3, a
       // guardian must co-sign the userOpHash on top of the passkey + DVT/BLS. We
@@ -406,17 +490,18 @@ export default function TransferPage() {
         guardianSignature = await collectGuardianSignature(prep.data.userOpHash);
       }
 
-      // Phase 3: submit. The committed digest matches what prepare bound, so the
-      // KMS accepts the assertion under strict mode. guardianSignature is sent only
-      // for Tier 3 (undefined otherwise).
-      toast.dismiss(loadingToast);
-      loadingToast = toast.loading("Processing transfer...");
-      let response = await transferAPI.submit({
+      // Phase 3: submit. One payload shape covers both paths (the unused fields are
+      // omitted) so a Scheme-2 resubmit can reuse it verbatim.
+      const submitPayload = {
         transferId: prep.data.transferId,
         challengeId: prep.data.challengeId,
         credential,
+        deviceWebAuthn,
         guardianSignature,
-      });
+      };
+      toast.dismiss(loadingToast);
+      loadingToast = toast.loading("Processing transfer...");
+      let response = await transferAPI.submit(submitPayload);
 
       // Scheme 2: a high-value transfer can be withheld by a DVT node pending out-of-band
       // approval. Approve by signing the userOpHash with the device passkey, POST it to the
@@ -433,12 +518,7 @@ export default function TransferPage() {
         if (!approved) throw new Error("Out-of-band confirmation was rejected or expired.");
         toast.dismiss(loadingToast);
         loadingToast = toast.loading("Approved — completing transfer…");
-        response = await transferAPI.submit({
-          transferId: prep.data.transferId,
-          challengeId: prep.data.challengeId,
-          credential,
-          guardianSignature,
-        });
+        response = await transferAPI.submit(submitPayload);
       }
       setTransferResult(response.data);
 

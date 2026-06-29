@@ -216,7 +216,12 @@ export class AuthService {
    * Link a KMS wallet to a user account. Called after KMS key creation
    * and address derivation are complete.
    */
-  async linkWallet(userId: string, kmsKeyId: string, walletAddress: string, credentialId?: string) {
+  async linkWallet(
+    userId: string,
+    kmsKeyId: string,
+    walletAddress: string,
+    opts?: { credentialId?: string; passkeyX?: string; passkeyY?: string }
+  ) {
     const user = await this.databaseService.findUserById(userId);
     if (!user) {
       throw new UnauthorizedException("User not found");
@@ -225,7 +230,12 @@ export class AuthService {
     await this.databaseService.updateUser(userId, {
       kmsKeyId,
       walletAddress,
-      kmsCredentialId: credentialId,
+      kmsCredentialId: opts?.credentialId,
+      // Device WebAuthn passkey public key (x, y) — the on-chain cumulative passkey factor
+      // a Tier-2/3 account registers via setP256Key. Only persisted when supplied.
+      ...(opts?.passkeyX && opts?.passkeyY
+        ? { passkeyX: opts.passkeyX, passkeyY: opts.passkeyY }
+        : {}),
     });
 
     return {

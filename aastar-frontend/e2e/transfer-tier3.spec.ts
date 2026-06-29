@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
-import { parseEther, formatEther, type Address } from "viem";
+import { formatEther, type Address } from "viem";
 import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { installVirtualAuthenticator } from "./helpers/webauthn";
 import { installTestWallet } from "./helpers/wallet";
@@ -75,31 +75,30 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await registerOnly(page);
   const auth = await authHeaders(page);
 
-  // 2) Create-with-guardians: prepare → guardians accept (eth-prefixed) → create.
-  const prep = await page.request.post("/api/v1/account/guardian-setup/prepare", {
-    ...auth,
-    data: { dailyLimit: parseEther("1").toString() },
-  });
-  expect(prep.ok(), `guardian-setup/prepare: ${prep.status()}`).toBeTruthy();
-  const gp = await prep.json();
-  const acceptanceHash = gp.acceptanceHash as `0x${string}`;
-  const g1Sig = await g1.signMessage({ message: { raw: acceptanceHash } });
-  const g2Sig = await g2.signMessage({ message: { raw: acceptanceHash } });
-  const created = await page.request.post("/api/v1/account/create-with-guardians", {
+  // 2) Create a Tier-2/3-capable account via the full-config path (the only way to approve
+  // the WebAuthn cumulative algIds + install guardians at deploy time). The device passkey
+  // captured at registration (GET /auth/profile) is the on-chain cumulative factor and a
+  // P-256 guardian; g1 is the ECDSA Tier-3 co-signer. The backend writes approvedAlgIds
+  // [0x02,0x03,0x09,0x0a]; setValidator + setP256Key are wired by the tier-setup step below.
+  // No QR acceptance ceremony — the config-hash-in-salt binding stands in for it.
+  const profileResp = await page.request.get("/api/v1/auth/profile", auth);
+  const profile = (await profileResp.json()) as { passkeyX?: string; passkeyY?: string };
+  expect(
+    Boolean(profile.passkeyX && profile.passkeyY),
+    `registration must capture the device passkey (x,y); got ${JSON.stringify(profile)}`
+  ).toBeTruthy();
+  const created = await page.request.post("/api/v1/account/create-with-p256-guardians", {
     ...auth,
     data: {
-      guardian1: g1.address,
-      guardian1Sig: g1Sig,
-      guardian2: g2.address,
-      guardian2Sig: g2Sig,
-      dailyLimit: parseEther("1").toString(),
-      salt: gp.salt,
+      p256Guardians: [{ x: profile.passkeyX, y: profile.passkeyY }],
+      ecdsaGuardians: [g1.address],
+      dailyLimit: "1",
       entryPointVersion: "0.7",
     },
   });
   expect(
     created.ok(),
-    `create-with-guardians: ${created.status()} ${await created.text()}`
+    `create-with-p256-guardians: ${created.status()} ${await created.text()}`
   ).toBeTruthy();
   const acctResp = await page.request.get("/api/v1/account", auth);
   const acctJson = (await acctResp.json()) as { address?: string; account?: { address?: string } };

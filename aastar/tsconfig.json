@@ -22,7 +22,12 @@
       "@aastar/sdk/email": [
         "./node_modules/@aastar/sdk/dist/email.d.ts",
         "../node_modules/@aastar/sdk/dist/email.d.ts"
-      ]
+      ],
+      "ox": [
+        "./node_modules/ox/_types/index.d.ts",
+        "../node_modules/ox/_types/index.d.ts"
+      ],
+      "ox/*": ["./node_modules/ox/_types/*", "../node_modules/ox/_types/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

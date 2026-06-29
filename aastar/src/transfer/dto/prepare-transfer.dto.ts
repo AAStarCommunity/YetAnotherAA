@@ -49,4 +49,18 @@ export class PrepareTransferDto {
   @IsOptional()
   @IsString()
   paymasterData?: string;
+
+  @ApiProperty({
+    description:
+      "Use the on-chain WebAuthn-passkey cumulative path (algId 0x09/0x0a) for Tier-2/3. When true, " +
+      "the SDK runs NO KMS owner ceremony — prepare returns no challengeId/publicKeyOptions and the " +
+      "frontend runs ONE navigator.credentials.get() with challenge = the returned userOpHash, then " +
+      "submits the assertion as deviceWebAuthn. Tier-2/3 ONLY (the SDK rejects it for Tier-1). The " +
+      "frontend sets this from its resolveTransfer tier.",
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  useWebAuthnPasskey?: boolean;
 }

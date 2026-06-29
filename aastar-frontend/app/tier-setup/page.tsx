@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowPathIcon, CheckCircleIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
-import { formatEther, type Address, type PublicClient } from "viem";
+import { encodeFunctionData, formatEther, type Address, type Hex, type PublicClient } from "viem";
 import { CHAIN_SEPOLIA, AAStarAirAccountV7ABI, getCanonicalAddresses } from "@aastar/sdk/core";
 import { TIER_PROFILES, profileSetupCalls } from "@aastar/sdk/airaccount";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -10,8 +10,82 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import Layout from "@/components/Layout";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { transferAPI } from "@/lib/api";
+import { authAPI, transferAPI } from "@/lib/api";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
+
+const ZERO_BYTES32 = `0x${"00".repeat(32)}` as Hex;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/**
+ * Wire the on-chain factors a Tier-2/3 account needs but the factory can't set at deploy
+ * time (both are owner/self txs that require deployed code):
+ *   - setValidator(router): the WebAuthn cumulative algIds (0x09/0x0a) are router-delegated,
+ *     so the account can't validate them until the validator router is wired (set-once).
+ *   - setP256Key(x, y): registers the device passkey as the on-chain cumulative factor — the
+ *     key navigator.credentials.get() signs for every Tier-2/3 transfer.
+ * Both are returned as self-calls (account → itself), submitted via the SAME gasless two-phase
+ * device-passkey UserOp as the tier-limit calls. Each is skipped when already set on-chain.
+ */
+async function buildTier23WiringCalls(
+  publicClient: PublicClient,
+  account: Address
+): Promise<{ to: Address; data: Hex }[]> {
+  const calls: { to: Address; data: Hex }[] = [];
+  const canonical = getCanonicalAddresses(CHAIN_SEPOLIA);
+  const router = canonical?.aaStarValidator as Address | undefined;
+
+  // setValidator(router) — skip if already set, or if the account isn't deployed yet (read
+  // reverts → treat as unset; the first self-call carries initCode and deploys, then this runs).
+  let validator: string = ZERO_ADDRESS;
+  try {
+    validator = (await publicClient.readContract({
+      address: account,
+      abi: AAStarAirAccountV7ABI,
+      functionName: "validator",
+    })) as string;
+  } catch {
+    /* not deployed → unset */
+  }
+  if (router && validator.toLowerCase() === ZERO_ADDRESS) {
+    calls.push({
+      to: account,
+      data: encodeFunctionData({
+        abi: AAStarAirAccountV7ABI,
+        functionName: "setValidator",
+        args: [router],
+      }) as Hex,
+    });
+  }
+
+  // setP256Key(x, y) — the device passkey captured at registration (GET /auth/profile).
+  let p256X: string = ZERO_BYTES32;
+  try {
+    p256X = (await publicClient.readContract({
+      address: account,
+      abi: AAStarAirAccountV7ABI,
+      functionName: "p256KeyX",
+    })) as string;
+  } catch {
+    /* not deployed → unset */
+  }
+  if (p256X.toLowerCase() === ZERO_BYTES32) {
+    const profile = await authAPI.getProfile().catch(() => null);
+    const x = profile?.data?.passkeyX as Hex | undefined;
+    const y = profile?.data?.passkeyY as Hex | undefined;
+    if (x && y) {
+      calls.push({
+        to: account,
+        data: encodeFunctionData({
+          abi: AAStarAirAccountV7ABI,
+          functionName: "setP256Key",
+          args: [x, y],
+        }) as Hex,
+      });
+    }
+  }
+
+  return calls;
+}
 
 type ProfileKey = keyof typeof TIER_PROFILES;
 
@@ -55,10 +129,17 @@ export default function TierSetupPage() {
     setBusy(true);
     const loading = toast.loading(t("tierSetup.applying"));
     try {
-      const calls = profileSetupCalls(account, TIER_PROFILES[selected]) as {
-        to: Address;
-        data: `0x${string}`;
-      }[];
+      // Tier-2/3 wiring (setValidator + setP256Key) MUST land before the tier-limit calls:
+      // the first self-call carries initCode and deploys the account, and the WebAuthn algIds
+      // can't validate until the router is wired. These are no-ops once already set on-chain.
+      const wiringCalls = await buildTier23WiringCalls(publicClient, account);
+      const calls = [
+        ...wiringCalls,
+        ...(profileSetupCalls(account, TIER_PROFILES[selected]) as {
+          to: Address;
+          data: `0x${string}`;
+        }[]),
+      ];
       const canonical = getCanonicalAddresses(CHAIN_SEPOLIA);
       for (let i = 0; i < calls.length; i++) {
         toast.loading(t("tierSetup.step", { i: i + 1, n: calls.length }), { id: loading });
