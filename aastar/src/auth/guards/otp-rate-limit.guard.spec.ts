@@ -1,10 +1,13 @@
 import { ExecutionContext } from "@nestjs/common";
 import { OtpRateLimit, __resetOtpRateLimit } from "./otp-rate-limit.guard";
 
-function ctx(email?: string): ExecutionContext {
+function ctx(email?: string, res?: { header: jest.Mock }): ExecutionContext {
   const body = email === undefined ? {} : { email };
   return {
-    switchToHttp: () => ({ getRequest: () => ({ body }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({ body }),
+      getResponse: () => res ?? { header: () => undefined },
+    }),
   } as unknown as ExecutionContext;
 }
 
@@ -40,11 +43,13 @@ describe("OtpRateLimit guard", () => {
     expect(() => req.canActivate(ctx("a@x.io"))).toThrow();
   });
 
-  it("never blocks when the body has no email (DTO validation handles that)", () => {
+  it("never blocks (or tracks) bodies without a plausible email", () => {
     const guard = new (OtpRateLimit("request", 1, 60_000))();
     expect(guard.canActivate(ctx())).toBe(true);
-    expect(guard.canActivate(ctx())).toBe(true);
     expect(guard.canActivate(ctx(""))).toBe(true);
+    // Malformed email is not tracked → can be hit repeatedly (the DTO @IsEmail 400s it later).
+    expect(guard.canActivate(ctx("notanemail"))).toBe(true);
+    expect(guard.canActivate(ctx("notanemail"))).toBe(true);
   });
 
   it("frees the budget once the window slides past old hits", () => {
@@ -59,5 +64,13 @@ describe("OtpRateLimit guard", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it("sets a Retry-After header on the 429", () => {
+    const header = jest.fn();
+    const guard = new (OtpRateLimit("request", 1, 60_000))();
+    expect(guard.canActivate(ctx("a@x.io", { header }))).toBe(true);
+    expect(() => guard.canActivate(ctx("a@x.io", { header }))).toThrow();
+    expect(header).toHaveBeenCalledWith("Retry-After", expect.stringMatching(/^\d+$/));
   });
 });
