@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsObject, IsOptional } from "class-validator";
+import { IsString, IsObject, IsOptional, Matches } from "class-validator";
 
 /**
  * Phase-3 of the strict device-passkey transfer. Carries the opaque prepared
@@ -33,5 +33,8 @@ export class SubmitTransferDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(/^0x[0-9a-fA-F]+$/, {
+    message: "guardianSignature must be a 0x-prefixed hex string",
+  })
   guardianSignature?: string;
 }

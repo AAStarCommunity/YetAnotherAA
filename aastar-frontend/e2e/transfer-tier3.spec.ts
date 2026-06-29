@@ -129,6 +129,9 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await expect.poll(() => getEthBalance(account), { timeout: 60_000 }).toBeGreaterThan(0n);
 
   // 4) Arm tiers: tiny tier2 (0.002 ETH) so a 0.003 ETH transfer is Tier 3; default weights.
+  // GATE: setWeightConfig with DEFAULT_WEIGHT_CONFIG currently reverts InsecureWeightConfig on
+  // v0.20.3 (passkeyWeight 3 >= tier1Threshold 3) — see aastar-sdk#227. This step (and thus the
+  // whole run) only passes once the SDK profile weights / contract tier1 rule are reconciled.
   const tier1 = parseEther("0.001");
   const tier2 = parseEther("0.002");
   const setTiers = encodeSetTierLimits(account, tier1, tier2) as { to: string; data: string };
@@ -144,8 +147,10 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await page.goto("/transfer");
   await page.locator('input[name="to"]').fill(g2.address); // recipient = g2 (recoverable)
   await page.locator('input[name="amount"]').fill("0.003");
-  // Wait for the judging indicator to confirm Tier 3.
-  await expect(page.getByText(/Tier 3 signing/i)).toBeVisible({ timeout: 20_000 });
+  // Wait for the judging indicator to confirm Tier 3. Match the guardian-co-signature line of
+  // the resolved-tier indicator (unambiguous to Tier 3) rather than the "Tier N signing" header,
+  // whose inline {tier} span splits the text node.
+  await expect(page.getByText(/guardian co-signature/i)).toBeVisible({ timeout: 20_000 });
   const before = await getEthBalance(g2.address);
   await page
     .getByRole("button", { name: /send|transfer/i })
