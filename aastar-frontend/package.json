@@ -18,7 +18,7 @@
     "test:e2e:ui": "playwright test"
   },
   "dependencies": {
-    "@aastar/sdk": "^0.29.4",
+    "@aastar/sdk": "^0.29.5",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@simplewebauthn/browser": "^13.3.0",
