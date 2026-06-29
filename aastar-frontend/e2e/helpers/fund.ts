@@ -152,8 +152,11 @@ export async function onboardAPNTsGas(account: Address, amount: string): Promise
       (await PaymasterOperator.updatePrice(wc, pm)) as `0x${string}`,
       "updatePrice"
     );
-  } catch {
-    /* price already fresh enough */
+  } catch (e) {
+    // updatePrice reverts when the cached price is still within the staleness window — expected,
+    // skip. But log anything else (RPC down, wrong PM, not the price updater) so a real failure
+    // isn't silently swallowed — the same lesson as the SDK's #229 silent-catch.
+    console.warn(`onboardAPNTsGas: updatePrice skipped (${(e as Error)?.message ?? String(e)})`);
   }
   await confirmTx(
     pc,
