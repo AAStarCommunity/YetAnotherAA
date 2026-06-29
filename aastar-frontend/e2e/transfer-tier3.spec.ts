@@ -3,7 +3,7 @@ import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { parseEther, formatEther, type Address } from "viem";
 import { installVirtualAuthenticator } from "./helpers/webauthn";
 import { installTestWallet } from "./helpers/wallet";
-import { fundWithEth, getEthBalance, withRetry } from "./helpers/fund";
+import { fundWithEth, getEthBalance, getTier2Limit, withRetry } from "./helpers/fund";
 
 // XFER-T3 — #3a B3: a real Tier-3 transfer (passkey + DVT/BLS + guardian co-sign) end to
 // end. Builds a guardian-equipped, tier-configured account from scratch (the only way to
@@ -117,6 +117,9 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await expect(page.getByText(/Tier config applied|分层配置已应用/i)).toBeVisible({
     timeout: 120_000,
   });
+  // The apply toast fires on submit, before the self-call UserOps mine. Wait until the armed
+  // tier-2 is actually on-chain so the transfer's resolveTransfer reads it (not pre-arm zero).
+  await expect.poll(() => getTier2Limit(account), { timeout: 90_000 }).toBeGreaterThan(0n);
 
   // 5) Tier-3 transfer: 0.051 ETH > tier2 (0.05) → needs passkey + BLS + guardian. The UI flow
   // collects the guardian co-sign from window.ethereum (g1) over the userOpHash.

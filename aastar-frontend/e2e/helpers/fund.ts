@@ -104,6 +104,21 @@ export async function getEthBalance(addr: Address): Promise<bigint> {
   return client().getBalance({ address: addr });
 }
 
+// On-chain tier-2 limit — used to poll until a profile-arming UserOp has actually mined
+// (the apply toast fires on submit, before the self-call lands), so a follow-on transfer's
+// resolveTransfer reads the armed tiers rather than the still-zero pre-arm state.
+export async function getTier2Limit(account: Address): Promise<bigint> {
+  try {
+    return (await client().readContract({
+      address: account,
+      abi: AAStarAirAccountV7ABI,
+      functionName: "tier2Limit",
+    })) as bigint;
+  } catch {
+    return 0n; // not deployed / not armed yet
+  }
+}
+
 const ERC20_TRANSFER_ABI = [
   {
     type: "function",
