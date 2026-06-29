@@ -936,5 +936,29 @@
     "remove": "Remove",
     "privacyNote": "Your contact is stored by the KMS, not in the browser. The bot can only message you after you /start it.",
     "removeConfirm": "Remove the {{channel}} approval contact? High-value transfers will no longer reach you out-of-band."
+  },
+  "tierRaise": {
+    "title": "Raise tier limits",
+    "subtitle": "Raising your limits needs guardian co-signatures — a higher bar than a normal transfer.",
+    "noAccount": "Create your smart account first.",
+    "badAmount": "Enter valid ETH amounts.",
+    "t1GtT2": "Tier-1 limit can't exceed tier-2.",
+    "digestReady": "Change digest ready — collect guardian signatures",
+    "failed": "Raise failed",
+    "needWallet": "A guardian wallet (e.g. MetaMask) is required.",
+    "switchAccount": "Switch your wallet to a DIFFERENT guardian account.",
+    "currentLimits": "Current: tier1 {{t1}} / tier2 {{t2}} ETH",
+    "newTier1": "New tier-1 (ETH)",
+    "newTier2": "New tier-2 (ETH)",
+    "start": "Start raise (compute digest)",
+    "collectTitle": "Collect {{quorum}} guardian signatures",
+    "collectHint": "Sign the change digest with each guardian wallet. Switch the active account between signatures.",
+    "guardianN": "Guardian {{n}}",
+    "collectBtn": "Sign with guardian {{i}}/{{n}}",
+    "submit": "Submit raise (passkey)",
+    "submitting": "Submitting…",
+    "done": "Tier limits raised",
+    "cancel": "Cancel",
+    "note": "Guardians sign the change digest off-chain; you submit it gaslessly with your passkey. Quorum = the contract's RECOVERY_THRESHOLD."
   }
 }

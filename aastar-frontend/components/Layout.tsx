@@ -26,6 +26,7 @@ import {
   ServerStackIcon,
   ClipboardDocumentListIcon,
   BellAlertIcon,
+  ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
 
 interface LayoutProps {
@@ -176,6 +177,11 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                             { label: "Recovery", path: "/recovery", Icon: ShieldCheckIcon },
                             { label: "Guard", path: "/guard", Icon: ShieldExclamationIcon },
                             { label: "Tier Security", path: "/tier-setup", Icon: ShieldCheckIcon },
+                            {
+                              label: "Raise Limits",
+                              path: "/tier-raise",
+                              Icon: ArrowTrendingUpIcon,
+                            },
                             { label: "Approval Contact", path: "/binding", Icon: BellAlertIcon },
                             { label: "Tasks", path: "/tasks", Icon: ClipboardDocumentListIcon },
                           ],

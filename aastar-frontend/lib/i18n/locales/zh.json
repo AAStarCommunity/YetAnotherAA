@@ -936,5 +936,29 @@
     "remove": "移除",
     "privacyNote": "联系方式存在 KMS,不在浏览器。你 /start 之后 bot 才能给你发消息。",
     "removeConfirm": "移除 {{channel}} 审批联系方式?大额转账将无法再带外通知到你。"
+  },
+  "tierRaise": {
+    "title": "提高分层限额",
+    "subtitle": "提额需要 guardian 协签——门槛高于普通转账。",
+    "noAccount": "请先创建智能账户。",
+    "badAmount": "请输入有效的 ETH 金额。",
+    "t1GtT2": "档1 限额不能超过档2。",
+    "digestReady": "变更 digest 已生成——收集 guardian 签名",
+    "failed": "提额失败",
+    "needWallet": "需要 guardian 钱包(如 MetaMask)。",
+    "switchAccount": "请把钱包切换到另一个 guardian 账户。",
+    "currentLimits": "当前:档1 {{t1}} / 档2 {{t2}} ETH",
+    "newTier1": "新档1(ETH)",
+    "newTier2": "新档2(ETH)",
+    "start": "开始提额(算 digest)",
+    "collectTitle": "收集 {{quorum}} 个 guardian 签名",
+    "collectHint": "用每个 guardian 钱包对变更 digest 签名。两次签名之间切换活动账户。",
+    "guardianN": "Guardian {{n}}",
+    "collectBtn": "用 guardian {{i}}/{{n}} 签名",
+    "submit": "提交提额(passkey)",
+    "submitting": "提交中…",
+    "done": "限额已提高",
+    "cancel": "取消",
+    "note": "guardian 链下签变更 digest,你用 passkey 免 gas 提交。法定数 = 合约 RECOVERY_THRESHOLD。"
   }
 }
