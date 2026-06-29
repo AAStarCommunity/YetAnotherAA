@@ -15,7 +15,9 @@ import {
   GuardClient,
   applyConfig,
   getCanonicalAddresses,
+  xPNTsTokenActions,
 } from "@aastar/sdk/core";
+import { PaymasterClient, PaymasterOperator } from "@aastar/sdk/paymaster";
 
 const ENTRYPOINT_ABI = [
   {
@@ -117,6 +119,57 @@ export async function getTier2Limit(account: Address): Promise<bigint> {
   } catch {
     return 0n; // not deployed / not armed yet
   }
+}
+
+/**
+ * Onboard an account for gasless ops via the SDK's V4 PaymasterClient: refresh the cached price,
+ * then mint aPNTs (env admin = aPNTs communityOwner) and depositFor() into the account's INTERNAL
+ * PaymasterV4 balance (balances[account][aPNTs]) — what validatePaymasterUserOp actually charges.
+ * Without it a fresh account's gasless UserOp reverts AA33 Paymaster__InsufficientBalance.
+ */
+export async function onboardAPNTsGas(account: Address, amount: string): Promise<void> {
+  const key = env("TEST_EOA_PRIVATE_KEY");
+  if (!key) throw new Error("TEST_EOA_PRIVATE_KEY unset");
+  const acct = privateKeyToAccount(key as `0x${string}`);
+  const transport = http(env("ETH_RPC_URL"));
+  const pc = createPublicClient({ chain: sepolia, transport });
+  const wc = createWalletClient({ account: acct, chain: sepolia, transport });
+  applyConfig({ chainId: 11155111 });
+  const C = getCanonicalAddresses(11155111)!;
+  const amt = parseEther(amount);
+  const pm = C.paymasterV4 as Address;
+  const apnts = C.aPNTs as Address;
+  // PaymasterV4 is DEPOSIT-ONLY: validatePaymasterUserOp charges balances[sender][token] (the
+  // account's INTERNAL paymaster balance), NOT the account's own aPNTs token balance, and prices
+  // gas via a cached oracle. This is the V4 flow (distinct from the SuperPaymaster/permit flow),
+  // so use the SDK's V4 PaymasterClient — never hand-rolled contract calls. Onboarding = refresh
+  // the cached price (the updater cron is off in test → a stale price reverts the cost calc, AA33),
+  // mint aPNTs to the admin (the aPNTs communityOwner), approve, then depositFor into the
+  // account's internal balance.
+  try {
+    await confirmTx(
+      pc,
+      (await PaymasterOperator.updatePrice(wc, pm)) as `0x${string}`,
+      "updatePrice"
+    );
+  } catch {
+    /* price already fresh enough */
+  }
+  await confirmTx(
+    pc,
+    await xPNTsTokenActions(apnts)(wc).mint({ token: apnts, to: acct.address, amount: amt }),
+    "aPNTs mint"
+  );
+  await confirmTx(
+    pc,
+    (await PaymasterClient.approveGasToken(wc, apnts, pm, amt)) as `0x${string}`,
+    "approveGasToken"
+  );
+  await confirmTx(
+    pc,
+    (await PaymasterClient.depositFor(wc, pm, account, apnts, amt)) as `0x${string}`,
+    "depositFor"
+  );
 }
 
 const ERC20_TRANSFER_ABI = [

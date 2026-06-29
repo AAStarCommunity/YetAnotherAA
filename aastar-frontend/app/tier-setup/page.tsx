@@ -85,6 +85,20 @@ export default function TierSetupPage() {
         if (r && r.success === false) {
           throw new Error(r.message || t("tierSetup.failed"));
         }
+        // The first profile call also DEPLOYS the account (initCode). Wait for it to land before
+        // submitting the next call — otherwise that UserOp carries a second deploy for the same
+        // sender and the bundler rejects it (AA10 "deployment already being processed").
+        if (i < calls.length - 1) {
+          const deadline = Date.now() + 120_000;
+          for (;;) {
+            const st = await transferAPI.getStatus(prep.data.transferId);
+            const status = (st.data as { status?: string } | undefined)?.status;
+            if (status === "completed") break;
+            if (status === "failed") throw new Error(t("tierSetup.failed"));
+            if (Date.now() > deadline) throw new Error(t("tierSetup.failed"));
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+        }
       }
       toast.success(t("tierSetup.done"));
       await loadTier();

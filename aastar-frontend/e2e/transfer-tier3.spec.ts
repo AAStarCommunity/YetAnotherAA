@@ -1,9 +1,18 @@
 import { test, expect, type Page } from "@playwright/test";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { parseEther, formatEther, type Address } from "viem";
+import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { installVirtualAuthenticator } from "./helpers/webauthn";
 import { installTestWallet } from "./helpers/wallet";
-import { fundWithEth, getEthBalance, getTier2Limit, withRetry } from "./helpers/fund";
+import {
+  fundWithEth,
+  getEthBalance,
+  getTier2Limit,
+  onboardAPNTsGas,
+  withRetry,
+} from "./helpers/fund";
+
+const PAYMASTER_V4 = getCanonicalAddresses(11155111)!.paymasterV4 as `0x${string}`;
 
 // XFER-T3 — #3a B3: a real Tier-3 transfer (passkey + DVT/BLS + guardian co-sign) end to
 // end. Builds a guardian-equipped, tier-configured account from scratch (the only way to
@@ -102,6 +111,12 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await withRetry(() => fundWithEth(account, "0.08"));
   await expect.poll(() => getEthBalance(account), { timeout: 60_000 }).toBeGreaterThan(0n);
 
+  // 3b) Onboard for gasless: deposit aPNTs into the account's INTERNAL PaymasterV4 balance
+  // (balances[account][aPNTs]) — what validatePaymasterUserOp actually charges — and refresh the
+  // cached price. Without it the gasless config/transfer UserOps revert AA33
+  // Paymaster__InsufficientBalance. 100k aPNTs covers the deploy + transfer ops with headroom.
+  await withRetry(() => onboardAPNTsGas(account, "100000"));
+
   // 4) Arm tiers via the real /tier-setup persona page (#1 verification): the "conservative"
   // profile (tier1 0.005 / tier2 0.05 ETH). This drives the bundled passkey ceremony through the
   // CDP virtual authenticator for both self-call UserOps (setTierLimits + setWeightConfig) — which
@@ -109,7 +124,10 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   // Load the dashboard first so DashboardContext fetches the freshly-created account before
   // /tier-setup reads it from context (a direct deep-link can render before the account loads).
   await page.goto("/dashboard");
-  await page.waitForLoadState("networkidle");
+  // Bounded — the dashboard polls balances/tasks continuously (more so once the account holds
+  // aPNTs), so "networkidle" never settles and would hang to the 300s test cap. A short wait is
+  // enough for DashboardContext to fetch the account before /tier-setup reads it.
+  await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {});
   await page.goto("/tier-setup");
   await expect(page.getByText(/Conservative|保守型/i)).toBeVisible({ timeout: 30_000 });
   await page.getByText(/Conservative|保守型/i).click();
@@ -126,6 +144,11 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await page.goto("/transfer");
   await page.locator('input[name="to"]').fill(g2.address); // recipient = g2 (recoverable)
   await page.locator('input[name="amount"]').fill("0.051");
+  // Pay gas via PaymasterV4 (gasless) from the account's deposited aPNTs. The account holds no
+  // spare ETH for an ETH-paid prefund (and zero-ETH transfers are the whole point), so an ETH-paid
+  // path reverts AA21. Check the box, then fill the paymaster address the field reveals.
+  await page.locator("#usePaymaster").check();
+  await page.locator('input[name="paymasterAddress"]').fill(PAYMASTER_V4);
   // Wait for the judging indicator to confirm Tier 3 (the guardian-co-signature line is
   // unambiguous to Tier 3; the "Tier N signing" header's inline {tier} span splits the node).
   await expect(page.getByText(/guardian co-signature/i)).toBeVisible({ timeout: 20_000 });
