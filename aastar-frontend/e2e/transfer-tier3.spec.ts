@@ -1,11 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { parseEther, formatEther, type Address } from "viem";
-import {
-  encodeSetTierLimits,
-  encodeSetWeightConfig,
-  DEFAULT_WEIGHT_CONFIG,
-} from "@aastar/sdk/airaccount";
 import { installVirtualAuthenticator } from "./helpers/webauthn";
 import { installTestWallet } from "./helpers/wallet";
 import { fundWithEth, getEthBalance, withRetry } from "./helpers/fund";
@@ -55,27 +50,6 @@ async function registerOnly(page: Page): Promise<{ token: string }> {
 
 // Submit one account self-call (setTierLimits / setWeightConfig) via the two-phase
 // device-passkey UserOp, driven by the CDP virtual authenticator.
-async function submitAccountCall(page: Page, to: string, data: string) {
-  const auth = await authHeaders(page);
-  const prep = await page.request.post("/api/v1/transfer/prepare", {
-    ...auth,
-    data: { to, amount: "0", data, usePaymaster: false },
-  });
-  expect(prep.ok(), `prepare: ${prep.status()} ${await prep.text()}`).toBeTruthy();
-  const p = await prep.json();
-  // The virtual authenticator auto-asserts; drive it through the page context by
-  // calling startAuthentication with the returned options.
-  const credential = await page.evaluate(async opts => {
-    const { startAuthentication } = await import("@simplewebauthn/browser");
-    return startAuthentication({ optionsJSON: opts as never });
-  }, p.publicKeyOptions);
-  const sub = await page.request.post("/api/v1/transfer/submit", {
-    ...auth,
-    data: { transferId: p.transferId, challengeId: p.challengeId, credential },
-  });
-  expect(sub.ok(), `submit: ${sub.status()} ${await sub.text()}`).toBeTruthy();
-  return sub.json();
-}
 
 test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)", async ({
   page,
@@ -128,28 +102,29 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   await withRetry(() => fundWithEth(account, "0.08"));
   await expect.poll(() => getEthBalance(account), { timeout: 60_000 }).toBeGreaterThan(0n);
 
-  // 4) Arm tiers: tiny tier2 (0.002 ETH) so a 0.003 ETH transfer is Tier 3; default weights.
-  // GATE: setWeightConfig with DEFAULT_WEIGHT_CONFIG currently reverts InsecureWeightConfig on
-  // v0.20.3 (passkeyWeight 3 >= tier1Threshold 3) — see aastar-sdk#227. This step (and thus the
-  // whole run) only passes once the SDK profile weights / contract tier1 rule are reconciled.
-  const tier1 = parseEther("0.001");
-  const tier2 = parseEther("0.002");
-  const setTiers = encodeSetTierLimits(account, tier1, tier2) as { to: string; data: string };
-  await submitAccountCall(page, setTiers.to, setTiers.data);
-  const setW = encodeSetWeightConfig(account, DEFAULT_WEIGHT_CONFIG) as {
-    to: string;
-    data: string;
-  };
-  await submitAccountCall(page, setW.to, setW.data);
+  // 4) Arm tiers via the real /tier-setup persona page (#1 verification): the "conservative"
+  // profile (tier1 0.005 / tier2 0.05 ETH). This drives the bundled passkey ceremony through the
+  // CDP virtual authenticator for both self-call UserOps (setTierLimits + setWeightConfig) — which
+  // only pass now that profiles ship passkeyWeight=2 (0.29.2, #227). Confirms #1 end to end.
+  // Load the dashboard first so DashboardContext fetches the freshly-created account before
+  // /tier-setup reads it from context (a direct deep-link can render before the account loads).
+  await page.goto("/dashboard");
+  await page.waitForLoadState("networkidle");
+  await page.goto("/tier-setup");
+  await expect(page.getByText(/Conservative|保守型/i)).toBeVisible({ timeout: 30_000 });
+  await page.getByText(/Conservative|保守型/i).click();
+  await page.getByRole("button", { name: /Apply.*account|应用并加固|Re-apply|重新应用/i }).click();
+  await expect(page.getByText(/Tier config applied|分层配置已应用/i)).toBeVisible({
+    timeout: 120_000,
+  });
 
-  // 5) Tier-3 transfer: 0.003 ETH > tier2 → needs passkey + BLS + guardian. The UI flow
+  // 5) Tier-3 transfer: 0.051 ETH > tier2 (0.05) → needs passkey + BLS + guardian. The UI flow
   // collects the guardian co-sign from window.ethereum (g1) over the userOpHash.
   await page.goto("/transfer");
   await page.locator('input[name="to"]').fill(g2.address); // recipient = g2 (recoverable)
-  await page.locator('input[name="amount"]').fill("0.003");
-  // Wait for the judging indicator to confirm Tier 3. Match the guardian-co-signature line of
-  // the resolved-tier indicator (unambiguous to Tier 3) rather than the "Tier N signing" header,
-  // whose inline {tier} span splits the text node.
+  await page.locator('input[name="amount"]').fill("0.051");
+  // Wait for the judging indicator to confirm Tier 3 (the guardian-co-signature line is
+  // unambiguous to Tier 3; the "Tier N signing" header's inline {tier} span splits the node).
   await expect(page.getByText(/guardian co-signature/i)).toBeVisible({ timeout: 20_000 });
   const before = await getEthBalance(g2.address);
   await page
@@ -160,5 +135,5 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   // The passkey ceremony + guardian co-sign auto-complete; assert the transfer lands.
   await expect(page.getByText(/submitted|success/i)).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => getEthBalance(g2.address), { timeout: 120_000 }).toBeGreaterThan(before);
-  console.log(`Tier-3 transfer OK: g2 ${formatEther(before)} → received 0.003 ETH`);
+  console.log(`Tier-3 transfer OK: g2 ${formatEther(before)} → received 0.051 ETH`);
 });
