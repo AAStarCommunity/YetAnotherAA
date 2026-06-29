@@ -3,6 +3,13 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { RequestOtpDto, VerifyOtpDto } from "./dto/otp.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { OtpRateLimit } from "./guards/otp-rate-limit.guard";
+
+// Per-email OTP limits (15-min sliding window): cap code sends (anti-spam/cost) and verify
+// attempts (anti-brute-force; the code is also single-use + TTL'd in the service).
+const OTP_WINDOW_MS = 15 * 60_000;
+const OTP_REQUEST_MAX = 5;
+const OTP_VERIFY_MAX = 10;
 
 @ApiTags("auth")
 @Controller("auth")
@@ -11,6 +18,7 @@ export class AuthController {
 
   @Post("otp/request")
   @HttpCode(200)
+  @UseGuards(OtpRateLimit("request", OTP_REQUEST_MAX, OTP_WINDOW_MS))
   @ApiOperation({
     summary: "Send a 6-digit sign-in code to an email (passwordless register + login)",
   })
@@ -20,6 +28,7 @@ export class AuthController {
 
   @Post("otp/verify")
   @HttpCode(200)
+  @UseGuards(OtpRateLimit("verify", OTP_VERIFY_MAX, OTP_WINDOW_MS))
   @ApiOperation({
     summary: "Verify the email code → create/login the user and return a JWT",
     description:

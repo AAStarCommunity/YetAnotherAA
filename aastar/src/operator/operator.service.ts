@@ -4,7 +4,6 @@ import { createPublicClient, http, formatUnits, parseAbi } from "viem";
 import {
   registryActions,
   stakingActions,
-  superPaymasterActions,
   tokenActions,
   applyConfig,
   CHAIN_SEPOLIA,
