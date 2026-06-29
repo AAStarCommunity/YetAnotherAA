@@ -73,11 +73,18 @@ export default function TierSetupPage() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           optionsJSON: prep.data.publicKeyOptions as any,
         });
-        await transferAPI.submit({
+        const res = await transferAPI.submit({
           transferId: prep.data.transferId,
           challengeId: prep.data.challengeId,
           credential,
         });
+        // The SDK returns success:false (not a throw) when the bundler/paymaster rejects the
+        // UserOp (e.g. AA33 — no aPNTs for PaymasterV4), so a missing check would falsely report
+        // the tiers as applied. Surface the real failure instead.
+        const r = res.data as { success?: boolean; message?: string } | undefined;
+        if (r && r.success === false) {
+          throw new Error(r.message || t("tierSetup.failed"));
+        }
       }
       toast.success(t("tierSetup.done"));
       await loadTier();

@@ -175,11 +175,14 @@ export default function TierRaisePage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         optionsJSON: prep.data.publicKeyOptions as any,
       });
-      await transferAPI.submit({
+      const res = await transferAPI.submit({
         transferId: prep.data.transferId,
         challengeId: prep.data.challengeId,
         credential,
       });
+      // success:false (not a throw) when the bundler/paymaster rejects the UserOp — surface it.
+      const r = res.data as { success?: boolean; message?: string } | undefined;
+      if (r && r.success === false) throw new Error(r.message || t("tierRaise.failed"));
       toast.success(t("tierRaise.done"), { id });
       setPending(null);
       setSigs([]);
