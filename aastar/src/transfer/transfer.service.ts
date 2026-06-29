@@ -1,6 +1,9 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AirAccountServerClient as YAAAServerClient } from "@aastar/sdk/kms";
+import {
+  AirAccountServerClient as YAAAServerClient,
+  DvtPendingConfirmationError,
+} from "@aastar/sdk/kms";
 import { getCanonicalAddresses } from "@aastar/sdk/core";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
 import { AddressBookService } from "./address-book.service";
@@ -90,6 +93,21 @@ export class TransferService {
           : {}),
       });
     } catch (err: any) {
+      // Scheme 2: a DVT node withheld its co-signature on a high-value op pending out-of-band
+      // approval. Don't 500 — return a structured pending result so the client can drive the
+      // passkey-over-userOpHash confirmation (confirmationCredentialRequest → submitDvtConfirmation)
+      // and then resubmit. Carries the userOpHash + the node to confirm against.
+      if (err instanceof DvtPendingConfirmationError) {
+        this.logger.log(
+          `submitPreparedTransfer pending confirmation: userOpHash=${err.userOpHash}`
+        );
+        return {
+          success: false,
+          pendingConfirmation: true,
+          userOpHash: err.userOpHash,
+          nodeEndpoint: err.nodeEndpoint,
+        };
+      }
       // Surface the real KMS/BLS/bundler failure (#68 commitment, TTL expiry, tier
       // drift, etc.) instead of an opaque 500.
       this.logger.error(`submitPreparedTransfer FAILED: ${err?.message ?? err}`, err?.stack);

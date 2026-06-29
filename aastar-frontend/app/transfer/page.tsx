@@ -25,7 +25,12 @@ import {
   type PublicClient,
 } from "viem";
 import { CHAIN_SEPOLIA } from "@aastar/sdk/core";
-import { resolveTransfer, type TransferResolution } from "@aastar/sdk/airaccount";
+import {
+  resolveTransfer,
+  confirmationCredentialRequest,
+  submitDvtConfirmation,
+  type TransferResolution,
+} from "@aastar/sdk/airaccount";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 
 // Tier-3 only: collect a guardian co-signature over the prepared userOpHash from the
@@ -50,6 +55,36 @@ async function collectGuardianSignature(userOpHash: string): Promise<string> {
     account: accounts[0],
     message: { raw: userOpHash as `0x${string}` },
   });
+}
+
+// Scheme 2 out-of-band approval: when a high-value transfer is withheld (the backend returns
+// pendingConfirmation), the owner approves by signing the userOpHash with their passkey, and the
+// assertion is POSTed to the withholding DVT node to release its co-signature.
+function bufToB64url(buf: ArrayBuffer | Uint8Array): string {
+  const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = "";
+  for (const b of u8) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function runDvtConfirmation(userOpHash: string, nodeEndpoint: string): Promise<boolean> {
+  const req = confirmationCredentialRequest(userOpHash, { rpId: window.location.hostname });
+  const assertion = await startAuthentication({
+    optionsJSON: {
+      challenge: bufToB64url(req.challenge),
+      rpId: req.rpId,
+      userVerification: req.userVerification,
+      timeout: req.timeout,
+      allowCredentials: (req.allowCredentials ?? []).map(c => ({
+        id: bufToB64url(c.id as ArrayBuffer),
+        type: "public-key" as const,
+      })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = await submitDvtConfirmation(nodeEndpoint, userOpHash, assertion as any);
+  return r.confirmed;
 }
 
 export default function TransferPage() {
@@ -376,12 +411,35 @@ export default function TransferPage() {
       // for Tier 3 (undefined otherwise).
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Processing transfer...");
-      const response = await transferAPI.submit({
+      let response = await transferAPI.submit({
         transferId: prep.data.transferId,
         challengeId: prep.data.challengeId,
         credential,
         guardianSignature,
       });
+
+      // Scheme 2: a high-value transfer can be withheld by a DVT node pending out-of-band
+      // approval. Approve by signing the userOpHash with the device passkey, POST it to the
+      // withholding node, then resubmit so the node releases its co-signature and the op lands.
+      const pending = response.data as {
+        pendingConfirmation?: boolean;
+        userOpHash?: string;
+        nodeEndpoint?: string;
+      };
+      if (pending?.pendingConfirmation && pending.userOpHash && pending.nodeEndpoint) {
+        toast.dismiss(loadingToast);
+        loadingToast = toast.loading("High-value transfer — approve with your passkey…");
+        const approved = await runDvtConfirmation(pending.userOpHash, pending.nodeEndpoint);
+        if (!approved) throw new Error("Out-of-band confirmation was rejected or expired.");
+        toast.dismiss(loadingToast);
+        loadingToast = toast.loading("Approved — completing transfer…");
+        response = await transferAPI.submit({
+          transferId: prep.data.transferId,
+          challengeId: prep.data.challengeId,
+          credential,
+          guardianSignature,
+        });
+      }
       setTransferResult(response.data);
 
       if (loadingToast) {
