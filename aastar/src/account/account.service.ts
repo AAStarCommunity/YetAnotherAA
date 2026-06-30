@@ -3,7 +3,9 @@ import {
   AirAccountServerClient as YAAAServerClient,
   ALG_ECDSA,
   ALG_P256,
+  ALG_CUMULATIVE_T2,
   ALG_CUMULATIVE_T2_WA,
+  ALG_CUMULATIVE_T3,
   ALG_CUMULATIVE_T3_WA,
 } from "@aastar/sdk/kms";
 import { YAAA_SERVER_CLIENT } from "../sdk/sdk.providers";
@@ -228,7 +230,22 @@ export class AccountService {
     //   0x09 WebAuthn cumulative Tier-2, 0x0a WebAuthn cumulative Tier-3 (#234).
     // buildInitConfig would otherwise default to just [0x02(, 0x03)], leaving Tier-2/3
     // un-approved. Keep ECDSA so Tier-1 and the lazy first-UserOp deploy still work.
-    const approvedAlgIds = [ALG_ECDSA, ALG_P256, ALG_CUMULATIVE_T2_WA, ALG_CUMULATIVE_T3_WA];
+    // Approve BOTH the base cumulative (0x04 T2 / 0x05 T3) AND the WebAuthn variants (0x09 / 0x0a).
+    // On-chain validateUserOp uses the actual signature algId (0x0a for the device-passkey path) and
+    // only needs 0x09/0x0a. But the SDK's off-chain guard pre-check (GuardChecker) still maps
+    // tier→algId via algIdForTier (0x05 for T3, no WebAuthn branch) and checks approvedAlgorithms[0x05]
+    // — even though the on-chain guard NO LONGER enforces algId approval (moved to validateUserOp,
+    // contract v0.17.2-beta.4). Approving 0x04/0x05 satisfies that stale pre-check; it's harmless (a
+    // device passkey is WebAuthn-only and cannot produce a valid non-WA raw-P256 0x05 signature).
+    // Tracked as the SDK pre-check bug; remove the base algIds once the pre-check uses the real algId.
+    const approvedAlgIds = [
+      ALG_ECDSA,
+      ALG_P256,
+      ALG_CUMULATIVE_T2,
+      ALG_CUMULATIVE_T2_WA,
+      ALG_CUMULATIVE_T3,
+      ALG_CUMULATIVE_T3_WA,
+    ];
 
     const ecdsaGuardians = dto.ecdsaGuardians?.map(a => a as `0x${string}`);
 
@@ -303,7 +320,22 @@ export class AccountService {
 
     const versionDto = dto.entryPointVersion || EntryPointVersionDto.V0_7;
     const version = ({ "0.6": "0.6", "0.7": "0.7", "0.8": "0.8" }[versionDto] ?? "0.7") as any;
-    const approvedAlgIds = [ALG_ECDSA, ALG_P256, ALG_CUMULATIVE_T2_WA, ALG_CUMULATIVE_T3_WA];
+    // Approve BOTH the base cumulative (0x04 T2 / 0x05 T3) AND the WebAuthn variants (0x09 / 0x0a).
+    // On-chain validateUserOp uses the actual signature algId (0x0a for the device-passkey path) and
+    // only needs 0x09/0x0a. But the SDK's off-chain guard pre-check (GuardChecker) still maps
+    // tier→algId via algIdForTier (0x05 for T3, no WebAuthn branch) and checks approvedAlgorithms[0x05]
+    // — even though the on-chain guard NO LONGER enforces algId approval (moved to validateUserOp,
+    // contract v0.17.2-beta.4). Approving 0x04/0x05 satisfies that stale pre-check; it's harmless (a
+    // device passkey is WebAuthn-only and cannot produce a valid non-WA raw-P256 0x05 signature).
+    // Tracked as the SDK pre-check bug; remove the base algIds once the pre-check uses the real algId.
+    const approvedAlgIds = [
+      ALG_ECDSA,
+      ALG_P256,
+      ALG_CUMULATIVE_T2,
+      ALG_CUMULATIVE_T2_WA,
+      ALG_CUMULATIVE_T3,
+      ALG_CUMULATIVE_T3_WA,
+    ];
     const ecdsaGuardians = dto.ecdsaGuardians?.map(a => a as `0x${string}`);
     const p256Guardians = dto.p256Guardians.map(g => ({
       x: g.x as `0x${string}`,

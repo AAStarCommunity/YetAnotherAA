@@ -4,6 +4,14 @@ import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { ConfigService } from "@nestjs/config";
 
+// Make BigInt JSON-serializable across the whole API. SDK records (e.g. AccountRecord.salt) can carry
+// a raw bigint, and Express's res.json() throws "Do not know how to serialize a BigInt" → an opaque
+// 500 AFTER the work succeeded (e.g. the account is already deployed on-chain). Emit it as a decimal
+// string instead. Standard NestJS pattern; safe (only affects JSON.stringify of bigint values).
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
