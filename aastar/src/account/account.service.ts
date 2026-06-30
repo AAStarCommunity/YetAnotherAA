@@ -12,6 +12,7 @@ import {
   GuardianSetupPrepareDto,
   CreateWithGuardiansDto,
   CreateWithP256GuardiansDto,
+  SubmitCreateWithPasskeyDto,
 } from "./dto/guardian-setup.dto";
 import { DatabaseService } from "../database/database.service";
 import { ConfigService } from "@nestjs/config";
@@ -238,53 +239,140 @@ export class AccountService {
     );
 
     try {
+      const user = await this.databaseService.findUserById(userId);
+      const ownerP256X = user?.passkeyX as `0x${string}` | undefined;
+      const ownerP256Y = user?.passkeyY as `0x${string}` | undefined;
+      const deployerKey =
+        this.configService.get<string>("deployerPrivateKey") || process.env.DEPLOYER_PRIVATE_KEY;
+
+      const p256Guardians = dto.p256Guardians.map(g => ({
+        x: g.x as `0x${string}`,
+        y: g.y as `0x${string}`,
+      }));
+      void ownerP256X;
+      void ownerP256Y;
+      void deployerKey;
+
+      // This single-shot endpoint is the LEGACY path (no owner device passkey at birth → Tier-1 only).
+      // Tier-2/3 passkey-at-birth needs the KMS owner to sign the CREATE_ACCOUNT digest, which requires
+      // a one-time WebAuthn ceremony whose challenge commits to that digest — a chicken-and-egg that
+      // forces a two-phase flow (aastar-sdk#249). Use prepareCreateWithPasskey + submitCreateWithPasskey
+      // (mirrors transfer prepare/submit) for Tier-2/3.
       const account = await this.client.accounts.createAccountWithP256Guardians(userId, {
-        p256Guardians: dto.p256Guardians.map(g => ({
-          x: g.x as `0x${string}`,
-          y: g.y as `0x${string}`,
-        })),
+        p256Guardians,
         ...(ecdsaGuardians && ecdsaGuardians.length > 0 ? { ecdsaGuardians } : {}),
         approvedAlgIds,
         dailyLimit: dailyLimitWei,
         salt: dto.salt,
         entryPointVersion: version,
       });
-      // Router-delegated algIds (0x09/0x0a cumulative WebAuthn) CANNOT be bootstrapped by the
-      // factory's lazy first-UserOp deploy — the SDK requires deployAndWireValidator (deploy +
-      // setValidator(router) in one tx) via a FUNDED deployer (the manager holds no signer).
-      // Gasless users have no ETH, so a backend deployer key funds it; without this the first
-      // tiered prepareTransfer reverts AbiDecodingZeroDataError (reads validator on an undeployed
-      // account) and Tier-2/3 can't validate.
-      const deployerKey =
-        this.configService.get<string>("deployerPrivateKey") || process.env.DEPLOYER_PRIVATE_KEY;
-      if (deployerKey) {
-        const walletClient = createWalletClient({
-          account: privateKeyToAccount(
-            (deployerKey.startsWith("0x") ? deployerKey : `0x${deployerKey}`) as `0x${string}`
-          ),
-          chain: sepolia,
-          transport: http(this.configService.get<string>("ethRpcUrl")),
-        });
-        const wired = await this.client.accounts.deployAndWireValidator(userId, {
-          walletClient: walletClient as any,
-        });
-        this.logger.log(
-          `deployAndWireValidator: deployTx=${wired.deployTx ?? "(already deployed)"} ` +
-            `validator=${JSON.stringify(wired.validator)}`
-        );
-      } else {
-        this.logger.warn(
-          "DEPLOYER_PRIVATE_KEY unset — Tier-2/3 account not deployed+wired (only Tier-1 works)."
-        );
-      }
       this.logger.log(
-        `createWithP256Guardians OK: address=${account.address} deployed=${account.deployed}`
+        `createWithP256Guardians OK (legacy): address=${account.address} deployed=${account.deployed}`
       );
       return account;
     } catch (err: any) {
       // Surface the real SDK/KMS/on-chain failure (otherwise it bubbles up as an
       // opaque 500). Includes the KMS "No pending challenge" challenge-binding case.
       this.logger.error(`createWithP256Guardians FAILED: ${err?.message ?? err}`, err?.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Tier-2/3 passkey-at-birth — PHASE 1 (aastar-sdk#249). The SDK pins nonce/deadline, builds the
+   * CREATE_ACCOUNT digest, and (KMS path) begins a one-time WebAuthn ceremony whose challenge commits
+   * to that digest. The owner device passkey (ownerP256X/Y) is read from the user's registration record
+   * (NOT a guardian). The frontend then runs navigator.credentials.get(publicKeyOptions) and calls
+   * submitCreateWithPasskey. Mirrors transfer prepare/submit.
+   */
+  async prepareCreateWithPasskey(userId: string, dto: CreateWithP256GuardiansDto) {
+    const dailyLimitWei = this.parseDailyLimitToWei(dto.dailyLimit);
+    if (dailyLimitWei === undefined || dailyLimitWei <= 0n) {
+      throw new BadRequestException(
+        "dailyLimit must be > 0 for a passkey-at-birth account (a guardian set enables the on-chain guard)."
+      );
+    }
+    const user = await this.databaseService.findUserById(userId);
+    const ownerP256X = user?.passkeyX as `0x${string}` | undefined;
+    const ownerP256Y = user?.passkeyY as `0x${string}` | undefined;
+    if (!ownerP256X || !ownerP256Y) {
+      throw new BadRequestException(
+        "No registered device passkey on this account — register a passkey (Face ID / fingerprint) first."
+      );
+    }
+
+    const versionDto = dto.entryPointVersion || EntryPointVersionDto.V0_7;
+    const version = ({ "0.6": "0.6", "0.7": "0.7", "0.8": "0.8" }[versionDto] ?? "0.7") as any;
+    const approvedAlgIds = [ALG_ECDSA, ALG_P256, ALG_CUMULATIVE_T2_WA, ALG_CUMULATIVE_T3_WA];
+    const ecdsaGuardians = dto.ecdsaGuardians?.map(a => a as `0x${string}`);
+    const p256Guardians = dto.p256Guardians.map(g => ({
+      x: g.x as `0x${string}`,
+      y: g.y as `0x${string}`,
+    }));
+
+    try {
+      const prep = await this.client.accounts.prepareCreateAccountWithPasskey(userId, {
+        ownerP256X,
+        ownerP256Y,
+        ...(p256Guardians.length > 0 ? { p256Guardians } : {}),
+        ...(ecdsaGuardians && ecdsaGuardians.length > 0 ? { ecdsaGuardians } : {}),
+        approvedAlgIds,
+        dailyLimit: dailyLimitWei,
+        salt: dto.salt,
+        entryPointVersion: version,
+      } as any);
+      this.logger.log(
+        `prepareCreateWithPasskey: createId=${prep.createId} predicted=${prep.predictedAddress} ` +
+          `alreadyDeployed=${prep.alreadyDeployed}`
+      );
+      return {
+        createId: prep.createId,
+        predictedAddress: prep.predictedAddress,
+        challenge: prep.challenge,
+        challengeId: prep.challengeId,
+        publicKeyOptions: prep.publicKeyOptions,
+        alreadyDeployed: prep.alreadyDeployed,
+      };
+    } catch (err: any) {
+      this.logger.error(`prepareCreateWithPasskey FAILED: ${err?.message ?? err}`, err?.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Tier-2/3 passkey-at-birth — PHASE 3 (aastar-sdk#249). Signs the prepared CREATE_ACCOUNT digest with
+   * the user's one-time WebAuthn ceremony assertion (KMS owner) and relays the deploy via a funded
+   * backend deployer (msg.sender == deployer). Returns the DEPLOYED account (validator + passkey at birth).
+   */
+  async submitCreateWithPasskey(_userId: string, dto: SubmitCreateWithPasskeyDto) {
+    const deployerKey =
+      this.configService.get<string>("deployerPrivateKey") || process.env.DEPLOYER_PRIVATE_KEY;
+    if (!deployerKey) {
+      throw new BadRequestException(
+        "DEPLOYER_PRIVATE_KEY unset — cannot relay the account deploy."
+      );
+    }
+    const deployerWallet = createWalletClient({
+      account: privateKeyToAccount(
+        (deployerKey.startsWith("0x") ? deployerKey : `0x${deployerKey}`) as `0x${string}`
+      ),
+      chain: sepolia,
+      transport: http(this.configService.get<string>("ethRpcUrl")),
+    });
+
+    try {
+      const account = await this.client.accounts.submitPreparedCreateAccount(dto.createId, {
+        deployerWallet: deployerWallet as any,
+        signerCtx: {
+          webAuthnAssertion: { ChallengeId: dto.challengeId, Credential: dto.credential },
+        } as any,
+      });
+      this.logger.log(
+        `submitCreateWithPasskey OK: address=${account.address} deployed=${account.deployed}`
+      );
+      return account;
+    } catch (err: any) {
+      this.logger.error(`submitCreateWithPasskey FAILED: ${err?.message ?? err}`, err?.stack);
       throw err;
     }
   }

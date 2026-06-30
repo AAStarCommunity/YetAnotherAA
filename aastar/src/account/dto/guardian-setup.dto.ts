@@ -10,6 +10,7 @@ import {
   ArrayMaxSize,
   ValidateNested,
   Matches,
+  IsObject,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { EntryPointVersionDto } from "./create-account.dto";
@@ -153,4 +154,23 @@ export class CreateWithP256GuardiansDto {
   @IsOptional()
   @IsEnum(EntryPointVersionDto)
   entryPointVersion?: EntryPointVersionDto;
+}
+
+export class SubmitCreateWithPasskeyDto {
+  @ApiProperty({ description: "createId returned by prepare-create-with-passkey (PHASE 1)" })
+  @IsString()
+  createId: string;
+
+  @ApiProperty({
+    description: "KMS ceremony ChallengeId returned by prepare-create-with-passkey",
+  })
+  @IsString()
+  challengeId: string;
+
+  @ApiProperty({
+    description: "The navigator.credentials.get() WebAuthn assertion (one-time ceremony).",
+    type: Object,
+  })
+  @IsObject()
+  credential: Record<string, unknown>;
 }

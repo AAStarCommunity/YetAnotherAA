@@ -7,6 +7,7 @@ import {
   GuardianSetupPrepareDto,
   CreateWithGuardiansDto,
   CreateWithP256GuardiansDto,
+  SubmitCreateWithPasskeyDto,
 } from "./dto/guardian-setup.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
@@ -95,6 +96,30 @@ export class AccountController {
   })
   async createWithP256Guardians(@Request() req, @Body() dto: CreateWithP256GuardiansDto) {
     return this.accountService.createWithP256Guardians(req.user.sub, dto);
+  }
+
+  @Post("prepare-create-with-passkey")
+  @ApiOperation({
+    summary: "Tier-2/3 passkey-at-birth — PHASE 1 (prepare)",
+    description:
+      "Pins nonce/deadline, builds the CREATE_ACCOUNT digest, and begins the one-time KMS WebAuthn " +
+      "ceremony. Returns { createId, predictedAddress, challenge, challengeId, publicKeyOptions }. The " +
+      "owner device passkey is read from the user's registration record. Then run " +
+      "navigator.credentials.get(publicKeyOptions) and POST submit-create-with-passkey. Mirrors transfer prepare/submit.",
+  })
+  async prepareCreateWithPasskey(@Request() req, @Body() dto: CreateWithP256GuardiansDto) {
+    return this.accountService.prepareCreateWithPasskey(req.user.sub, dto);
+  }
+
+  @Post("submit-create-with-passkey")
+  @ApiOperation({
+    summary: "Tier-2/3 passkey-at-birth — PHASE 3 (submit)",
+    description:
+      "Signs the prepared CREATE_ACCOUNT digest with the one-time WebAuthn ceremony assertion (KMS owner) " +
+      "and relays the deploy via a funded backend deployer. Returns the DEPLOYED account record.",
+  })
+  async submitCreateWithPasskey(@Request() req, @Body() dto: SubmitCreateWithPasskeyDto) {
+    return this.accountService.submitCreateWithPasskey(req.user.sub, dto);
   }
 
   @Post("rotate-signer")
