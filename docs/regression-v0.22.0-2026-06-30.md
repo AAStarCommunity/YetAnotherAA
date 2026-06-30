@@ -32,10 +32,14 @@
 | **p256KeyX @birth** | == 传入 passkey ✅(无 setP256Key tx) |
 | DVT 聚合 | dvt1/2/3 registered,≥2/3 BLS 聚合 |
 | 复合签名 | 902 字节(algId 0x0a) |
-| **`validateUserOp(0x0a)`** | **== 0 ✅ ACCEPTED**(链上 WebAuthn 重建 + EIP-7212 P256VERIFY + DVT BLS + guardian)|
+| **`validateUserOp(0x0a)` Tier-3** | **== 0 ✅ ACCEPTED**(链上 WebAuthn 重建 + EIP-7212 P256VERIFY + DVT BLS + guardian)|
+| **`validateUserOp(0x09)` Tier-2** | **== 0 ✅ ACCEPTED**(passkey + DVT BLS,无 guardian;837B;同账户同时 approve 0x09+0x0a)|
 | 负向(篡改 challenge) | ✅ rejected |
 
-→ **passkey-at-birth + Tier-3 复合签名机制,在 v0.22.0/0.30.0 新栈上链上确认无误。**
+最新一跑账户 `0x080C1d8b2965c0796fAF69c54F52B33237aC4765`、deploy tx `0x0b08a2a4a2d34aec11129004fd2887e84a91d5dca458f4d808579c055a7b68c8`。
+
+→ **passkey-at-birth + Tier-2 + Tier-3 cumulative 复合签名机制,在 v0.22.0/0.30.0 新栈上链上确认无误。**
+> Tier-1 = 内联 P256(algId 0x03 / COMBINED_T1 0x06),非 cumulative router 路径,无独立 packer;属基础 passkey 路径,与 T2/T3 复合是两套机制。
 
 ## 已实现的业务流程
 - 账户出生即配 validator + 设备 passkey(一次 tx,无后置引导)— **EOA owner / direct mode 已链上验证**

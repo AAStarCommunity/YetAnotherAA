@@ -62,8 +62,10 @@ import {
 } from "@aastar/sdk/core";
 import {
   packWebAuthnBlob,
+  packCumulativeT2WA,
   packCumulativeT3WA,
   packBlsPayload,
+  ALG_CUMULATIVE_T2_WA,
   ALG_CUMULATIVE_T3_WA,
 } from "@aastar/sdk/kms";
 
@@ -159,7 +161,7 @@ async function main() {
   const config = buildInitConfig({
     guardians: [{ ecdsa: guardian.address }],
     dailyLimit: 10n ** 18n,
-    approvedAlgIds: [ALG_CUMULATIVE_T3_WA],
+    approvedAlgIds: [ALG_CUMULATIVE_T2_WA, ALG_CUMULATIVE_T3_WA], // Tier-2 (passkey+BLS) + Tier-3 (+guardian)
   });
   const account = await airAccountFactoryActions(FACTORY)(pc).getAddress({
     owner: owner.address,
@@ -309,6 +311,15 @@ async function main() {
     `\n[5] validateUserOp(0x0a WebAuthn composite) = ${accepted} -> ${accepted === 0n ? "0 ✅ ACCEPTED" : "❌ REJECTED"}`
   );
 
+  // ── Tier-2 (algId 0x09): passkey + DVT BLS, NO guardian — same account approves both ────────
+  const compositeT2 = packCumulativeT2WA(waBlob, blsPayload);
+  const acceptedT2 = await validate(compositeT2);
+  console.log(
+    `[5b] validateUserOp(0x09 Tier-2 = passkey+BLS, no guardian) = ${(compositeT2.length - 2) / 2}B -> ${
+      acceptedT2 === 0n ? "0 ✅ ACCEPTED" : "❌ REJECTED"
+    }`
+  );
+
   // ── Negative: an assertion over a DIFFERENT hash must be rejected ───────────────────────────
   let negResult = "sdk-rejected";
   try {
@@ -328,13 +339,15 @@ async function main() {
   console.log(`│ userOpHash     : ${userOpHash}`);
   console.log(`│ waBlob bytes   : ${(waBlob.length - 2) / 2}`);
   console.log(`│ composite bytes: ${(composite.length - 2) / 2} (algId 0x0a)`);
-  console.log(`│ validate(WA)   : ${accepted} ${accepted === 0n ? "= 0 ✅ ACCEPTED" : "❌"}`);
+  console.log(`│ validate(T3 0x0a): ${accepted} ${accepted === 0n ? "= 0 ✅ ACCEPTED" : "❌"}`);
+  console.log(`│ validate(T2 0x09): ${acceptedT2} ${acceptedT2 === 0n ? "= 0 ✅ ACCEPTED" : "❌"}`);
   console.log(`│ negative       : ${negResult} ${negResult !== 0n ? "✅ rejected" : "❌"}`);
   console.log("└──────────────────────────────────────────────────────────────────────────");
 
-  if (accepted !== 0n) throw new Error("FAIL: WebAuthn 0x0a composite was NOT accepted on-chain");
+  if (accepted !== 0n) throw new Error("FAIL: WebAuthn 0x0a (Tier-3) composite was NOT accepted on-chain");
+  if (acceptedT2 !== 0n) throw new Error("FAIL: WebAuthn 0x09 (Tier-2) composite was NOT accepted on-chain");
   if (negResult === 0n) throw new Error("FAIL: wrong-challenge negative was accepted");
-  console.log("\n🎉 PASS — Tier-3 WebAuthn composite ACCEPTED on-chain; wrong-challenge rejected.");
+  console.log("\n🎉 PASS — Tier-2 (0x09) + Tier-3 (0x0a) WebAuthn composites ACCEPTED on-chain; wrong-challenge rejected.");
 }
 
 main().catch(e => {
