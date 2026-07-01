@@ -15,6 +15,7 @@ import { startRegistration, startAuthentication } from "@simplewebauthn/browser"
 // Browser-safe subpath: the root "@aastar/sdk" pulls in the server bundle (imports
 // 'fs') and breaks the client build; "/core" is pure crypto.
 import { coseToP256XY } from "@aastar/sdk/core";
+import { webauthnRpId } from "@/lib/webauthn-rp";
 
 export interface GuardianPasskey {
   /** 0x-prefixed 32-byte secp256r1 X coordinate. */
@@ -64,7 +65,7 @@ export async function createGuardianPasskey(opts: {
   const credential = await startRegistration({
     optionsJSON: {
       challenge: b64urlEncode(crypto.getRandomValues(new Uint8Array(32))),
-      rp: { id: window.location.hostname, name: "AAStar Guardian" },
+      rp: { id: webauthnRpId(), name: "AAStar Guardian" },
       user: {
         id: b64urlEncode(crypto.getRandomValues(new Uint8Array(16))),
         name: opts.userName,
@@ -145,7 +146,7 @@ export async function signGuardianRecovery(opts: {
   const assertion = await startAuthentication({
     optionsJSON: {
       challenge: b64urlEncode(challengeBytes),
-      rpId: window.location.hostname,
+      rpId: webauthnRpId(),
       userVerification: "required",
       timeout: 120000,
     },

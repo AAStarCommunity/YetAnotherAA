@@ -32,6 +32,7 @@ import {
   type TransferResolution,
 } from "@aastar/sdk/airaccount";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
+import { webauthnRpId } from "@/lib/webauthn-rp";
 
 // Tier-3 only: collect a guardian co-signature over the prepared userOpHash from the
 // user's self-hosted guardian wallet (injected EIP-1193). signMessage({ raw }) is
@@ -104,7 +105,7 @@ async function runWebAuthnPasskeyAssertion(userOpHash: string): Promise<DeviceWe
   const assertion = await startAuthentication({
     optionsJSON: {
       challenge: bufToB64url(hexToBytes(userOpHash)),
-      rpId: window.location.hostname,
+      rpId: webauthnRpId(),
       userVerification: "required",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
@@ -118,7 +119,7 @@ async function runWebAuthnPasskeyAssertion(userOpHash: string): Promise<DeviceWe
 }
 
 async function runDvtConfirmation(userOpHash: string, nodeEndpoint: string): Promise<boolean> {
-  const req = confirmationCredentialRequest(userOpHash, { rpId: window.location.hostname });
+  const req = confirmationCredentialRequest(userOpHash, { rpId: webauthnRpId() });
   const assertion = await startAuthentication({
     optionsJSON: {
       challenge: bufToB64url(req.challenge),
