@@ -518,15 +518,21 @@ export default function TransferPage() {
         guardianSignature = await collectGuardianSignature(prep.data.userOpHash);
       }
 
-      // Phase 3: submit. One payload shape covers both paths (the unused fields are
-      // omitted) so a Scheme-2 resubmit can reuse it verbatim.
-      const submitPayload = {
-        transferId: prep.data.transferId,
-        challengeId: prep.data.challengeId,
-        credential,
-        deviceWebAuthn,
-        guardianSignature,
-      };
+      // Phase 3: submit. Build exactly the variant for the path taken (device-passkey
+      // vs KMS ceremony) so the payload type stays a discriminated union; a Scheme-2
+      // resubmit reuses this same value verbatim.
+      const submitPayload = isWebAuthnPath
+        ? {
+            transferId: prep.data.transferId,
+            deviceWebAuthn: deviceWebAuthn as DeviceWebAuthn,
+            guardianSignature,
+          }
+        : {
+            transferId: prep.data.transferId,
+            challengeId: prep.data.challengeId as string,
+            credential,
+            guardianSignature,
+          };
       toast.dismiss(loadingToast);
       loadingToast = toast.loading("Processing transfer...");
       let response = await transferAPI.submit(submitPayload);
@@ -572,9 +578,15 @@ export default function TransferPage() {
         toast.dismiss(loadingToast);
       }
 
-      // Handle passkey verification errors
+      // Handle passkey verification errors. NotAllowedError covers both an explicit
+      // cancel and "no passkey on this device matched" — the latter is what a user sees
+      // when their passkey was registered under a different domain (rpId), so point
+      // them at re-registration rather than a bare "cancelled".
       if (error.name === "NotAllowedError") {
-        toast.error("Transaction verification was cancelled");
+        toast.error(
+          "Passkey verification was cancelled, or no matching passkey was found. If you registered it on a different domain, re-register your passkey on this site and try again.",
+          { duration: 7000 }
+        );
         setLoading(prev => ({ ...prev, transfer: false }));
         return;
       } else if (error.name === "NotSupportedError") {
@@ -582,7 +594,10 @@ export default function TransferPage() {
         setLoading(prev => ({ ...prev, transfer: false }));
         return;
       } else if (error.name === "SecurityError") {
-        toast.error("Security error during verification");
+        toast.error(
+          "Security error during verification — this site's domain may not match where your passkey was registered. Re-register your passkey here and try again.",
+          { duration: 7000 }
+        );
         setLoading(prev => ({ ...prev, transfer: false }));
         return;
       }

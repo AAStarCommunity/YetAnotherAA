@@ -130,17 +130,27 @@ export const transferAPI = {
   //  - Tier-2/3 WebAuthn passkey path: deviceWebAuthn (assertion whose challenge = userOpHash),
   //    normalised to the SDK's packWebAuthnBlob encodings (0x-hex + raw clientDataJSON).
   // guardianSignature is sent only for Tier-3 (over the prepared userOpHash).
-  submit: (data: {
-    transferId: string;
-    challengeId?: string;
-    credential?: unknown;
-    deviceWebAuthn?: {
-      authenticatorData: string;
-      clientDataJSON: string;
-      signature: string;
-    };
-    guardianSignature?: string;
-  }) => api.post("/transfer/submit", data),
+  // Discriminated by which credential the path produced: the KMS ceremony supplies
+  // `credential` (with its `challengeId`), the device-passkey path supplies
+  // `deviceWebAuthn`. Requiring one branch's key means the type rejects submitting
+  // neither credential.
+  submit: (
+    data: {
+      transferId: string;
+      guardianSignature?: string;
+    } & (
+      | { credential: unknown; challengeId?: string; deviceWebAuthn?: never }
+      | {
+          deviceWebAuthn: {
+            authenticatorData: string;
+            clientDataJSON: string;
+            signature: string;
+          };
+          credential?: never;
+          challengeId?: never;
+        }
+    )
+  ) => api.post("/transfer/submit", data),
 
   estimate: (data: {
     to: string;

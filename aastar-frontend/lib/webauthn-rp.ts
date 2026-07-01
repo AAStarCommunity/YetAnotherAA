@@ -48,7 +48,10 @@ export function webauthnRpId(): string {
     if (h === d || h.endsWith("." + d)) return d;
   }
 
-  // Unconfigured domain: best-effort last-two-labels (set NEXT_PUBLIC_RP_ID to be exact).
-  const parts = h.split(".");
-  return parts.length <= 2 ? h : parts.slice(-2).join(".");
+  // Unconfigured domain: return the full host — always a valid rpId for itself. We do
+  // NOT guess a registrable parent by splitting labels, since a naive last-two-labels
+  // approach can return a public suffix (e.g. `co.uk`, `com.au`) as the rpId. To
+  // collapse subdomains for another deployment, add it to NEXT_PUBLIC_RP_DOMAINS (or
+  // set NEXT_PUBLIC_RP_ID explicitly).
+  return h;
 }
