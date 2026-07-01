@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
-import { addressBookAPI } from "@/lib/api";
+import { getAddressBook, setAddressName, removeAddress } from "@/lib/address-book-store";
+import { useDashboard } from "@/contexts/DashboardContext";
 import SwipeableListItem from "@/components/SwipeableListItem";
 import toast from "react-hot-toast";
 import { PencilIcon, PlusIcon, BookOpenIcon } from "@heroicons/react/24/outline";
@@ -19,6 +20,8 @@ interface AddressBookEntry {
 
 export default function AddressBookPage() {
   const router = useRouter();
+  const { data } = useDashboard();
+  const accountAddress = data?.account?.address ?? null;
   const [addressBook, setAddressBook] = useState<AddressBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -27,15 +30,16 @@ export default function AddressBookPage() {
   const [newAddress, setNewAddress] = useState("");
   const [newName, setNewName] = useState("");
 
+  // Re-load when the (async) account resolves so the list is scoped to this account.
   useEffect(() => {
     loadAddressBook();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountAddress]);
 
-  const loadAddressBook = async () => {
+  const loadAddressBook = () => {
     setLoading(true);
     try {
-      const response = await addressBookAPI.getAddressBook();
-      setAddressBook(response.data);
+      setAddressBook(getAddressBook(accountAddress));
     } catch (error) {
       console.error("Failed to load address book:", error);
       toast.error("Failed to load address book");
@@ -57,8 +61,8 @@ export default function AddressBookPage() {
     }
 
     try {
-      await addressBookAPI.setAddressName(newAddress, newName || "");
-      await loadAddressBook();
+      setAddressName(accountAddress, newAddress, newName || "");
+      loadAddressBook();
       setShowAddForm(false);
       setNewAddress("");
       setNewName("");
@@ -73,8 +77,8 @@ export default function AddressBookPage() {
 
   const handleUpdateName = async (address: string) => {
     try {
-      await addressBookAPI.setAddressName(address, editingName);
-      await loadAddressBook();
+      setAddressName(accountAddress, address, editingName);
+      loadAddressBook();
       setEditingAddress(null);
       setEditingName("");
       toast.success("Name updated successfully!");
@@ -92,8 +96,8 @@ export default function AddressBookPage() {
     }
 
     try {
-      await addressBookAPI.removeAddress(address);
-      await loadAddressBook();
+      removeAddress(accountAddress, address);
+      loadAddressBook();
       toast.success("Address deleted successfully!");
     } catch (error) {
       const message =

@@ -79,17 +79,41 @@ the backend endpoint stops being required, tests/gates stay green, no regression
 
 ---
 
-## Open questions (to resolve before/while extracting)
+## Decided: the API-key model (resolves the bundler + KMS constraints)
 
-1. **Bundler:** confirm a public / SuperPaymaster-sponsored bundler endpoint usable from the browser without a secret key.
-2. **KMS browser-direct auth:** confirm the production KMS (not just the dev-rpid board) authorizes browser Origin without the server `KMS_API_KEY`.
-3. **Auth model:** passkey assertion as the only session root — do we need any server-issued token at all, or is on-chain + KMS sufficient?
-4. **Operator/admin surfaces:** keep as a separate (backend-having) app, or drop from the enduser build?
+Each install obtains an **AAStar API key** (free tier with a base service quota; more
+usage → paid / buy **aPoints** compute credit). That single key authorizes **both the
+bundler and the KMS** from the browser — so the client needs no AAStar-operated backend.
+
+Two ways a user gets bundler/KMS access:
+1. **Self-applied free key** — we give them a flow to apply for a free bundler API key
+   (e.g. Pimlico) and/or the AAStar key. Free tier is enough for normal use; needs a
+   little technical comfort.
+2. **Our provided key, configured locally** — the AAStar-issued key (bundler + KMS in one)
+   stored client-side.
+
+**KMS is not AAStar-only.** Any community can run a KMS. A user authorizes against a
+community's KMS via an **API key or an SBT identity**: they bind + verify their wallet
+address, and subsequent transactions from that address are authorized by that KMS before
+they reach chain (KMS allows → allowed). So both bundler and KMS auth are keyed to the
+user's own credential, not a shared server secret.
+
+Implications for the constraint table above:
+- `KMS_API_KEY` / `PIMLICO_API_KEY` → **replaced by the user's own API key** (free tier
+  or provided), held client-side and scoped to their wallet/community identity. No shared
+  secret ships in the bundle.
+
+## Remaining open questions
+
+1. **Auth model:** passkey assertion as the only session root — do we need any server-issued token at all, or is on-chain + KMS sufficient?
+2. **Operator/admin surfaces:** keep as a separate (backend-having) app, or drop from the enduser build?
+3. **API-key onboarding UX:** where the key is applied for / entered / stored (settings screen), and quota/aPoints upsell flow.
 
 ---
 
 ## Status
 
 - [x] Branch created, migration plan drafted.
-- [ ] Step 1: address-book + tokens → client storage + SDK.
+- [x] Step 1a: **address book → client-side store** (`lib/address-book-store.ts`, localStorage, account-scoped). Backend `/address-book*` no longer called; transfer records the recipient client-side on confirmation. (backend module left in place; deleted in step 8)
+- [ ] Step 1b: tokens → `@aastar/sdk/tokens` + client cache.
 - [ ] … (steps 2–8)

@@ -293,13 +293,8 @@ export const guardianAPI = {
   }) => api.post("/guardian/recovery/p256/submit", data),
 };
 
-export const addressBookAPI = {
-  getAddressBook: () => api.get("/address-book"),
-  setAddressName: (address: string, name: string) =>
-    api.post("/address-book/name", { address, name }),
-  removeAddress: (address: string) => api.delete(`/address-book/${address}`),
-  searchAddresses: (query: string) => api.get("/address-book/search", { params: { q: query } }),
-};
+// addressBookAPI removed — the address book is now a client-side store
+// (lib/address-book-store.ts, localStorage, account-scoped). Zero-backend migration step 1.
 
 // User NFT API
 export const userNFTAPI = {
