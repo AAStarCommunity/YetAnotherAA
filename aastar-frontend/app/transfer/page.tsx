@@ -183,6 +183,7 @@ export default function TransferPage() {
   });
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
+  const defaultPaymasterAppliedRef = useRef(false);
   const touchStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -190,6 +191,20 @@ export default function TransferPage() {
   useEffect(() => {
     loadPageData();
   }, []);
+
+  // Auto-apply the account-scoped default paymaster once, after both the account
+  // (the preference's storage scope) and the saved list are available. The ref makes
+  // it fire exactly once, so it never overrides a manual un-toggle later.
+  useEffect(() => {
+    if (defaultPaymasterAppliedRef.current) return;
+    if (!account?.address || savedPaymasters.length === 0) return;
+    defaultPaymasterAppliedRef.current = true;
+    const def = getDefaultPaymaster(account.address);
+    const match = def && savedPaymasters.find(p => p.address?.toLowerCase() === def);
+    if (match) {
+      setFormData(prev => ({ ...prev, usePaymaster: true, paymasterAddress: match.address }));
+    }
+  }, [account?.address, savedPaymasters]);
 
   // Judge the transfer (tier + required signatures, ETH/ERC-20 unified) whenever the
   // amount or token changes, debounced. Drives the indicator + fail-fast on block.
@@ -234,19 +249,9 @@ export default function TransferPage() {
           paymasterAPI.getPresets().catch(() => ({ data: [] })),
         ]);
         setPaymasterPresets((presetResponse.data ?? []) as any[]);
-        const list = (paymasterResponse.data ?? []) as any[];
-        setSavedPaymasters(list);
-        // Auto-apply the persisted default paymaster (set on the Paymaster page) when
-        // it's still among the saved list: pre-enable sponsorship and pre-select it.
-        const def = getDefaultPaymaster();
-        const match = def && list.find(p => p.address?.toLowerCase() === def);
-        if (match) {
-          setFormData(prev => ({
-            ...prev,
-            usePaymaster: true,
-            paymasterAddress: match.address,
-          }));
-        }
+        setSavedPaymasters((paymasterResponse.data ?? []) as any[]);
+        // The persisted default paymaster is applied by a dedicated effect once the
+        // account address (its storage scope) and the saved list are both ready.
       } catch (error) {
         console.error("Failed to load saved paymasters:", error);
         setSavedPaymasters([]);

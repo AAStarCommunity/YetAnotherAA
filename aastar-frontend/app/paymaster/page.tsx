@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Layout from "@/components/Layout";
 import { paymasterAPI } from "@/lib/api";
+import { useDashboard } from "@/contexts/DashboardContext";
 import SwipeableListItem from "@/components/SwipeableListItem";
 import toast from "react-hot-toast";
 import {
@@ -36,6 +37,8 @@ interface PaymasterPreset {
 }
 
 export default function PaymasterPage() {
+  const { data } = useDashboard();
+  const accountAddress = data?.account?.address ?? null;
   const [paymasters, setPaymasters] = useState<Paymaster[]>([]);
   const [presets, setPresets] = useState<PaymasterPreset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,19 +55,24 @@ export default function PaymasterPage() {
 
   useEffect(() => {
     loadPaymasters();
-    setDefaultPm(getDefaultPaymaster());
   }, []);
+
+  // Re-read the account-scoped default whenever the (async-loaded) account resolves,
+  // so the ☆ / "Default" state reflects THIS account's preference.
+  useEffect(() => {
+    setDefaultPm(getDefaultPaymaster(accountAddress));
+  }, [accountAddress]);
 
   // Toggle a saved paymaster as the persisted default (client-side preference the
   // transfer page auto-applies). Clicking the current default again clears it.
   const handleToggleDefault = (address: string) => {
     const addr = address.toLowerCase();
     if (defaultPaymaster === addr) {
-      clearDefaultPaymaster();
+      clearDefaultPaymaster(accountAddress);
       setDefaultPm(null);
       toast.success("Default paymaster cleared");
     } else {
-      setDefaultPaymaster(addr);
+      setDefaultPaymaster(addr, accountAddress);
       setDefaultPm(addr);
       toast.success("Set as default paymaster");
     }
@@ -161,7 +169,7 @@ export default function PaymasterPage() {
       await paymasterAPI.remove(name);
       // If the removed paymaster was the persisted default, drop the stale preference.
       if (removed && defaultPaymaster === removed.address.toLowerCase()) {
-        clearDefaultPaymaster();
+        clearDefaultPaymaster(accountAddress);
         setDefaultPm(null);
       }
       toast.success("Paymaster removed successfully!");
@@ -512,7 +520,7 @@ export default function PaymasterPage() {
                         {defaultPaymaster === paymaster.address.toLowerCase() &&
                           (() => {
                             const preset = presets.find(
-                              p => p.address.toLowerCase() === paymaster.address.toLowerCase()
+                              p => p.address?.toLowerCase() === paymaster.address.toLowerCase()
                             );
                             const req = preset?.requiresCommunity;
                             return (
