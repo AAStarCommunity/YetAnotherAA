@@ -3,7 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Layout from "@/components/Layout";
-import { paymasterAPI } from "@/lib/api";
+import {
+  getAvailablePaymasters,
+  getPaymasterPresets,
+  addCustomPaymaster,
+  removeCustomPaymaster,
+} from "@/lib/paymaster-store";
 import { useDashboard } from "@/contexts/DashboardContext";
 import SwipeableListItem from "@/components/SwipeableListItem";
 import toast from "react-hot-toast";
@@ -55,7 +60,9 @@ export default function PaymasterPage() {
 
   useEffect(() => {
     loadPaymasters();
-  }, []);
+    // saved paymasters are account-scoped (localStorage) — reload when the account resolves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountAddress]);
 
   // Re-read the account-scoped default whenever the (async-loaded) account resolves,
   // so the ☆ / "Default" state reflects THIS account's preference.
@@ -81,12 +88,8 @@ export default function PaymasterPage() {
   const loadPaymasters = async () => {
     setLoading(true);
     try {
-      const [available, presetList] = await Promise.all([
-        paymasterAPI.getAvailable(),
-        paymasterAPI.getPresets().catch(() => ({ data: [] })),
-      ]);
-      setPaymasters(available.data);
-      setPresets(presetList.data);
+      setPaymasters(getAvailablePaymasters(accountAddress));
+      setPresets(getPaymasterPresets());
     } catch (error) {
       console.error("Failed to load paymasters:", error);
       toast.error("Failed to load paymasters");
@@ -99,7 +102,7 @@ export default function PaymasterPage() {
   const handleAddPreset = async (preset: PaymasterPreset) => {
     setActionLoading(`preset-${preset.name}`);
     try {
-      await paymasterAPI.addCustom({
+      addCustomPaymaster(accountAddress, {
         name: preset.name,
         address: preset.address,
         type: preset.type,
@@ -130,7 +133,7 @@ export default function PaymasterPage() {
 
     setActionLoading("add");
     try {
-      await paymasterAPI.addCustom({
+      addCustomPaymaster(accountAddress, {
         name: newPaymaster.name,
         address: newPaymaster.address,
         type: newPaymaster.type,
@@ -166,7 +169,7 @@ export default function PaymasterPage() {
     setActionLoading(`remove-${name}`);
     try {
       const removed = paymasters.find(p => p.name === name);
-      await paymasterAPI.remove(name);
+      removeCustomPaymaster(accountAddress, name);
       // If the removed paymaster was the persisted default, drop the stale preference.
       if (removed && defaultPaymaster === removed.address.toLowerCase()) {
         clearDefaultPaymaster(accountAddress);

@@ -168,33 +168,15 @@ export const transferAPI = {
 };
 
 // BLS API
-export const blsAPI = {
-  getNodes: () => api.get("/bls/nodes"),
-
-  generateSignature: (data: { userOpHash: string; nodeIndices?: number[] }) =>
-    api.post("/bls/sign", data),
-};
+// blsAPI removed — the frontend never called it; BLS runs inside the backend transfer
+// flow and moves client-side (direct to the BLS gossip network) with the transfer
+// migration (step 4). Zero-backend migration step 3 (bls cleanup).
 
 // Paymaster API
-export const paymasterAPI = {
-  getAvailable: () => api.get("/paymaster/available"),
-
-  // Recommended presets (addresses sourced from @aastar/sdk canonical table)
-  getPresets: () => api.get("/paymaster/presets"),
-
-  sponsor: (data: { paymasterName: string; userOp: any; entryPoint?: string }) =>
-    api.post("/paymaster/sponsor", data),
-
-  addCustom: (data: {
-    name: string;
-    address: string;
-    type?: "pimlico" | "stackup" | "alchemy" | "custom";
-    apiKey?: string;
-    endpoint?: string;
-  }) => api.post("/paymaster/add", data),
-
-  remove: (name: string) => api.delete(`/paymaster/${name}`),
-};
+// paymasterAPI removed — the saved paymaster list + presets are now client-side
+// (lib/paymaster-store.ts, localStorage + SDK canonical). Zero-backend migration step 2.
+// (Sponsorship still runs in the backend transfer flow using the passed address; it
+// moves client-side with the transfer migration, step 4.)
 
 // Token API
 export const tokenAPI = {
@@ -204,7 +186,7 @@ export const tokenAPI = {
 
   validateToken: (data: { address: string }) => api.post("/tokens/validate", data),
 
-  getTokenBalance: (address: string) => api.get(`/tokens/balance/${address}`),
+  // getTokenBalance moved to a client-side on-chain read (lib/token-balance.ts). Step 1b.
 
   getTokenBalances: (accountAddress?: string) => {
     const params = accountAddress ? { address: accountAddress } : {};
@@ -224,40 +206,8 @@ export const tokenAPI = {
     api.get("/tokens/search", { params }),
 };
 
-// User Token API
-export const userTokenAPI = {
-  getUserTokens: (params?: { activeOnly?: boolean; withBalances?: boolean }) =>
-    api.get("/user-tokens", { params }),
-
-  addUserToken: (data: {
-    address: string;
-    symbol?: string;
-    name?: string;
-    decimals?: number;
-    logoUrl?: string;
-  }) => api.post("/user-tokens", data),
-
-  updateUserToken: (
-    tokenId: string,
-    data: {
-      isActive?: boolean;
-      sortOrder?: number;
-      logoUrl?: string;
-    }
-  ) => api.put(`/user-tokens/${tokenId}`, data),
-
-  removeUserToken: (tokenId: string) => api.delete(`/user-tokens/${tokenId}`),
-
-  deleteUserToken: (tokenId: string) => api.delete(`/user-tokens/${tokenId}/permanent`),
-
-  searchUserTokens: (params: { query?: string; customOnly?: boolean; activeOnly?: boolean }) =>
-    api.get("/user-tokens/search", { params }),
-
-  initializeDefaultTokens: () => api.post("/user-tokens/initialize-defaults"),
-
-  updateTokensOrder: (tokenOrders: { tokenId: string; sortOrder: number }[]) =>
-    api.put("/user-tokens/reorder", { tokenOrders }),
-};
+// userTokenAPI removed — the user token list is now a client-side store
+// (lib/user-token-store.ts, localStorage, account-scoped). Zero-backend migration step 1c.
 
 // Guardian & Recovery API
 export const guardianAPI = {
@@ -293,13 +243,8 @@ export const guardianAPI = {
   }) => api.post("/guardian/recovery/p256/submit", data),
 };
 
-export const addressBookAPI = {
-  getAddressBook: () => api.get("/address-book"),
-  setAddressName: (address: string, name: string) =>
-    api.post("/address-book/name", { address, name }),
-  removeAddress: (address: string) => api.delete(`/address-book/${address}`),
-  searchAddresses: (query: string) => api.get("/address-book/search", { params: { q: query } }),
-};
+// addressBookAPI removed — the address book is now a client-side store
+// (lib/address-book-store.ts, localStorage, account-scoped). Zero-backend migration step 1.
 
 // User NFT API
 export const userNFTAPI = {

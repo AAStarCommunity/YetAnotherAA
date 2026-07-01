@@ -6,7 +6,10 @@ import Layout from "@/components/Layout";
 import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { transferAPI, tokenAPI, paymasterAPI, addressBookAPI } from "@/lib/api";
+import { transferAPI } from "@/lib/api";
+import { getAvailablePaymasters, getPaymasterPresets } from "@/lib/paymaster-store";
+import { getAddressBook, setAddressName, recordSuccessfulTransfer } from "@/lib/address-book-store";
+import { getTokenBalance } from "@/lib/token-balance";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
 import toast from "react-hot-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -184,6 +187,9 @@ export default function TransferPage() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
   const defaultPaymasterAppliedForRef = useRef<string | null>(null);
+  // Recipient captured at submit time so the client can record it in the address book
+  // when polling confirms the transfer (formData.to is cleared right after submit).
+  const pendingRecipientRef = useRef<string>("");
   const touchStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -207,6 +213,12 @@ export default function TransferPage() {
       setFormData(prev => ({ ...prev, usePaymaster: true, paymasterAddress: match.address }));
     }
   }, [account?.address, savedPaymasters]);
+
+  // Saved paymasters are account-scoped (localStorage) — (re)load whenever the account
+  // resolves, so a fresh page load that beats the account fetch still populates them.
+  useEffect(() => {
+    setSavedPaymasters(getAvailablePaymasters(account?.address));
+  }, [account?.address]);
 
   // Judge the transfer (tier + required signatures, ETH/ERC-20 unified) whenever the
   // amount or token changes, debounced. Drives the indicator + fail-fast on block.
@@ -244,29 +256,17 @@ export default function TransferPage() {
   const loadPageData = async () => {
     setLoading(prev => ({ ...prev, page: true }));
     try {
-      // Load saved paymasters
-      try {
-        const [paymasterResponse, presetResponse] = await Promise.all([
-          paymasterAPI.getAvailable(),
-          paymasterAPI.getPresets().catch(() => ({ data: [] })),
-        ]);
-        setPaymasterPresets((presetResponse.data ?? []) as any[]);
-        setSavedPaymasters((paymasterResponse.data ?? []) as any[]);
-        // The persisted default paymaster is applied by a dedicated effect once the
-        // account address (its storage scope) and the saved list are both ready.
-      } catch (error) {
-        console.error("Failed to load saved paymasters:", error);
-        setSavedPaymasters([]);
-      }
+      // Presets are account-independent (SDK canonical). Saved paymasters are
+      // account-scoped and loaded by a dedicated effect (below) once the account resolves.
+      setPaymasterPresets(getPaymasterPresets());
 
-      // Load address book + recent transfer recipients
+      // Load address book (client-side store) + recent transfer recipients (history API)
       try {
-        const [addressBookResponse, historyResponse] = await Promise.all([
-          addressBookAPI.getAddressBook().catch(() => ({ data: [] })),
-          transferAPI.getHistory(1, 50).catch(() => ({ data: { transfers: [] } })),
-        ]);
+        const historyResponse = await transferAPI
+          .getHistory(1, 50)
+          .catch(() => ({ data: { transfers: [] } }));
 
-        const bookEntries = addressBookResponse.data || [];
+        const bookEntries = getAddressBook(account?.address);
         const bookAddresses = new Set(bookEntries.map((e: any) => e.address.toLowerCase()));
 
         // Extract unique recent recipients not already in address book
@@ -300,15 +300,14 @@ export default function TransferPage() {
   };
 
   const loadTokenBalance = async (token: Token | null) => {
-    if (!token || token.address === "ETH") {
+    if (!token || token.address === "ETH" || !account?.address) {
       setTokenBalance(null);
       return;
     }
 
     setLoadingTokenBalance(true);
     try {
-      const response = await tokenAPI.getTokenBalance(token.address);
-      setTokenBalance(response.data);
+      setTokenBalance(await getTokenBalance(account.address, token.address));
     } catch (error) {
       console.error("Failed to load token balance:", error);
       setTokenBalance(null);
@@ -561,6 +560,10 @@ export default function TransferPage() {
       }
       toast.success("Transfer submitted! Tracking status...");
 
+      // Capture the recipient before the form is cleared so the address-book record
+      // (on confirmation) has it.
+      pendingRecipientRef.current = formData.to;
+
       // Start polling for status
       startStatusPolling(response.data.transferId);
 
@@ -684,6 +687,14 @@ export default function TransferPage() {
         // Only show toast once when polling was active
         if (wasPolling) {
           if (response.data.status === "completed") {
+            // Record the confirmed recipient in the client-side address book (usage++,
+            // keep tx hash) — replaces the old server-side recordSuccessfulTransfer.
+            recordSuccessfulTransfer(
+              account?.address,
+              pendingRecipientRef.current,
+              response.data.transactionHash || ""
+            );
+            pendingRecipientRef.current = "";
             toast.success("Transfer completed successfully!");
           } else {
             toast.error(`Transfer failed: ${response.data.error || "Unknown error"}`);
@@ -807,11 +818,10 @@ export default function TransferPage() {
     const name = prompt("Enter a name for this address (optional):");
 
     try {
-      await addressBookAPI.setAddressName(formData.to, name || "");
+      setAddressName(account?.address, formData.to, name || "");
 
       // Refresh address book
-      const addressBookResponse = await addressBookAPI.getAddressBook();
-      setAddressBook(addressBookResponse.data);
+      setAddressBook(getAddressBook(account?.address));
 
       toast.success("Address saved to address book! 📖");
     } catch (error: any) {
