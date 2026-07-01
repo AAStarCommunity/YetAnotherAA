@@ -20,6 +20,28 @@ signatures**, and **ERC-4337 account abstraction**. Features passwordless login,
 mandatory transaction verification, **KMS-based key management**, and **gasless
 account deployment** via Paymaster sponsorship.
 
+---
+
+## 🎬 Live on-chain demo — device-passkey Tier-3 gasless transfer
+
+A real end-to-end run on **Sepolia**: a user registers with a device passkey, gets a KMS-custodied
+smart account created with the passkey + validator **wired at birth**, and sends **0.051 ETH while
+holding zero ETH for gas** — the Paymaster sponsors gas from community points (aPNTs). Full-stack
+Playwright e2e (real browser passkey + real backend KMS owner + live DVT network) — **1 passed**.
+
+| | |
+|---|---|
+| **Tier-3 transfer tx** | [`0xa275c4aa…4e4a94`](https://sepolia.etherscan.io/tx/0xa275c4aa4870171afaac4e6aa079d99eb6b60e0f34ac330c12915c7ae34e4a94) (`success = true`) |
+| **Account** (device passkey, v0.23.0) | [`0x4a8B0f97…6Aca59`](https://sepolia.etherscan.io/address/0x4a8B0f971A3D73a8074117dD0d875F85Fd6Aca59) |
+| **Sent** | 0.051 ETH → recipient · account ETH `0.08 → 0.029` (exactly −0.051, **0 gas paid by the account**) |
+| **Gas** | sponsored by Paymaster `0xf3948753…` (`actualGasCost 0.000749 ETH`), funded by aPNTs |
+| **Signature** | device passkey (P256) + DVT BLS aggregate (dvt1/2/3) + guardian ECDSA → `packCumulativeT3WA` (0x0a) → `validateUserOp == 0` |
+| **Stack** | `@aastar/sdk@0.34.0` · AirAccount `v0.23.0` · DVT `v1.7.1` |
+
+📄 **Full details + all transactions:** [`docs/DEMO-device-passkey-tier3-gasless.md`](docs/DEMO-device-passkey-tier3-gasless.md)
+
+---
+
 > **🎯 Perfect for**: Web3 developers building secure wallets, DeFi applications
 > requiring enhanced security, and projects needing passwordless blockchain
 > authentication with enterprise-grade key management.
