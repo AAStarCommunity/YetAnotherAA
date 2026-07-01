@@ -33,6 +33,7 @@ import {
 } from "@aastar/sdk/airaccount";
 import { ensureSdkConfig, getPublicClient } from "@/lib/sdk/client";
 import { webauthnRpId } from "@/lib/webauthn-rp";
+import { getDefaultPaymaster } from "@/lib/default-paymaster";
 
 // Tier-3 only: collect a guardian co-signature over the prepared userOpHash from the
 // user's self-hosted guardian wallet (injected EIP-1193). signMessage({ raw }) is
@@ -226,7 +227,19 @@ export default function TransferPage() {
       // Load saved paymasters
       try {
         const paymasterResponse = await paymasterAPI.getAvailable();
-        setSavedPaymasters(paymasterResponse.data);
+        const list = (paymasterResponse.data ?? []) as any[];
+        setSavedPaymasters(list);
+        // Auto-apply the persisted default paymaster (set on the Paymaster page) when
+        // it's still among the saved list: pre-enable sponsorship and pre-select it.
+        const def = getDefaultPaymaster();
+        const match = def && list.find(p => p.address?.toLowerCase() === def);
+        if (match) {
+          setFormData(prev => ({
+            ...prev,
+            usePaymaster: true,
+            paymasterAddress: match.address,
+          }));
+        }
       } catch (error) {
         console.error("Failed to load saved paymasters:", error);
         setSavedPaymasters([]);

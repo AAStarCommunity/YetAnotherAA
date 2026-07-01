@@ -6,7 +6,18 @@ import Layout from "@/components/Layout";
 import { paymasterAPI } from "@/lib/api";
 import SwipeableListItem from "@/components/SwipeableListItem";
 import toast from "react-hot-toast";
-import { PlusIcon, CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  StarIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
+import {
+  getDefaultPaymaster,
+  setDefaultPaymaster,
+  clearDefaultPaymaster,
+} from "@/lib/default-paymaster";
 interface Paymaster {
   name: string;
   address: string;
@@ -30,6 +41,7 @@ export default function PaymasterPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string>("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [defaultPaymaster, setDefaultPm] = useState<string | null>(null);
   const [newPaymaster, setNewPaymaster] = useState({
     name: "",
     address: "",
@@ -40,7 +52,23 @@ export default function PaymasterPage() {
 
   useEffect(() => {
     loadPaymasters();
+    setDefaultPm(getDefaultPaymaster());
   }, []);
+
+  // Toggle a saved paymaster as the persisted default (client-side preference the
+  // transfer page auto-applies). Clicking the current default again clears it.
+  const handleToggleDefault = (address: string) => {
+    const addr = address.toLowerCase();
+    if (defaultPaymaster === addr) {
+      clearDefaultPaymaster();
+      setDefaultPm(null);
+      toast.success("Default paymaster cleared");
+    } else {
+      setDefaultPaymaster(addr);
+      setDefaultPm(addr);
+      toast.success("Set as default paymaster");
+    }
+  };
 
   const loadPaymasters = async () => {
     setLoading(true);
@@ -129,7 +157,13 @@ export default function PaymasterPage() {
 
     setActionLoading(`remove-${name}`);
     try {
+      const removed = paymasters.find(p => p.name === name);
       await paymasterAPI.remove(name);
+      // If the removed paymaster was the persisted default, drop the stale preference.
+      if (removed && defaultPaymaster === removed.address.toLowerCase()) {
+        clearDefaultPaymaster();
+        setDefaultPm(null);
+      }
       toast.success("Paymaster removed successfully!");
       await loadPaymasters();
     } catch (error) {
@@ -469,8 +503,34 @@ export default function PaymasterPage() {
                               Address Only
                             </span>
                           )}
+                          {defaultPaymaster === paymaster.address.toLowerCase() && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                              Default
+                            </span>
+                          )}
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDefault(paymaster.address)}
+                        aria-label={
+                          defaultPaymaster === paymaster.address.toLowerCase()
+                            ? "Unset default paymaster"
+                            : "Set as default paymaster"
+                        }
+                        title={
+                          defaultPaymaster === paymaster.address.toLowerCase()
+                            ? "Default — click to unset"
+                            : "Set as default"
+                        }
+                        className="ml-3 shrink-0 p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors touch-manipulation active:scale-95"
+                      >
+                        {defaultPaymaster === paymaster.address.toLowerCase() ? (
+                          <StarIconSolid className="w-5 h-5 text-emerald-500" />
+                        ) : (
+                          <StarIcon className="w-5 h-5" />
+                        )}
+                      </button>
                     </div>
                   </SwipeableListItem>
                 ))}
@@ -493,6 +553,7 @@ export default function PaymasterPage() {
                   <li>Address-only paymasters work without API keys</li>
                   <li>API-configured paymasters provide better sponsorship reliability</li>
                   <li>You can use multiple paymasters and choose per transaction</li>
+                  <li>Tap the ☆ to set a default — transfers auto-select it (this device only)</li>
                 </ul>
               </div>
             </div>
