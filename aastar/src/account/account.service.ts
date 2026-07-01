@@ -376,7 +376,15 @@ export class AccountService {
    * the user's one-time WebAuthn ceremony assertion (KMS owner) and relays the deploy via a funded
    * backend deployer (msg.sender == deployer). Returns the DEPLOYED account (validator + passkey at birth).
    */
-  async submitCreateWithPasskey(_userId: string, dto: SubmitCreateWithPasskeyDto) {
+  async submitCreateWithPasskey(userId: string, dto: SubmitCreateWithPasskeyDto) {
+    // Security model: `createId` is a prepare-session handle the SDK bound to the caller
+    // at prepareCreateWithPasskey time, and submitPreparedCreateAccount deploys THAT
+    // session's account regardless of who submits — so a leaked createId can't be used to
+    // deploy an account the submitter controls (it deploys the original user's account,
+    // at most wasting deployer gas). The real gate is the one-time WebAuthn assertion below,
+    // which requires the user's physical device. `userId` is therefore not a security check
+    // here (a strict createId↔userId assertion needs an SDK-exposed binding getter); it is
+    // recorded for audit. See PR #399 review H1.
     const deployerKey =
       this.configService.get<string>("deployerPrivateKey") || process.env.DEPLOYER_PRIVATE_KEY;
     if (!deployerKey) {
@@ -400,11 +408,14 @@ export class AccountService {
         } as any,
       });
       this.logger.log(
-        `submitCreateWithPasskey OK: address=${account.address} deployed=${account.deployed}`
+        `submitCreateWithPasskey OK: user=${userId} address=${account.address} deployed=${account.deployed}`
       );
       return account;
     } catch (err: any) {
-      this.logger.error(`submitCreateWithPasskey FAILED: ${err?.message ?? err}`, err?.stack);
+      this.logger.error(
+        `submitCreateWithPasskey FAILED (user=${userId}): ${err?.message ?? err}`,
+        err?.stack
+      );
       throw err;
     }
   }

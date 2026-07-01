@@ -90,9 +90,17 @@ export const yaaaServerClientProvider: Provider = {
         return { tier1Limit: BigInt(tier1Limit), tier2Limit: BigInt(tier2Limit) };
       };
     } else {
-      new Logger("SdkProvider").warn(
-        "Could not install GuardChecker.fetchTierConfig shim (SDK internals changed); tiered transfers may fail on 0.29.7."
-      );
+      // Fail fast at startup. Without this shim EVERY tiered transfer (Tier-1 self-calls
+      // included) throws AbiFunctionNotFoundError at runtime, so a silent `warn` would let
+      // a single @aastar/sdk bump that renames `transfers.guardChecker` / `client.ethereum`
+      // break all transfers in production undetected. Surface it here and force a conscious
+      // re-check of the shim on the next SDK bump.
+      const message =
+        "GuardChecker.fetchTierConfig shim could not be installed: @aastar/sdk internals " +
+        "(transfers.guardChecker / client.ethereum) changed. Update the shim in " +
+        "sdk.providers.ts (or drop it if the SDK now ships tier1Limit/tier2Limit) before deploying.";
+      new Logger("SdkProvider").error(message);
+      throw new Error(message);
     }
 
     return client;
