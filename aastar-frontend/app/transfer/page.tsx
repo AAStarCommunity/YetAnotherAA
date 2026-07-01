@@ -163,6 +163,9 @@ export default function TransferPage() {
   const [_loadingTokenBalance, setLoadingTokenBalance] = useState(false);
   const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
   const [savedPaymasters, setSavedPaymasters] = useState<any[]>([]);
+  // Preset metadata (SuperPaymaster / PaymasterV4 canonical addresses + requiresCommunity)
+  // used to detect the selected paymaster's type and show its prerequisite hint.
+  const [paymasterPresets, setPaymasterPresets] = useState<any[]>([]);
   const [showPaymasterDropdown, setShowPaymasterDropdown] = useState(false);
   const [addressBook, setAddressBook] = useState<any[]>([]);
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
@@ -226,7 +229,11 @@ export default function TransferPage() {
     try {
       // Load saved paymasters
       try {
-        const paymasterResponse = await paymasterAPI.getAvailable();
+        const [paymasterResponse, presetResponse] = await Promise.all([
+          paymasterAPI.getAvailable(),
+          paymasterAPI.getPresets().catch(() => ({ data: [] })),
+        ]);
+        setPaymasterPresets((presetResponse.data ?? []) as any[]);
         const list = (paymasterResponse.data ?? []) as any[];
         setSavedPaymasters(list);
         // Auto-apply the persisted default paymaster (set on the Paymaster page) when
@@ -1408,12 +1415,43 @@ export default function TransferPage() {
                             for no paymaster.
                           </p>
                           {formData.paymasterAddress && (
-                            <div className="mt-2">
+                            <div className="mt-2 space-y-2">
                               <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300">
-                                💡 Using custom paymaster: {formData.paymasterAddress.slice(0, 10)}
-                                ...
+                                💡 Using paymaster: {formData.paymasterAddress.slice(0, 10)}...
                                 {formData.paymasterAddress.slice(-8)}
                               </div>
+                              {/* Detect the selected paymaster's type and show its prerequisite. */}
+                              {(() => {
+                                const preset = paymasterPresets.find(
+                                  p =>
+                                    p.address?.toLowerCase() ===
+                                    formData.paymasterAddress.toLowerCase()
+                                );
+                                if (preset?.requiresCommunity) {
+                                  return (
+                                    <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+                                      ⚠️ {preset.name} pays gas with {preset.gasToken}. You must join
+                                      a community and hold its xPNTs first — otherwise sponsorship
+                                      will be rejected on submit.
+                                    </div>
+                                  );
+                                }
+                                if (preset) {
+                                  return (
+                                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs text-emerald-800 dark:text-emerald-300">
+                                      ✅ {preset.name} — pay gas with {preset.gasToken}. PaymasterV4
+                                      is a template (this is the AAStar community instance; any
+                                      community can deploy its own). Make sure you hold {preset.gasToken}.
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-600 dark:text-slate-400">
+                                    ℹ️ Custom paymaster — confirm you hold the gas token it accepts
+                                    and that it has enough deposit to sponsor your gas.
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>

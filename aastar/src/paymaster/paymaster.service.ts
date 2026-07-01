@@ -39,9 +39,13 @@ export class PaymasterService {
   /**
    * Recommended paymaster presets, addresses sourced from the @aastar/sdk canonical
    * table (never hardcoded). Two options:
-   *  - AAStar PaymasterV4: official, pay gas with aPNTs, no community needed.
-   *  - SuperPaymaster: pay gas with community points (xPNTs) — requires joining a
-   *    community + earning points, so it's unusable without them.
+   *  - PaymasterV4: a TEMPLATE, not a single contract — any community can deploy its
+   *    own V4 (own gas token + own deposit) via the factory, so many V4 instances can
+   *    exist. The one we ship here is the AAStar community's instance; pay gas with
+   *    aPNTs (you're in the default AAStar community, so no separate join is needed).
+   *  - SuperPaymaster: a single shared contract that accepts ANY community's points
+   *    (xPNTs) — requires joining a community + holding that community's points, so
+   *    it's unusable without them.
    */
   getPaymasterPresets(): PaymasterPreset[] {
     const chainId = this.configService.get<number>("chainId") || 11155111;
@@ -58,7 +62,7 @@ export class PaymasterService {
         gasToken: "aPNTs",
         gasTokenAddress: a.aPNTs ?? null,
         description:
-          "Official AAStar-operated paymaster. Buy aPNTs and it sponsors your gas — available to everyone (you're in the default AAStar community by default). No community membership or points required.",
+          "PaymasterV4 is a template — any community can deploy its own V4 (own gas token + deposit) via the factory, so there can be many. This is the AAStar community's instance: buy aPNTs and it sponsors your gas. You're in the default AAStar community, so no separate join is needed — you just need aPNTs.",
       });
     }
     if (a.superPaymaster) {
@@ -71,7 +75,7 @@ export class PaymasterService {
         gasToken: "xPNTs (community points)",
         gasTokenAddress: null,
         description:
-          "Pay gas with community points (xPNTs). Requires joining a community and earning points by completing community tasks — it will not work until you hold that community's points.",
+          "A single shared paymaster that accepts ANY community's points (xPNTs). Requires joining a community and earning its points by completing tasks — it will not work until you hold that community's points.",
       });
     }
     return presets;

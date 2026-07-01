@@ -509,6 +509,28 @@ export default function PaymasterPage() {
                             </span>
                           )}
                         </div>
+                        {defaultPaymaster === paymaster.address.toLowerCase() &&
+                          (() => {
+                            const preset = presets.find(
+                              p => p.address.toLowerCase() === paymaster.address.toLowerCase()
+                            );
+                            const req = preset?.requiresCommunity;
+                            return (
+                              <p
+                                className={`mt-2 text-xs ${
+                                  req
+                                    ? "text-amber-700 dark:text-amber-400"
+                                    : "text-gray-500 dark:text-gray-400"
+                                }`}
+                              >
+                                {req
+                                  ? `⚠️ Auto-applied on transfers — needs a community + its ${preset.gasToken}.`
+                                  : preset
+                                    ? `✅ Auto-applied on transfers — needs ${preset.gasToken}.`
+                                    : "✅ Auto-applied on transfers — ensure you hold its gas token and it has deposit."}
+                              </p>
+                            );
+                          })()}
                       </div>
                       <button
                         type="button"
