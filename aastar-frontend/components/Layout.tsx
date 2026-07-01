@@ -199,6 +199,7 @@ export default function Layout({ children, requireAuth = false }: LayoutProps) {
                         {
                           title: "Settings",
                           items: [
+                            { label: "Settings", path: "/settings", Icon: Cog6ToothIcon },
                             { label: "Tokens", path: "/tokens", Icon: WalletIcon },
                             { label: "NFTs", path: "/nfts", Icon: BookOpenIcon },
                             { label: "Address Book", path: "/address-book", Icon: BookOpenIcon },

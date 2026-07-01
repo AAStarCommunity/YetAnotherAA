@@ -141,3 +141,9 @@ foundation must come first.
 
 Step 2 (KMS/auth foundation) needs the real KMS Origin-auth + API-key infra to be live
 (the open questions above) — it's a backend/infra dependency, not just a frontend edit.
+
+**Foundation prep (frontend-only, done ahead of the infra — non-breaking, not yet wired):**
+- `lib/api-key-store.ts` — holds the user's AAStar API key + optional KMS/bundler endpoint overrides in localStorage.
+- `lib/kms-client.ts` (extended) — a direct-KMS seam: `kmsBaseUrl()`, `isDirectKmsReady()`, `directKmsClient()` (wires the existing `KmsClient` to the user's key), `pingKms()`. Auth/transfer flows still use the `/kms-api` proxy until the KMS Origin+API-key path is live.
+- `app/settings/page.tsx` — enter/save/clear the API key + endpoint overrides, test KMS connectivity, show direct-ready status (linked from the avatar menu). `pingKms` will CORS-fail until KMS allows the browser Origin — expected, and is itself the readiness signal.
+- Note: `lib/auth.ts` already centralizes the JWT (getStoredAuth/setStoredAuth/clear) — no convergence needed there.
