@@ -7,6 +7,7 @@ import {
   parseEther,
   parseGwei,
   type Address,
+  parseAbi,
 } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
@@ -119,6 +120,37 @@ export async function getTier2Limit(account: Address): Promise<bigint> {
   } catch {
     return 0n; // not deployed / not armed yet
   }
+}
+
+// EntryPoint v0.7 nonce for the account (key 0). Used to wait out pending UserOps so a follow-up
+// transfer doesn't prepare a stale nonce.
+export async function getAccountNonce(account: Address): Promise<bigint> {
+  try {
+    return (await client().readContract({
+      address: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      abi: parseAbi(["function getNonce(address sender, uint192 key) view returns (uint256)"]),
+      functionName: "getNonce",
+      args: [account, 0n],
+    })) as bigint;
+  } catch {
+    return 0n;
+  }
+}
+
+// Block until the account's EntryPoint nonce stops advancing (no in-flight UserOps). The tier-setup
+// persona apply submits TWO UserOps (setTierLimits then setWeightConfig); the e2e only waits for the
+// tier2 limit to land (first op), so without this the transfer can prepare a stale nonce that the
+// still-mining second op consumes → AA25 invalid account nonce.
+export async function waitForNonceStable(account: Address, timeoutMs = 90_000): Promise<bigint> {
+  const start = Date.now();
+  let prev = -1n;
+  while (Date.now() - start < timeoutMs) {
+    const n = await getAccountNonce(account);
+    if (n > 0n && n === prev) return n; // unchanged across two reads → nothing pending
+    prev = n;
+    await new Promise(r => setTimeout(r, 4000));
+  }
+  return prev;
 }
 
 /**

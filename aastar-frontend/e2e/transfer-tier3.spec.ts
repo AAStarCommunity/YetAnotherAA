@@ -9,6 +9,7 @@ import {
   getEthBalance,
   getTier2Limit,
   onboardAPNTsGas,
+  waitForNonceStable,
   withRetry,
 } from "./helpers/fund";
 
@@ -190,6 +191,10 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
   // The apply toast fires on submit, before the self-call UserOps mine. Wait until the armed
   // tier-2 is actually on-chain so the transfer's resolveTransfer reads it (not pre-arm zero).
   await expect.poll(() => getTier2Limit(account), { timeout: 90_000 }).toBeGreaterThan(0n);
+  // The persona apply submits TWO UserOps (setTierLimits + setWeightConfig); the tier2 poll only
+  // confirms the first landed. Wait for the account nonce to stop advancing so the transfer doesn't
+  // prepare a stale nonce that the still-mining setWeightConfig consumes → AA25 invalid account nonce.
+  await waitForNonceStable(account);
 
   // 5) Tier-3 transfer: 0.051 ETH > tier2 (0.05) → needs passkey + BLS + guardian. The UI flow
   // collects the guardian co-sign from window.ethereum (g1) over the userOpHash.
