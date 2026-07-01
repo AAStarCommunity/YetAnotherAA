@@ -129,7 +129,10 @@ test("XFER-T3: Tier-3 transfer with guardian co-sign (passkey + BLS + guardian)"
       rpId: o.rpId,
       timeout: o.timeout,
       userVerification: o.userVerification,
-      allowCredentials: (o.allowCredentials || []).map((c: any) => ({ ...c, id: b64urlToBuf(c.id) })),
+      allowCredentials: (o.allowCredentials || []).map((c: any) => ({
+        ...c,
+        id: b64urlToBuf(c.id),
+      })),
     };
     const cred: any = await navigator.credentials.get({ publicKey });
     const r = cred.response;

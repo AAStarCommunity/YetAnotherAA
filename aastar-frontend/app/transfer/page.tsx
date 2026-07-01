@@ -1452,9 +1452,9 @@ export default function TransferPage() {
                                 if (preset?.requiresCommunity) {
                                   return (
                                     <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl text-xs text-amber-800 dark:text-amber-300">
-                                      ⚠️ {preset.name} pays gas with {preset.gasToken}. You must join
-                                      a community and hold its xPNTs first — otherwise sponsorship
-                                      will be rejected on submit.
+                                      ⚠️ {preset.name} pays gas with {preset.gasToken}. You must
+                                      join a community and hold its xPNTs first — otherwise
+                                      sponsorship will be rejected on submit.
                                     </div>
                                   );
                                 }
@@ -1463,7 +1463,8 @@ export default function TransferPage() {
                                     <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs text-emerald-800 dark:text-emerald-300">
                                       ✅ {preset.name} — pay gas with {preset.gasToken}. PaymasterV4
                                       is a template (this is the AAStar community instance; any
-                                      community can deploy its own). Make sure you hold {preset.gasToken}.
+                                      community can deploy its own). Make sure you hold{" "}
+                                      {preset.gasToken}.
                                     </div>
                                   );
                                 }

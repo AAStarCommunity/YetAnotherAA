@@ -44,7 +44,10 @@ export function clearDefaultPaymaster(account?: string | null): void {
   }
 }
 
-export function isDefaultPaymaster(address: string | null | undefined, account?: string | null): boolean {
+export function isDefaultPaymaster(
+  address: string | null | undefined,
+  account?: string | null
+): boolean {
   if (!address) return false;
   return getDefaultPaymaster(account) === address.toLowerCase();
 }
