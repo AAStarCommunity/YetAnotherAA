@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { Account, Transfer, TokenBalance } from "@/lib/types";
-import { accountAPI, transferAPI, paymasterAPI, userTokenAPI } from "@/lib/api";
+import { accountAPI, transferAPI, paymasterAPI } from "@/lib/api";
 import { getTokenBalance } from "@/lib/token-balance";
+import { getUserTokens } from "@/lib/user-token-store";
 import { getStoredAuth } from "@/lib/auth";
 
 interface DashboardData {
@@ -140,9 +141,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         let tokenBalancesData: TokenBalance[] = [];
         if (accountData?.address) {
           try {
-            // Get user's added tokens
-            const userTokensResponse = await userTokenAPI.getUserTokens({});
-            const userTokens = userTokensResponse.data;
+            // Get user's added tokens (client-side store)
+            const userTokens = await getUserTokens(accountData.address, {});
 
             // Get balance for each user token (client-side on-chain read)
             const balancePromises = userTokens.map(async (userToken: any) => {
@@ -202,9 +202,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       let tokenBalancesData: TokenBalance[] = [];
       if (accountResponse.data?.address) {
         try {
-          // Get user's added tokens
-          const userTokensResponse = await userTokenAPI.getUserTokens({});
-          const userTokens = userTokensResponse.data;
+          // Get user's added tokens (client-side store)
+          const userTokens = await getUserTokens(accountResponse.data.address, {});
 
           // Get balance for each user token (client-side on-chain read)
           const balancePromises = userTokens.map(async (userToken: any) => {

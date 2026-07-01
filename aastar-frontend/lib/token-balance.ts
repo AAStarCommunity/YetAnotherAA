@@ -49,3 +49,20 @@ export async function getTokenBalance(
     decimals,
   };
 }
+
+/** Read only an ERC-20's metadata (no balance) — used when adding a custom token. */
+export async function getTokenMetadata(tokenAddress: string): Promise<Token> {
+  const pc = publicClient();
+  const token = tokenAddress as `0x${string}`;
+  const [decimalsRaw, symbol, name] = await Promise.all([
+    pc.readContract({ address: token, abi: erc20Abi, functionName: "decimals" }),
+    pc.readContract({ address: token, abi: erc20Abi, functionName: "symbol" }),
+    pc.readContract({ address: token, abi: erc20Abi, functionName: "name" }),
+  ]);
+  return {
+    address: tokenAddress,
+    symbol: symbol as string,
+    name: name as string,
+    decimals: Number(decimalsRaw),
+  };
+}

@@ -224,40 +224,8 @@ export const tokenAPI = {
     api.get("/tokens/search", { params }),
 };
 
-// User Token API
-export const userTokenAPI = {
-  getUserTokens: (params?: { activeOnly?: boolean; withBalances?: boolean }) =>
-    api.get("/user-tokens", { params }),
-
-  addUserToken: (data: {
-    address: string;
-    symbol?: string;
-    name?: string;
-    decimals?: number;
-    logoUrl?: string;
-  }) => api.post("/user-tokens", data),
-
-  updateUserToken: (
-    tokenId: string,
-    data: {
-      isActive?: boolean;
-      sortOrder?: number;
-      logoUrl?: string;
-    }
-  ) => api.put(`/user-tokens/${tokenId}`, data),
-
-  removeUserToken: (tokenId: string) => api.delete(`/user-tokens/${tokenId}`),
-
-  deleteUserToken: (tokenId: string) => api.delete(`/user-tokens/${tokenId}/permanent`),
-
-  searchUserTokens: (params: { query?: string; customOnly?: boolean; activeOnly?: boolean }) =>
-    api.get("/user-tokens/search", { params }),
-
-  initializeDefaultTokens: () => api.post("/user-tokens/initialize-defaults"),
-
-  updateTokensOrder: (tokenOrders: { tokenId: string; sortOrder: number }[]) =>
-    api.put("/user-tokens/reorder", { tokenOrders }),
-};
+// userTokenAPI removed — the user token list is now a client-side store
+// (lib/user-token-store.ts, localStorage, account-scoped). Zero-backend migration step 1c.
 
 // Guardian & Recovery API
 export const guardianAPI = {

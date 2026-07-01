@@ -10,7 +10,7 @@ import {
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { Token, UserTokenWithBalance } from "@/lib/types";
-import { userTokenAPI } from "@/lib/api";
+import { getUserTokens, addUserToken, initializeDefaultTokens } from "@/lib/user-token-store";
 import TokenIcon from "@/components/TokenIcon";
 import toast from "react-hot-toast";
 
@@ -77,30 +77,17 @@ export default function TokenSelector({
   const loadTokens = async () => {
     setLoading(true);
     try {
-      // Load user tokens with balances
-      const response = await userTokenAPI.getUserTokens({
-        activeOnly: true,
-        withBalances: !!accountAddress && showBalances,
-      });
-      setUserTokens(response.data);
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        // User has no tokens yet, initialize with defaults
-        try {
-          await userTokenAPI.initializeDefaultTokens();
-          const response = await userTokenAPI.getUserTokens({
-            activeOnly: true,
-            withBalances: !!accountAddress && showBalances,
-          });
-          setUserTokens(response.data);
-        } catch (initError) {
-          console.error("Failed to initialize tokens:", initError);
-          toast.error("Failed to load tokens");
-        }
-      } else {
-        console.error("Failed to load tokens:", error);
-        toast.error("Failed to load tokens");
+      const opts = { activeOnly: true, withBalances: !!accountAddress && showBalances };
+      let tokens = await getUserTokens(accountAddress, opts);
+      // First use: seed the default preset tokens, then reload.
+      if (tokens.length === 0) {
+        initializeDefaultTokens(accountAddress);
+        tokens = await getUserTokens(accountAddress, opts);
       }
+      setUserTokens(tokens);
+    } catch (error) {
+      console.error("Failed to load tokens:", error);
+      toast.error("Failed to load tokens");
     } finally {
       setLoading(false);
     }
@@ -111,11 +98,7 @@ export default function TokenSelector({
 
     setBalancesLoading(true);
     try {
-      const response = await userTokenAPI.getUserTokens({
-        activeOnly: true,
-        withBalances: true,
-      });
-      setUserTokens(response.data);
+      setUserTokens(await getUserTokens(accountAddress, { activeOnly: true, withBalances: true }));
     } catch (error) {
       console.error("Failed to load token balances:", error);
       // Don't show error toast for balances, as it's supplementary info
@@ -132,8 +115,8 @@ export default function TokenSelector({
 
     setValidatingToken(true);
     try {
-      const response = await userTokenAPI.addUserToken({ address: customTokenAddress });
-      toast.success(`Added ${response.data.symbol} token`);
+      const token = await addUserToken(accountAddress, customTokenAddress);
+      toast.success(`Added ${token.symbol} token`);
       setCustomTokenAddress("");
       setShowCustomTokenModal(false);
       await loadTokens();
