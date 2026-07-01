@@ -33,8 +33,15 @@ export function webauthnRpId(): string {
   if (!raw) return "";
   const h = canonicalHost(raw);
 
-  // localhost, IPv4 literal, or IPv6 literal ([::1]) — rpId must equal the host.
-  if (h === "localhost" || h.startsWith("[") || /^[\d.]+$/.test(h)) return h;
+  // Loopback dev hosts: WebAuthn treats these as secure contexts, but rpId must be a
+  // domain — never an IP or bracketed IPv6 literal (the browser rejects `[::1]` as an
+  // invalid rpId). Map all loopback forms to "localhost".
+  if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]") {
+    return "localhost";
+  }
+  // Other IPv4 literal (LAN dev): WebAuthn has no valid IP rpId — pass the host through
+  // so the browser surfaces its own error instead of us fabricating a wrong domain.
+  if (/^[\d.]+$/.test(h)) return h;
 
   // Map any subdomain to its registrable deployment domain (public-suffix-safe).
   for (const d of RP_DOMAINS) {

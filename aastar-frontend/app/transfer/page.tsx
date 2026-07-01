@@ -183,7 +183,7 @@ export default function TransferPage() {
   });
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
-  const defaultPaymasterAppliedRef = useRef(false);
+  const defaultPaymasterAppliedForRef = useRef<string | null>(null);
   const touchStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -192,13 +192,15 @@ export default function TransferPage() {
     loadPageData();
   }, []);
 
-  // Auto-apply the account-scoped default paymaster once, after both the account
-  // (the preference's storage scope) and the saved list are available. The ref makes
-  // it fire exactly once, so it never overrides a manual un-toggle later.
+  // Auto-apply the account-scoped default paymaster once PER ACCOUNT, after both the
+  // account (the preference's storage scope) and the saved list are available. The ref
+  // tracks the account it last applied for, so a mid-session account switch re-applies
+  // the new account's default, while a manual un-toggle within one account is never
+  // overridden.
   useEffect(() => {
-    if (defaultPaymasterAppliedRef.current) return;
     if (!account?.address || savedPaymasters.length === 0) return;
-    defaultPaymasterAppliedRef.current = true;
+    if (defaultPaymasterAppliedForRef.current === account.address) return;
+    defaultPaymasterAppliedForRef.current = account.address;
     const def = getDefaultPaymaster(account.address);
     const match = def && savedPaymasters.find(p => p.address?.toLowerCase() === def);
     if (match) {
