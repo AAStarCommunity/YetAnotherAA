@@ -6,8 +6,9 @@ import Layout from "@/components/Layout";
 import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { transferAPI, tokenAPI, paymasterAPI } from "@/lib/api";
+import { transferAPI, paymasterAPI } from "@/lib/api";
 import { getAddressBook, setAddressName, recordSuccessfulTransfer } from "@/lib/address-book-store";
+import { getTokenBalance } from "@/lib/token-balance";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
 import toast from "react-hot-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
@@ -303,15 +304,14 @@ export default function TransferPage() {
   };
 
   const loadTokenBalance = async (token: Token | null) => {
-    if (!token || token.address === "ETH") {
+    if (!token || token.address === "ETH" || !account?.address) {
       setTokenBalance(null);
       return;
     }
 
     setLoadingTokenBalance(true);
     try {
-      const response = await tokenAPI.getTokenBalance(token.address);
-      setTokenBalance(response.data);
+      setTokenBalance(await getTokenBalance(account.address, token.address));
     } catch (error) {
       console.error("Failed to load token balance:", error);
       setTokenBalance(null);

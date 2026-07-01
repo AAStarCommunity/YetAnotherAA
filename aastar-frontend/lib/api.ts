@@ -204,7 +204,7 @@ export const tokenAPI = {
 
   validateToken: (data: { address: string }) => api.post("/tokens/validate", data),
 
-  getTokenBalance: (address: string) => api.get(`/tokens/balance/${address}`),
+  // getTokenBalance moved to a client-side on-chain read (lib/token-balance.ts). Step 1b.
 
   getTokenBalances: (accountAddress?: string) => {
     const params = accountAddress ? { address: accountAddress } : {};

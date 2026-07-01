@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { Account, Transfer, TokenBalance } from "@/lib/types";
-import { accountAPI, transferAPI, paymasterAPI, tokenAPI, userTokenAPI } from "@/lib/api";
+import { accountAPI, transferAPI, paymasterAPI, userTokenAPI } from "@/lib/api";
+import { getTokenBalance } from "@/lib/token-balance";
 import { getStoredAuth } from "@/lib/auth";
 
 interface DashboardData {
@@ -143,11 +144,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             const userTokensResponse = await userTokenAPI.getUserTokens({});
             const userTokens = userTokensResponse.data;
 
-            // Get balance for each user token
+            // Get balance for each user token (client-side on-chain read)
             const balancePromises = userTokens.map(async (userToken: any) => {
               try {
-                const balanceResponse = await tokenAPI.getTokenBalance(userToken.address);
-                return balanceResponse.data;
+                return await getTokenBalance(accountData.address, userToken.address);
               } catch (error) {
                 console.error(`Failed to get balance for ${userToken.symbol}:`, error);
                 return null;
@@ -206,11 +206,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           const userTokensResponse = await userTokenAPI.getUserTokens({});
           const userTokens = userTokensResponse.data;
 
-          // Get balance for each user token
+          // Get balance for each user token (client-side on-chain read)
           const balancePromises = userTokens.map(async (userToken: any) => {
             try {
-              const balanceResponse = await tokenAPI.getTokenBalance(userToken.address);
-              return balanceResponse.data;
+              return await getTokenBalance(accountResponse.data.address, userToken.address);
             } catch (error) {
               console.error(`Failed to get balance for ${userToken.symbol}:`, error);
               return null;

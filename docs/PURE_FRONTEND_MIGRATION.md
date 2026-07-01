@@ -115,5 +115,6 @@ Implications for the constraint table above:
 
 - [x] Branch created, migration plan drafted.
 - [x] Step 1a: **address book → client-side store** (`lib/address-book-store.ts`, localStorage, account-scoped). Backend `/address-book*` no longer called; transfer records the recipient client-side on confirmation. (backend module left in place; deleted in step 8)
-- [ ] Step 1b: tokens → `@aastar/sdk/tokens` + client cache.
+- [x] Step 1b: **token balance → client-side on-chain read** (`lib/token-balance.ts`, viem `erc20Abi` balanceOf/decimals/symbol/name). The only used token endpoint was `getTokenBalance`; transfer + DashboardContext now read on-chain (verified live on Sepolia). `getTokenBalance` removed from `lib/api.ts`. The user's saved-token *list* (`userTokenAPI`) is still backend — separate step.
+- [ ] Step 1c: user-token list (`userTokenAPI`) → client storage.
 - [ ] … (steps 2–8)
