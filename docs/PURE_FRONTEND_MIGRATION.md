@@ -118,4 +118,26 @@ Implications for the constraint table above:
 - [x] Step 1b: **token balance → client-side on-chain read** (`lib/token-balance.ts`, viem `erc20Abi` balanceOf/decimals/symbol/name). The only used token endpoint was `getTokenBalance`; transfer + DashboardContext now read on-chain (verified live on Sepolia). `getTokenBalance` removed from `lib/api.ts`. The user's saved-token *list* (`userTokenAPI`) is still backend — separate step.
 - [x] Step 1c: **user-token list → client-side store** (`lib/user-token-store.ts`, localStorage, account-scoped). getUserTokens / addUserToken / initializeDefaultTokens are client-side; custom-token metadata resolves on-chain (`getTokenMetadata`); balances attach via step 1b; defaults mirror the old PRESET_TOKENS. `userTokenAPI` removed. (Note: presets are Optimism contracts — a pre-existing chain mismatch preserved as-is.)
 - [x] Step 2 (list): **paymaster saved-list + presets → client-side** (`lib/paymaster-store.ts`, localStorage account-scoped list; presets built from SDK canonical). `paymasterAPI` removed. NOTE: `paymasterAPI.sponsor` was unused and the transfer backend sponsors from the passed `paymasterAddress`, so sponsorship itself still runs server-side and moves client-side with the transfer flow (step 4).
-- [ ] … (steps 3–8; step 4 transfer includes paymaster sponsorship)
+- [x] Step 3 (bls cleanup): **`blsAPI` removed** — the frontend never called it; BLS runs inside the backend transfer flow and moves client-side (direct to the gossip network) with the transfer migration.
+
+### Re-planning note (after finishing the storage-class migrations)
+
+The cleanly-separable work (localStorage stores + on-chain reads) is now done: **address
+book, token balance, token list, paymaster list**. Everything left — **account
+(`getAccount` / create), transfer signing, guardian recovery** — is **KMS/auth-rooted**:
+the account address and every signature derive from the user's KMS key via the backend's
+`resolveKmsKey(userId)` signer. They cannot move to the browser until the **KMS/auth
+foundation** exists.
+
+So the original order (account → transfer → guardian → auth → KMS) is **inverted**: the
+foundation must come first.
+
+**Revised order:**
+1. ✅ Storage-class: address book / token balance+list / paymaster list (done); BLS dead-API removed.
+2. **KMS Origin-direct + the API-key model** (was step 7) — browser talks to KMS with the user's API key / SBT identity; retire the `app/kms-api` key-injecting route.
+3. **Auth root** (was step 6) — passkey/KMS session instead of backend JWT.
+4. On that foundation: **account** (client-side address derivation + create), **transfer** (client-side KMS sign + BLS + paymaster + bundler), **guardian**.
+5. Delete `aastar/`; flip `output: 'export'`.
+
+Step 2 (KMS/auth foundation) needs the real KMS Origin-auth + API-key infra to be live
+(the open questions above) — it's a backend/infra dependency, not just a frontend edit.

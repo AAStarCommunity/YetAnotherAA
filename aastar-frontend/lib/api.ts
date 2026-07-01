@@ -168,12 +168,9 @@ export const transferAPI = {
 };
 
 // BLS API
-export const blsAPI = {
-  getNodes: () => api.get("/bls/nodes"),
-
-  generateSignature: (data: { userOpHash: string; nodeIndices?: number[] }) =>
-    api.post("/bls/sign", data),
-};
+// blsAPI removed — the frontend never called it; BLS runs inside the backend transfer
+// flow and moves client-side (direct to the BLS gossip network) with the transfer
+// migration (step 4). Zero-backend migration step 3 (bls cleanup).
 
 // Paymaster API
 // paymasterAPI removed — the saved paymaster list + presets are now client-side
