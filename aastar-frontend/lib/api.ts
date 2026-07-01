@@ -46,9 +46,15 @@ export const authAPI = {
   completeKmsLogin: (data: { address: string; challengeId: string; credential: any }) =>
     api.post("/auth/login/kms/complete", data),
 
-  // Wallet linking (JWT-protected)
-  linkWallet: (data: { kmsKeyId: string; address: string; credentialId?: string }) =>
-    api.post("/auth/wallet/link", data),
+  // Wallet linking (JWT-protected). passkeyX/passkeyY = the device WebAuthn credential's
+  // secp256r1 public key, persisted so a Tier-2/3 account can register it via setP256Key.
+  linkWallet: (data: {
+    kmsKeyId: string;
+    address: string;
+    credentialId?: string;
+    passkeyX?: string;
+    passkeyY?: string;
+  }) => api.post("/auth/wallet/link", data),
 };
 
 // Account API
@@ -84,6 +90,8 @@ export const accountAPI = {
   }) => api.post("/account/create-with-guardians", data),
   createWithP256Guardians: (data: {
     p256Guardians: { x: string; y: string }[];
+    // Optional ECDSA guardians (Tier-3 co-signers for the WebAuthn cumulative path).
+    ecdsaGuardians?: string[];
     dailyLimit: string;
     salt?: number;
     entryPointVersion?: string;
@@ -103,22 +111,34 @@ export const transferAPI = {
     paymasterAddress?: string;
     paymasterData?: string;
     tokenAddress?: string;
+    // Tier-2/3 device-passkey path (#234): when true, the SDK skips the KMS ceremony
+    // (no challengeId/publicKeyOptions) and the browser signs the userOpHash directly.
+    useWebAuthnPasskey?: boolean;
   }) =>
     api.post<{
       transferId: string;
-      challengeId: string;
-      publicKeyOptions: unknown;
+      // Absent on the WebAuthn passkey path (tier>=2 with useWebAuthnPasskey).
+      challengeId?: string;
+      publicKeyOptions?: unknown;
       // Tier-aware fields (surfaced so the UI can collect a Tier-3 guardian co-sign).
       tier: number | null;
       requiredSigs: { passkey: boolean; bls: boolean; guardian: number };
       userOpHash: string;
     }>("/transfer/prepare", data),
-  // Phase 3: submit the prepared transfer with the browser ceremony credential.
-  // guardianSignature is sent only for Tier-3 transfers (over the prepared userOpHash).
+  // Phase 3: submit the prepared transfer.
+  //  - Tier-1 KMS path: challengeId + credential (the ceremony over the WYSIWYS commitment).
+  //  - Tier-2/3 WebAuthn passkey path: deviceWebAuthn (assertion whose challenge = userOpHash),
+  //    normalised to the SDK's packWebAuthnBlob encodings (0x-hex + raw clientDataJSON).
+  // guardianSignature is sent only for Tier-3 (over the prepared userOpHash).
   submit: (data: {
     transferId: string;
-    challengeId: string;
-    credential: unknown;
+    challengeId?: string;
+    credential?: unknown;
+    deviceWebAuthn?: {
+      authenticatorData: string;
+      clientDataJSON: string;
+      signature: string;
+    };
     guardianSignature?: string;
   }) => api.post("/transfer/submit", data),
 
