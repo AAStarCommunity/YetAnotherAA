@@ -6,7 +6,8 @@ import Layout from "@/components/Layout";
 import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { transferAPI, paymasterAPI } from "@/lib/api";
+import { transferAPI } from "@/lib/api";
+import { getAvailablePaymasters, getPaymasterPresets } from "@/lib/paymaster-store";
 import { getAddressBook, setAddressName, recordSuccessfulTransfer } from "@/lib/address-book-store";
 import { getTokenBalance } from "@/lib/token-balance";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
@@ -213,6 +214,12 @@ export default function TransferPage() {
     }
   }, [account?.address, savedPaymasters]);
 
+  // Saved paymasters are account-scoped (localStorage) — (re)load whenever the account
+  // resolves, so a fresh page load that beats the account fetch still populates them.
+  useEffect(() => {
+    setSavedPaymasters(getAvailablePaymasters(account?.address));
+  }, [account?.address]);
+
   // Judge the transfer (tier + required signatures, ETH/ERC-20 unified) whenever the
   // amount or token changes, debounced. Drives the indicator + fail-fast on block.
   useEffect(() => {
@@ -249,20 +256,9 @@ export default function TransferPage() {
   const loadPageData = async () => {
     setLoading(prev => ({ ...prev, page: true }));
     try {
-      // Load saved paymasters
-      try {
-        const [paymasterResponse, presetResponse] = await Promise.all([
-          paymasterAPI.getAvailable(),
-          paymasterAPI.getPresets().catch(() => ({ data: [] })),
-        ]);
-        setPaymasterPresets((presetResponse.data ?? []) as any[]);
-        setSavedPaymasters((paymasterResponse.data ?? []) as any[]);
-        // The persisted default paymaster is applied by a dedicated effect once the
-        // account address (its storage scope) and the saved list are both ready.
-      } catch (error) {
-        console.error("Failed to load saved paymasters:", error);
-        setSavedPaymasters([]);
-      }
+      // Presets are account-independent (SDK canonical). Saved paymasters are
+      // account-scoped and loaded by a dedicated effect (below) once the account resolves.
+      setPaymasterPresets(getPaymasterPresets());
 
       // Load address book (client-side store) + recent transfer recipients (history API)
       try {

@@ -2,9 +2,10 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { Account, Transfer, TokenBalance } from "@/lib/types";
-import { accountAPI, transferAPI, paymasterAPI } from "@/lib/api";
+import { accountAPI, transferAPI } from "@/lib/api";
 import { getTokenBalance } from "@/lib/token-balance";
 import { getUserTokens } from "@/lib/user-token-store";
+import { getAvailablePaymasters } from "@/lib/paymaster-store";
 import { getStoredAuth } from "@/lib/auth";
 
 interface DashboardData {
@@ -128,11 +129,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           transfersData = [];
         }
 
-        // Get available paymasters
+        // Get available paymasters (client-side store)
         let paymastersData: any[] = [];
         try {
-          const paymasterResponse = await paymasterAPI.getAvailable();
-          paymastersData = paymasterResponse.data;
+          paymastersData = getAvailablePaymasters(accountData?.address);
         } catch {
           paymastersData = [];
         }

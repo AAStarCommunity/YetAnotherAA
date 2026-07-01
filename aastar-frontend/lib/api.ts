@@ -176,25 +176,10 @@ export const blsAPI = {
 };
 
 // Paymaster API
-export const paymasterAPI = {
-  getAvailable: () => api.get("/paymaster/available"),
-
-  // Recommended presets (addresses sourced from @aastar/sdk canonical table)
-  getPresets: () => api.get("/paymaster/presets"),
-
-  sponsor: (data: { paymasterName: string; userOp: any; entryPoint?: string }) =>
-    api.post("/paymaster/sponsor", data),
-
-  addCustom: (data: {
-    name: string;
-    address: string;
-    type?: "pimlico" | "stackup" | "alchemy" | "custom";
-    apiKey?: string;
-    endpoint?: string;
-  }) => api.post("/paymaster/add", data),
-
-  remove: (name: string) => api.delete(`/paymaster/${name}`),
-};
+// paymasterAPI removed — the saved paymaster list + presets are now client-side
+// (lib/paymaster-store.ts, localStorage + SDK canonical). Zero-backend migration step 2.
+// (Sponsorship still runs in the backend transfer flow using the passed address; it
+// moves client-side with the transfer migration, step 4.)
 
 // Token API
 export const tokenAPI = {
