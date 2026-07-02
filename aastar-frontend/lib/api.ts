@@ -96,6 +96,19 @@ export const accountAPI = {
     salt?: number;
     entryPointVersion?: string;
   }) => api.post("/account/create-with-p256-guardians", data),
+
+  // v0.23 passkey-at-birth (deploy-at-birth), two-phase like transfer prepare/submit.
+  // PHASE 1: build the CREATE_ACCOUNT digest + owner ceremony options.
+  prepareCreateWithPasskey: (data: {
+    p256Guardians: { x: string; y: string }[];
+    ecdsaGuardians?: string[];
+    dailyLimit: string;
+    salt?: number;
+    entryPointVersion?: string;
+  }) => api.post("/account/prepare-create-with-passkey", data),
+  // PHASE 2: submit the owner device-passkey assertion → relayer deploys the account.
+  submitCreateWithPasskey: (data: { createId: string; credential: Record<string, unknown> }) =>
+    api.post("/account/submit-create-with-passkey", data),
 };
 
 // Transfer API

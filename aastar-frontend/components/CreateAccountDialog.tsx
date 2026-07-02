@@ -8,6 +8,7 @@ import EntryPointVersionSelector from "./EntryPointVersionSelector";
 import { EntryPointVersion } from "@/lib/types";
 import { accountAPI } from "@/lib/api";
 import { createGuardianPasskey, type GuardianPasskey } from "@/lib/p256-guardian";
+import { startAuthentication } from "@simplewebauthn/browser";
 import toast from "react-hot-toast";
 
 interface CreateAccountDialogProps {
@@ -150,7 +151,13 @@ export default function CreateAccountDialog({
     setLoading(true);
     setStep("creating");
     try {
-      const response = await accountAPI.createWithP256Guardians({
+      // v0.23 passkey-at-birth (deploy-at-birth): prepare builds the CREATE_ACCOUNT digest and
+      // begins the one-time owner device-passkey ceremony; after the owner signs, submit relays
+      // the deploy so the account is DEPLOYED + wired (owner passkey + validator) at birth. This
+      // replaces the legacy single-shot createWithP256Guardians, which left the account
+      // undeployed so its first gasless transfer reverted on the factory (deploy-in-initCode
+      // unsupported). See docs/CREATE_FLOW_BETA_BUG.md.
+      const prep = await accountAPI.prepareCreateWithPasskey({
         p256Guardians: [
           { x: g0.x, y: g0.y },
           { x: g1.x, y: g1.y },
@@ -159,8 +166,16 @@ export default function CreateAccountDialog({
         salt: salt ? parseInt(salt) : undefined,
         entryPointVersion: version,
       });
+      const credential = await startAuthentication({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        optionsJSON: prep.data.publicKeyOptions as any,
+      });
+      const response = await accountAPI.submitCreateWithPasskey({
+        createId: prep.data.createId,
+        credential: credential as unknown as Record<string, unknown>,
+      });
 
-      toast.success("Smart Account created with 2 passkey guardians!");
+      toast.success("Smart Account created (deployed at birth) with 2 passkey guardians!");
       handleReset();
       onSuccess(response.data);
       onClose();
