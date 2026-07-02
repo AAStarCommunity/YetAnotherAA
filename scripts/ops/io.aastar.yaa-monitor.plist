@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- YAA liveness monitor. Install:
+       cp scripts/ops/io.aastar.yaa-monitor.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.aastar.yaa-monitor.plist
+     Runs yaa-liveness.sh every 60s; alerts on state change via Telegram (creds from aastar/.env). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.aastar.yaa-monitor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/jason/Dev/aastar/YetAnotherAA/scripts/ops/yaa-liveness.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/jason/Library/Logs/yaa-monitor.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/jason/Library/Logs/yaa-monitor.launchd.log</string>
+</dict>
+</plist>

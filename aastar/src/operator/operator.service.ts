@@ -156,9 +156,13 @@ export class OperatorService implements OnModuleInit {
         balance: formatUnits(balance, 18),
         hasRole,
       };
-    } catch {
+    } catch (err) {
       // Bad/undefined address or RPC/contract revert → treat as "not a V4 operator"
-      // rather than propagating a 500 (mirrors getSPOStatus's null-on-error).
+      // rather than propagating a 500 (mirrors getSPOStatus's null-on-error). Warn so a
+      // real RPC/config problem is still visible (not silently swallowed). PR #403 review.
+      this.logger.warn(
+        `getV4PaymasterStatus failed for ${address}: ${(err as Error)?.message ?? err}`
+      );
       return { paymasterAddress: null, balance: "0", hasRole: false };
     }
   }
