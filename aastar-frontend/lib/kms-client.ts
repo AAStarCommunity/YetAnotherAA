@@ -5,6 +5,7 @@
  * Signing operations go through the backend (which calls KMS internally),
  * but WebAuthn ceremonies must happen in the browser.
  */
+import { getApiKey, getKmsUrl } from "./api-key-store";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -206,5 +207,44 @@ export class KmsClient {
       ClientDataHash: bytesToHex(clientDataHash),
       Signature: bytesToHex(signatureBytes),
     };
+  }
+}
+
+// ── Direct-KMS seam (zero-backend migration — foundation prep) ────────────────
+//
+// Today the app reaches KMS through the server-side `/kms-api` proxy (which injects the
+// shared KMS_API_KEY). The zero-backend target is to call KMS DIRECTLY from the browser,
+// authorized by the user's OWN API key (from api-key-store) + the browser Origin. These
+// helpers wire the existing KmsClient to that model. NOT yet used by the transfer/auth
+// flows — they keep using `/kms-api` until the KMS Origin+API-key path is live (revised
+// plan step 2). The Settings page uses them to configure + test the key.
+
+export const DEFAULT_KMS_URL = "https://kms.aastar.io";
+
+/** The KMS base URL: a user override (Settings), else the build-time default. */
+export function kmsBaseUrl(): string {
+  return getKmsUrl() || process.env.NEXT_PUBLIC_KMS_URL || DEFAULT_KMS_URL;
+}
+
+/** True once the user has supplied an API key (the direct-KMS path is configured). */
+export function isDirectKmsReady(): boolean {
+  return !!getApiKey();
+}
+
+/** A KmsClient wired for DIRECT browser→KMS access with the user's API key. */
+export function directKmsClient(): KmsClient {
+  return new KmsClient(kmsBaseUrl(), getApiKey() ?? undefined);
+}
+
+/**
+ * Best-effort KMS health probe — no infra assumption. Settings uses it to sanity-check the
+ * endpoint (and, once Origin-auth is live, whether the browser is allowed). Never throws.
+ */
+export async function pingKms(): Promise<{ ok: boolean; status?: number; error?: string }> {
+  try {
+    const res = await fetch(`${kmsBaseUrl().replace(/\/$/, "")}/health`, { method: "GET" });
+    return { ok: res.ok, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }

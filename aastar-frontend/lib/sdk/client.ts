@@ -14,6 +14,7 @@ import { sepolia } from "viem/chains";
 import { applyConfig, CHAIN_SEPOLIA } from "@aastar/sdk/core";
 import { TokenSaleClient } from "@aastar/sdk/tokens";
 import { GuardClient } from "@aastar/sdk/core";
+import { getRpcUrl } from "@/lib/api-key-store";
 
 let sdkConfigured = false;
 
@@ -36,7 +37,10 @@ export function getInjectedProvider(): unknown | undefined {
 
 /** Read-only viem client over a public RPC (defaults to the chain's public endpoint). */
 export function getPublicClient(rpcUrl?: string, chain: Chain = sepolia): PublicClient {
-  return createPublicClient({ chain, transport: rpcUrl ? http(rpcUrl) : http() });
+  // Precedence: explicit arg → user-configured RPC (Settings, decentralization choice) →
+  // viem's default public RPC. Lets a user point reads at their own node without code.
+  const url = rpcUrl ?? getRpcUrl() ?? undefined;
+  return createPublicClient({ chain, transport: url ? http(url) : http() });
 }
 
 /**
