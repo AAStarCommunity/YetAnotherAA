@@ -62,3 +62,14 @@ export const TIER_PROFILES: Record<ProfileKey, AccountTierProfile> = {
 };
 
 export const PROFILE_ORDER: ProfileKey[] = ["beginner", "trader", "conservative"];
+
+/**
+ * Map our create-flow profile keys to the SDK/tier-setup TIER_PROFILES keys (same ETH ceilings,
+ * both from REFERENCE_ETH_PROFILES). Used to hand the chosen profile to /tier-setup after creation
+ * so the ETH tier1/tier2 (the post-deploy half) is finalized with the SAME profile preselected.
+ */
+export const PROFILE_TO_SDK_KEY: Record<ProfileKey, string> = {
+  beginner: "web3-newbie",
+  trader: "trader",
+  conservative: "conservative",
+};

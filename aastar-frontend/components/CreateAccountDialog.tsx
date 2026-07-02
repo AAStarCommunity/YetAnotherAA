@@ -11,7 +11,13 @@ import { createGuardianPasskey, type GuardianPasskey } from "@/lib/p256-guardian
 import { startAuthentication } from "@simplewebauthn/browser";
 import { formatEther } from "viem";
 import { resolveTierProfile } from "@aastar/sdk/kms";
-import { TIER_PROFILES, PROFILE_ORDER, type ProfileKey } from "@/lib/tier-profiles";
+import {
+  TIER_PROFILES,
+  PROFILE_ORDER,
+  PROFILE_TO_SDK_KEY,
+  type ProfileKey,
+} from "@/lib/tier-profiles";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 interface CreateAccountDialogProps {
@@ -44,6 +50,7 @@ export default function CreateAccountDialog({
   // "passkey" — guardians are P-256 (WebAuthn) passkeys: self-custodial, synced via
   //   iCloud/Google, no KMS, no QR. Owner-bootstrap (no acceptance sig). Default.
   // "ecdsa"   — the legacy QR flow: 2 ECDSA guardians scan + sign an acceptance hash.
+  const router = useRouter();
   const [guardianMode, setGuardianMode] = useState<"passkey" | "ecdsa">("passkey");
   const [version, setVersion] = useState<EntryPointVersion>(EntryPointVersion.V0_7);
   const [salt, setSalt] = useState<string>("");
@@ -194,6 +201,10 @@ export default function CreateAccountDialog({
       handleReset();
       onSuccess(response.data);
       onClose();
+      // Hand the chosen profile to tier-setup so the ETH tier1/tier2 (the post-deploy half of
+      // the profile — not bakeable until contract#161) is finalized in one guided tap, same
+      // profile preselected. The ETH daily + stablecoin ceilings are already baked at birth.
+      router.push(`/tier-setup?profile=${PROFILE_TO_SDK_KEY[selectedProfile]}&fromCreate=1`);
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || "Failed to create account";
       toast.error(message);

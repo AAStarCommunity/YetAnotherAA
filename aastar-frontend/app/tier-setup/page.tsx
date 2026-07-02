@@ -125,6 +125,16 @@ export default function TierSetupPage() {
     void loadTier();
   }, [loadTier]);
 
+  // Preselect the profile handed over from account creation (?profile=<key>&fromCreate=1) so the
+  // ETH tier1/tier2 — the post-deploy half of the chosen profile — finalize with the SAME profile.
+  const [fromCreate, setFromCreate] = useState(false);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const p = sp.get("profile");
+    if (p && p in TIER_PROFILES) setSelected(p as ProfileKey);
+    if (sp.get("fromCreate")) setFromCreate(true);
+  }, []);
+
   // Apply the chosen profile: setTierLimits + setWeightConfig, each through the
   // AirAccount's two-phase device-passkey UserOp (gasless via PaymasterV4).
   const apply = async () => {
@@ -216,6 +226,13 @@ export default function TierSetupPage() {
           </h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t("tierSetup.subtitle")}</p>
+
+        {fromCreate && (
+          <div className="mt-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-3 py-2 text-xs text-indigo-700 dark:text-indigo-300">
+            Account created &amp; deployed with your ETH + stablecoin limits. One last tap — apply
+            to finalize the ETH tier1/tier2 signature thresholds for your profile.
+          </div>
+        )}
 
         {tier1 === undefined ? (
           <ArrowPathIcon className="h-5 w-5 animate-spin text-gray-400 mx-auto mt-8" />
