@@ -105,6 +105,9 @@ export const accountAPI = {
     dailyLimit: string;
     salt?: number;
     entryPointVersion?: string;
+    // Per-token tier ceilings baked at birth (bigints serialized to base-unit strings).
+    initialTokens?: string[];
+    initialTokenConfigs?: { tier1Limit: string; tier2Limit: string; dailyLimit: string }[];
   }) => api.post("/account/prepare-create-with-passkey", data),
   // PHASE 2: submit the owner device-passkey assertion → relayer deploys the account.
   submitCreateWithPasskey: (data: { createId: string; credential: Record<string, unknown> }) =>

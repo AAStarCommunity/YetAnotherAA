@@ -341,6 +341,14 @@ export class AccountService {
       x: g.x as `0x${string}`,
       y: g.y as `0x${string}`,
     }));
+    // Per-token tier ceilings baked at birth (a tier profile → resolveTierProfile). Strings
+    // over the wire → bigint for the SDK/InitConfig.
+    const initialTokens = dto.initialTokens?.map(a => a as `0x${string}`);
+    const initialTokenConfigs = dto.initialTokenConfigs?.map(c => ({
+      tier1Limit: BigInt(c.tier1Limit),
+      tier2Limit: BigInt(c.tier2Limit),
+      dailyLimit: BigInt(c.dailyLimit),
+    }));
 
     try {
       const prep = await this.client.accounts.prepareCreateAccountWithPasskey(userId, {
@@ -348,6 +356,9 @@ export class AccountService {
         ownerP256Y,
         ...(p256Guardians.length > 0 ? { p256Guardians } : {}),
         ...(ecdsaGuardians && ecdsaGuardians.length > 0 ? { ecdsaGuardians } : {}),
+        ...(initialTokens && initialTokens.length > 0
+          ? { initialTokens, initialTokenConfigs }
+          : {}),
         approvedAlgIds,
         dailyLimit: dailyLimitWei,
         salt: dto.salt,

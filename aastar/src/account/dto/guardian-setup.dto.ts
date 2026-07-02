@@ -105,6 +105,22 @@ export class P256GuardianKeyDto {
  * signature, so there is no prepare/QR step. The contract's config-hash-in-salt binding
  * stands in for acceptance sigs. Requires @aastar/sdk >= 0.23.0.
  */
+export class TokenTierConfigDto {
+  @ApiProperty({
+    description: "Tier-1 (passkey-only) ceiling — base-unit string (e.g. 6-dec USDC).",
+  })
+  @IsString()
+  tier1Limit: string;
+
+  @ApiProperty({ description: "Tier-2 (+DVT/BLS) ceiling — base-unit string." })
+  @IsString()
+  tier2Limit: string;
+
+  @ApiProperty({ description: "Daily ceiling (hard-blocked above) — base-unit string." })
+  @IsString()
+  dailyLimit: string;
+}
+
 export class CreateWithP256GuardiansDto {
   @ApiProperty({
     description:
@@ -154,6 +170,29 @@ export class CreateWithP256GuardiansDto {
   @IsOptional()
   @IsEnum(EntryPointVersionDto)
   entryPointVersion?: EntryPointVersionDto;
+
+  @ApiProperty({
+    description:
+      "ERC-20 tokens to pre-register with the guard, index-aligned with initialTokenConfigs. " +
+      "Baked at birth so a tier profile sets per-token ceilings in one shot.",
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEthereumAddress({ each: true })
+  initialTokens?: string[];
+
+  @ApiProperty({
+    description: "Per-token tier configs (base-unit strings), index-aligned with initialTokens.",
+    type: [TokenTierConfigDto],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TokenTierConfigDto)
+  initialTokenConfigs?: TokenTierConfigDto[];
 }
 
 export class SubmitCreateWithPasskeyDto {

@@ -9,6 +9,9 @@ import { EntryPointVersion } from "@/lib/types";
 import { accountAPI } from "@/lib/api";
 import { createGuardianPasskey, type GuardianPasskey } from "@/lib/p256-guardian";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { formatEther } from "viem";
+import { resolveTierProfile } from "@aastar/sdk/kms";
+import { TIER_PROFILES, PROFILE_ORDER, type ProfileKey } from "@/lib/tier-profiles";
 import toast from "react-hot-toast";
 
 interface CreateAccountDialogProps {
@@ -46,6 +49,8 @@ export default function CreateAccountDialog({
   const [salt, setSalt] = useState<string>("");
   // Pre-filled so passkey creation is one tap (a guardian set requires a guard limit > 0).
   const [dailyLimit, setDailyLimit] = useState<string>("0.1");
+  // Tier profile picked at creation → bakes ETH daily + stablecoin ceilings at birth.
+  const [selectedProfile, setSelectedProfile] = useState<ProfileKey>("beginner");
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [step, setStep] = useState<Step>("config");
@@ -157,12 +162,22 @@ export default function CreateAccountDialog({
       // replaces the legacy single-shot createWithP256Guardians, which left the account
       // undeployed so its first gasless transfer reverted on the factory (deploy-in-initCode
       // unsupported). See docs/CREATE_FLOW_BETA_BUG.md.
+      // The chosen tier profile bakes ETH daily + per-stablecoin ceilings into the account at
+      // birth (resolveTierProfile → InitConfig). ETH tier1/tier2 (r.ethTierLimits) is applied
+      // post-deploy via tier-setup (setTierLimits) until airaccount-contract#161 folds it in.
+      const r = resolveTierProfile(TIER_PROFILES[selectedProfile].profile);
       const prep = await accountAPI.prepareCreateWithPasskey({
         p256Guardians: [
           { x: g0.x, y: g0.y },
           { x: g1.x, y: g1.y },
         ],
-        dailyLimit,
+        dailyLimit: formatEther(r.dailyLimit),
+        initialTokens: r.initialTokens,
+        initialTokenConfigs: r.initialTokenConfigs.map(c => ({
+          tier1Limit: c.tier1Limit.toString(),
+          tier2Limit: c.tier2Limit.toString(),
+          dailyLimit: c.dailyLimit.toString(),
+        })),
         salt: salt ? parseInt(salt) : undefined,
         entryPointVersion: version,
       });
@@ -432,45 +447,54 @@ export default function CreateAccountDialog({
                     </button>
                   </div>
 
-                  {/* Daily limit */}
+                  {/* Tier profile — bakes ETH daily + stablecoin ceilings into the account at birth */}
                   <div>
-                    <label
-                      htmlFor="passkeyDailyLimit"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      Daily <span className="font-semibold">ETH</span> limit
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Spending profile
                     </label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {["0.1", "0.5", "1.0"].map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setDailyLimit(v)}
-                          disabled={loading}
-                          className={`rounded-full px-3 py-1 text-xs font-medium border transition ${
-                            dailyLimit === v
-                              ? "border-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
-                              : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-indigo-400"
-                          }`}
-                        >
-                          {v} ETH{v === "0.1" ? " · suggested" : ""}
-                        </button>
-                      ))}
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      Sets your ETH + USDC/USDT tier limits in one step. Bigger amounts need more
+                      signatures; over the daily cap needs a guardian.
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {PROFILE_ORDER.map(k => {
+                        const p = TIER_PROFILES[k];
+                        const sel = selectedProfile === k;
+                        const usdDaily = (
+                          Number(p.profile.tokens[0].dailyLimit) / 1e6
+                        ).toLocaleString();
+                        return (
+                          <button
+                            key={k}
+                            type="button"
+                            disabled={loading}
+                            onClick={() => {
+                              setSelectedProfile(k);
+                              setDailyLimit(formatEther(p.profile.eth.dailyLimit));
+                            }}
+                            className={`w-full text-left rounded-xl border-2 px-3 py-2 transition disabled:opacity-60 ${
+                              sel
+                                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                                : "border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {p.name}
+                              </span>
+                              {sel && <span className="text-emerald-500 text-xs">✓</span>}
+                            </div>
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {p.blurb} · ETH daily {formatEther(p.profile.eth.dailyLimit)} ·
+                              USDC/USDT daily ${usdDaily}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <input
-                      type="number"
-                      id="passkeyDailyLimit"
-                      value={dailyLimit}
-                      onChange={e => setDailyLimit(e.target.value)}
-                      placeholder="or a custom amount, e.g. 0.25"
-                      min="0"
-                      step="0.01"
-                      disabled={loading}
-                      className="mt-2 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2"
-                    />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Transfers above this ask a guardian to approve. Native ETH only — token limits
-                      are set later. Must be &gt; 0.
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      ETH + stablecoin limits are baked at creation; ETH tier1/tier2 finalize in one
+                      guided step right after deploy (aastar-sdk#266, contract#161 folds it in).
                     </p>
                   </div>
 
