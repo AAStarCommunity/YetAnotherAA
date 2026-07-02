@@ -6,7 +6,7 @@
  *   1. guardian1 proposeRecovery(newOwner)     — msg.sender must be a guardian
  *   2. guardian2 approveRecovery()             — reaches M-of-N quorum (=2)
  *   3. anyone   executeRecovery()              — MUST REVERT (timelock not elapsed)  ← the assertion
- *   4. guardian1 cancelRecovery()              — clears the active proposal
+ *   4. both guardians cancelRecovery()          — 2-of-N quorum VOTE clears the proposal
  * The one thing this can NOT cover is the *successful* execute, which by design needs
  * ~48h of real chain time (RECOVERY_DELAY_MS = 48h) — run that once before mainnet.
  *
@@ -107,12 +107,13 @@ const send = async (wallet, fn, args = []) => {
     console.log(`   ✓ reverted as expected: ${e.shortMessage || e.message.split("\n")[0]}`);
   }
 
-  console.log("4. guardian1 cancelRecovery:");
+  console.log("4. cancelRecovery — a 2-of-N quorum VOTE, so BOTH guardians must cancel:");
   await send(w1, "cancelRecovery");
+  await send(w2, "cancelRecovery");
   a = await readActive();
   if (a[1] !== 0n) {
     pass = false;
-    console.log(`   ✗ proposal not cleared (proposedAt=${a[1]})`);
+    console.log(`   ✗ proposal not cleared after quorum cancel (proposedAt=${a[1]})`);
   } else console.log("   ✓ cleared");
 
   console.log(`\n${pass ? "PASS" : "FAIL"} — recovery timelock ${pass ? "enforced" : "NOT enforced"}.`);

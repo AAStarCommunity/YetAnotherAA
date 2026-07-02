@@ -54,7 +54,12 @@ The successful post-timelock execute is the only step needing the real 48h wait.
 - `recovery/execute` happy path requires the **2-day timelock** — schedule one full run
   (initiate → wait 2 days → execute) before the OP-mainnet release (phase 2).
 
-**Status:** design ✅ + runbook ✅; fast-path e2e ⬜ (owner); full timelock run ⬜ (owner, phase 2).
+**Status:** design ✅ + runbook ✅ + **fast-path e2e ✅ VERIFIED on-chain (Sepolia)** via the
+headless harness: deploy → propose → approve → **executeRecovery reverts before the 48h timelock
+(`0xaa40cfc6`)** → 2-of-N quorum cancel clears. Test account
+`0x9ECa8Bc911a848B7F37a08d2098DF52F01a7a276` (owner + guardians = funded EOAs); evidence txs
+propose `0xc25054ea…`, approve `0x466d6e38…`, cancel `0x2e979748…`/`0x4bcccacd…`. Only the
+**successful post-timelock execute** remains ⬜ (needs the real 48h; one-shot before phase-2 mainnet).
 
 ## 3. Beta recommendation
 
