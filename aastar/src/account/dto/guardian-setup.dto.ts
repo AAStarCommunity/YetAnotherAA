@@ -105,19 +105,26 @@ export class P256GuardianKeyDto {
  * signature, so there is no prepare/QR step. The contract's config-hash-in-salt binding
  * stands in for acceptance sigs. Requires @aastar/sdk >= 0.23.0.
  */
+// Base-unit integer string (wei / token base units) — @Matches guards BigInt() in the service
+// from throwing on a non-numeric value (a malformed request would otherwise 500, not 400).
+const UINT_STRING = /^\d+$/;
+
 export class TokenTierConfigDto {
   @ApiProperty({
-    description: "Tier-1 (passkey-only) ceiling — base-unit string (e.g. 6-dec USDC).",
+    description: "Tier-1 (passkey-only) ceiling — base-unit integer string (e.g. 6-dec USDC).",
   })
   @IsString()
+  @Matches(UINT_STRING, { message: "tier1Limit must be a base-unit integer string" })
   tier1Limit: string;
 
-  @ApiProperty({ description: "Tier-2 (+DVT/BLS) ceiling — base-unit string." })
+  @ApiProperty({ description: "Tier-2 (+DVT/BLS) ceiling — base-unit integer string." })
   @IsString()
+  @Matches(UINT_STRING, { message: "tier2Limit must be a base-unit integer string" })
   tier2Limit: string;
 
-  @ApiProperty({ description: "Daily ceiling (hard-blocked above) — base-unit string." })
+  @ApiProperty({ description: "Daily ceiling (hard-blocked above) — base-unit integer string." })
   @IsString()
+  @Matches(UINT_STRING, { message: "dailyLimit must be a base-unit integer string" })
   dailyLimit: string;
 }
 
