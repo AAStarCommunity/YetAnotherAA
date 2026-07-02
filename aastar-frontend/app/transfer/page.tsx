@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import TokenSelector from "@/components/TokenSelector";
 import TransferSkeleton from "@/components/TransferSkeleton";
+import NetworkSwitcher from "@/components/NetworkSwitcher";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { transferAPI, tokenAPI, paymasterAPI, addressBookAPI } from "@/lib/api";
 import { GasEstimate, Token, TokenBalance } from "@/lib/types";
@@ -875,6 +876,10 @@ export default function TransferPage() {
       <div ref={containerRef} className="relative overflow-hidden">
         <div className="relative">
           <div className="max-w-2xl px-3 py-4 mx-auto sm:px-4 sm:py-6 lg:px-8">
+            {/* Network indicator + switcher (always visible so the active chain is explicit). */}
+            <div className="flex justify-end mb-3">
+              <NetworkSwitcher />
+            </div>
             {/* Header - Desktop only */}
             <div className="hidden md:block mb-8">
               <div>
