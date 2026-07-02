@@ -39,7 +39,29 @@ export default function SettingsPage() {
     setResolvedKms(kmsBaseUrl());
   }, []);
 
+  const isValidUrl = (u: string): boolean => {
+    try {
+      const { protocol } = new URL(u);
+      return protocol === "http:" || protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
   const handleSave = () => {
+    // Validate any non-empty endpoint override before persisting, so a typo doesn't
+    // silently break reads/ceremonies. Blank stays blank (= AAStar default).
+    for (const [label, val] of [
+      ["KMS", kmsUrl],
+      ["Bundler", bundlerUrl],
+      ["RPC", rpcUrl],
+      ["Relay", relayUrl],
+    ] as const) {
+      if (val.trim() && !isValidUrl(val.trim())) {
+        toast.error(`${label} endpoint must be a valid http(s) URL`);
+        return;
+      }
+    }
     if (apiKey.trim()) setApiKey(apiKey);
     else clearApiKey();
     setKmsUrl(kmsUrl);
