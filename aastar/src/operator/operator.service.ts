@@ -127,34 +127,40 @@ export class OperatorService implements OnModuleInit {
     balance: string;
     hasRole: boolean;
   }> {
-    const factoryAbi = parseAbi([
-      "function getPaymasterByOperator(address) view returns (address)",
-    ]);
+    try {
+      const factoryAbi = parseAbi([
+        "function getPaymasterByOperator(address) view returns (address)",
+      ]);
 
-    const r = registryActions(this.registryAddress)(this.publicClient);
-    const [hasRole, pmAddr] = await Promise.all([
-      r.hasRole({ roleId: ROLE_PAYMASTER_SUPER, user: address }),
-      this.publicClient
-        .readContract({
-          address: this.paymasterFactoryAddress,
-          abi: factoryAbi,
-          functionName: "getPaymasterByOperator",
-          args: [address],
-        })
-        .catch(() => null),
-    ]);
+      const r = registryActions(this.registryAddress)(this.publicClient);
+      const [hasRole, pmAddr] = await Promise.all([
+        r.hasRole({ roleId: ROLE_PAYMASTER_SUPER, user: address }),
+        this.publicClient
+          .readContract({
+            address: this.paymasterFactoryAddress,
+            abi: factoryAbi,
+            functionName: "getPaymasterByOperator",
+            args: [address],
+          })
+          .catch(() => null),
+      ]);
 
-    const zeroAddr = "0x0000000000000000000000000000000000000000";
-    if (!pmAddr || pmAddr === zeroAddr) {
-      return { paymasterAddress: null, balance: "0", hasRole };
+      const zeroAddr = "0x0000000000000000000000000000000000000000";
+      if (!pmAddr || pmAddr === zeroAddr) {
+        return { paymasterAddress: null, balance: "0", hasRole };
+      }
+
+      const balance = await this.publicClient.getBalance({ address: pmAddr });
+      return {
+        paymasterAddress: pmAddr as Address,
+        balance: formatUnits(balance, 18),
+        hasRole,
+      };
+    } catch {
+      // Bad/undefined address or RPC/contract revert → treat as "not a V4 operator"
+      // rather than propagating a 500 (mirrors getSPOStatus's null-on-error).
+      return { paymasterAddress: null, balance: "0", hasRole: false };
     }
-
-    const balance = await this.publicClient.getBalance({ address: pmAddr });
-    return {
-      paymasterAddress: pmAddr as Address,
-      balance: formatUnits(balance, 18),
-      hasRole,
-    };
   }
 
   // ── GToken Balance ───────────────────────────────────────────────────────────

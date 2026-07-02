@@ -2,6 +2,7 @@ import { Controller, Get, Query, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { OperatorService } from "./operator.service";
+import { isAddress } from "viem";
 import type { Address } from "viem";
 
 @ApiTags("operator")
@@ -31,13 +32,20 @@ export class OperatorController {
 
   @Get("status")
   @ApiOperation({ summary: "Get operator status for a given address" })
-  @ApiQuery({ name: "address", required: true })
-  async getStatus(@Query("address") address: string) {
+  @ApiQuery({ name: "address", required: false })
+  async getStatus(@Query("address") address?: string) {
+    // Missing / malformed address is a valid "not an operator" query, not a 500:
+    // passing undefined to the contract's hasRole(user) reverts. Return an empty,
+    // unregistered status instead.
+    if (!address || !isAddress(address)) {
+      return { address: address ?? null, registered: false, spoStatus: null, v4Status: null };
+    }
     const [spoStatus, v4Status] = await Promise.all([
       this.operatorService.getSPOStatus(address as Address),
       this.operatorService.getV4PaymasterStatus(address as Address),
     ]);
-    return { address, spoStatus, v4Status };
+    const registered = !!(spoStatus?.hasRole || v4Status?.hasRole);
+    return { address, registered, spoStatus, v4Status };
   }
 
   // ── JWT-Protected Endpoints ──────────────────────────────────────────────────

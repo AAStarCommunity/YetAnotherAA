@@ -50,11 +50,25 @@ describe("API e2e (guards + public reads)", () => {
     });
   });
 
-  // NOTE: the public read endpoints (community/list, operator/status, admin/*,
-  // registry/info) all do live on-chain reads via the SDK, which makes them
+  // NOTE: the public read endpoints (community/list, operator/status w/ address,
+  // admin/*, registry/info) all do live on-chain reads via the SDK, which makes them
   // RPC-dependent and flaky under e2e load (Infura rate-limit / transient
-  // "fetch failed"). They are NOT asserted here — covered by L1 (direct viem)
-  // or against a warm running server. Findings recorded in docs/TEST_RESULTS.md
-  // (S2), including a real bug: GET /operator/status → 500 because the public
-  // endpoint calls hasRole(user) with no authenticated caller (user=undefined).
+  // "fetch failed"). Those are NOT asserted here — covered by L1 (direct viem) or a
+  // warm running server. See docs/TEST_RESULTS.md (S2).
+
+  // Regression (deterministic, no RPC): GET /operator/status with a missing/invalid
+  // address used to 500 (it called hasRole(user=undefined)). The controller now guards
+  // and returns 200 + an unregistered status BEFORE any chain read.
+  describe("GET /operator/status tolerates a missing/invalid address (was 500)", () => {
+    it("returns 200 + unregistered when address is absent", async () => {
+      const res = await get("/operator/status");
+      expect(res.status).toBe(200);
+      expect((await res.json()).registered).toBe(false);
+    });
+    it("returns 200 + unregistered for a malformed address", async () => {
+      const res = await get("/operator/status?address=notanaddress");
+      expect(res.status).toBe(200);
+      expect((await res.json()).registered).toBe(false);
+    });
+  });
 });
