@@ -39,6 +39,13 @@ layers, not in app code — there is no app-level unit test that meaningfully co
 **Existing runbook:** `docs/social-recovery-e2e-test.md` (3 MetaMask guardians, full steps
 + expected results). The **only slow part is the 2-day on-chain timelock** before `execute`.
 
+**Headless harness:** `aastar/scripts/test/onchain/recovery-timelock-verify.mjs` runs the
+guardian actions on-chain against an AirAccount **that already has ECDSA guardians** (two
+funded EOAs): propose → approve → **assert executeRecovery reverts before the 48h timelock**
+→ cancel. It does NOT create the account — creation is passkey/KMS-owned, so set the ECDSA
+guardians once (create-with-guardians, `ecdsaGuardians=[...]`) then point the script at it.
+The successful post-timelock execute is the only step needing the real 48h wait.
+
 **Recommended split for beta:**
 - Verify NOW (fast, no timelock): add/remove guardian, `recovery/initiate`, guardian
   `support`/co-sign, `recovery/cancel`, status endpoint, and **replay/unauthorized
