@@ -24,11 +24,13 @@ ts() { date "+%Y-%m-%d %H:%M:%S"; }
 
 alert() { # $1 = message
   echo "$(ts) ALERT: $1" >>"$LOG"
-  if [ -n "$BOT" ] && [ -n "$CHAT" ]; then
-    curl -s --max-time 10 "https://api.telegram.org/bot${BOT}/sendMessage" \
-      --data-urlencode "chat_id=${CHAT}" \
-      --data-urlencode "text=🖥️ YAA monitor: $1" >/dev/null 2>&1 || true
-  fi
+  [ -n "$BOT" ] && [ -n "$CHAT" ] || return 0
+  # Send via `curl -K -` (config on stdin) so the bot token — which Telegram's API requires
+  # in the URL path — never appears in the process argv (visible to `ps`). Message text is
+  # controlled (endpoint names/urls, no quotes), so the config quoting is safe.
+  printf 'url = "https://api.telegram.org/bot%s/sendMessage"\ndata-urlencode = "chat_id=%s"\ndata-urlencode = "text=%s"\n' \
+    "$BOT" "$CHAT" "🖥️ YAA monitor: $1" |
+    curl -s --max-time 10 -K - >/dev/null 2>&1 || true
 }
 
 check() { # $1 name, $2 url
