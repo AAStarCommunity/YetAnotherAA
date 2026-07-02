@@ -50,6 +50,25 @@ describe("API e2e (guards + public reads)", () => {
     });
   });
 
+  // A present-but-invalid/expired Bearer token must also be rejected with 401 (not 500,
+  // and not accepted). JWT verification is local (no RPC) so this is deterministic.
+  describe("JwtAuthGuard rejects invalid/expired tokens (401)", () => {
+    const getAuth = (path: string, token: string): Promise<Response> =>
+      fetch(`${baseUrl}/api/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    const badTokens: Array<[string, string]> = [
+      ["garbage", "garbage"],
+      ["malformed jwt", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.invalidsig"],
+      // exp = 2001 (long past), signature invalid — must be rejected either way.
+      [
+        "expired jwt",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ4IiwiZXhwIjoxMDAwMDAwMDB9.badsig",
+      ],
+    ];
+    it.each(badTokens)("GET /account with %s → 401", async (_label, token) => {
+      expect((await getAuth("/account", token)).status).toBe(401);
+    });
+  });
+
   // NOTE: the public read endpoints (community/list, operator/status w/ address,
   // admin/*, registry/info) all do live on-chain reads via the SDK, which makes them
   // RPC-dependent and flaky under e2e load (Infura rate-limit / transient
