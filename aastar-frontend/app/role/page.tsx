@@ -93,7 +93,12 @@ export default function RolePage() {
         registryAPI.getRole().catch(() => null),
         registryAPI.getInfo(),
       ]);
-      if (roleRes) setRoleInfo(roleRes.data);
+      if (roleRes) {
+        setRoleInfo(roleRes.data);
+        // Default the lookup field to the user's own account so the Query button works
+        // out of the box (the field looks up ANY address; empty = no-op = "no response").
+        setQueryAddress(prev => prev || roleRes.data.address || "");
+      }
       setRegistryInfo(infoRes.data);
     } catch {
       toast.error(t("rolePage.loadError"));

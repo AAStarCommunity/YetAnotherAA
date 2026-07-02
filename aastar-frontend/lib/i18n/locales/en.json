@@ -633,7 +633,7 @@
   },
   "rolePage": {
     "title": "Role Portal",
-    "subtitle": "View your role in the AAStar ecosystem and navigate to role-specific dashboards",
+    "subtitle": "View your role in the Mycelium ecosystem and navigate to role-specific dashboards",
     "registryOverview": "Registry Overview (Sepolia)",
     "communityAdmins": "Community Admins",
     "spoOperators": "SPO Operators",
