@@ -103,6 +103,9 @@ export default function TierSetupPage() {
   const [tier1, setTier1] = useState<bigint | undefined>(undefined);
   const [selected, setSelected] = useState<ProfileKey>("web3-newbie");
   const [busy, setBusy] = useState(false);
+  // Gas for the tier-setup UserOps. "apnts" sponsors via PaymasterV4 (needs aPNTs — a brand
+  // new account has none → AA33 deadlock); "eth" self-pays from the account's own ETH balance.
+  const [gasMode, setGasMode] = useState<"apnts" | "eth">("apnts");
 
   const loadTier = useCallback(async () => {
     if (!account) return;
@@ -147,8 +150,8 @@ export default function TierSetupPage() {
           to: calls[i].to,
           amount: "0",
           data: calls[i].data,
-          usePaymaster: true,
-          paymasterAddress: canonical?.paymasterV4,
+          usePaymaster: gasMode === "apnts",
+          ...(gasMode === "apnts" ? { paymasterAddress: canonical?.paymasterV4 } : {}),
         });
         const credential = await startAuthentication({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -266,6 +269,30 @@ export default function TierSetupPage() {
             </div>
 
             <p className="mt-3 text-[11px] text-gray-400">{t("tierSetup.tierExplainer")}</p>
+
+            <div className="mt-4 flex items-center gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">Gas:</span>
+              <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setGasMode("apnts")}
+                  className={`px-3 py-1.5 ${gasMode === "apnts" ? "bg-emerald-600 text-white" : "text-gray-600 dark:text-gray-300"}`}
+                >
+                  Sponsored (aPNTs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGasMode("eth")}
+                  className={`px-3 py-1.5 ${gasMode === "eth" ? "bg-emerald-600 text-white" : "text-gray-600 dark:text-gray-300"}`}
+                >
+                  Self-pay (ETH)
+                </button>
+              </div>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Sponsored needs aPNTs (a brand-new account may have none → AA33). Self-pay uses the
+              account&apos;s own ETH for gas — no aPNTs required.
+            </p>
 
             <button
               disabled={busy}
