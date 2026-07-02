@@ -207,6 +207,14 @@ function _calculateRequiredGas(uint256 nodeCount) internal pure returns (uint256
 | 3 nodes    | 600,000       | ~653k        | ✅     |
 | 100 nodes  | 640,500       | N/A          | Scaled |
 
+### Social Recovery (48h timelock) — verified on-chain
+
+Guardian-based owner recovery, verified end-to-end on Sepolia: propose → approve (2-of-N
+quorum) → `executeRecovery()` **reverts before the 48h timelock** → 2-of-N quorum cancel
+clears. 📄 **Full process + all transactions:**
+[`docs/SOCIAL_RECOVERY_TEST_REPORT.md`](docs/SOCIAL_RECOVERY_TEST_REPORT.md)
+(mechanism + beta split: [`docs/REPLAY_AND_RECOVERY_VERIFICATION.md`](docs/REPLAY_AND_RECOVERY_VERIFICATION.md)).
+
 ## 🔒 Security Model
 
 ### Multi-Layer Security

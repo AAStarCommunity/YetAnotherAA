@@ -3,16 +3,18 @@
  * Social-recovery timelock verification (headless L1, real Sepolia txs).
  *
  * Proves the recovery security property without waiting out the 48h timelock:
- *   1. guardian1 proposeRecovery(newOwner)     — msg.sender must be a guardian
- *   2. guardian2 approveRecovery()             — reaches M-of-N quorum (=2)
- *   3. anyone   executeRecovery()              — MUST REVERT (timelock not elapsed)  ← the assertion
- *   4. both guardians cancelRecovery()          — 2-of-N quorum VOTE clears the proposal
+ *   1. guardian1 proposeRecovery(newOwner)   — msg.sender must be a guardian
+ *   2. guardian2 approveRecovery()           — reach M-of-N quorum; ASSERTED via approvalBitmap
+ *   3. anyone   executeRecovery()            — MUST revert with the TIMELOCK selector
+ *                                              (0xaa40cfc6) — any other revert / success = FAIL
+ *   4. cancelRecovery() is a 2-of-N quorum VOTE — single guardian leaves it active (asserted);
+ *      both guardians clear it (asserted).
  * The one thing this can NOT cover is the *successful* execute, which by design needs
- * ~48h of real chain time (RECOVERY_DELAY_MS = 48h) — run that once before mainnet.
+ * ~48h of real chain time (RECOVERY_DELAY = 48h) — run that once before mainnet.
  *
- * PREREQUISITE (not created here — see docs/REPLAY_AND_RECOVERY_VERIFICATION.md): an
- * AirAccount that already has ECDSA guardians = the two funded EOAs below. Account creation
- * is passkey/KMS-owned, so set the guardians once via the app, then point this at the account.
+ * PREREQUISITE: a DEPLOYED AirAccount with two ECDSA guardians = the two funded EOAs below.
+ * Create it via the app's guardian flow OR headlessly via the factory `createAccount` with an
+ * ECDSA owner — see docs/SOCIAL_RECOVERY_TEST_REPORT.md §3.
  *
  * Usage:
  *   RPC_URL=... ACCOUNT=0x<airaccount> NEW_OWNER=0x<any> \
@@ -23,6 +25,12 @@ import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, getAddress, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
+
+// TimelockNotExpired custom-error selector observed on-chain (AAStarAirAccountBase). The
+// executeRecovery assertion requires EXACTLY this — so a revert for any other reason
+// (quorum not met, wrong caller, bad state) does NOT get mis-counted as "timelock enforced".
+const TIMELOCK_SELECTOR = "0xaa40cfc6";
+const QUORUM = 2n;
 
 const ABI = parseAbi([
   "function proposeRecovery(address _newOwner) external",
@@ -38,12 +46,35 @@ function fromEnvFile(key) {
       new RegExp(`^${key}=(.+)$`, "m")
     );
     if (!m) return null;
-    let v = m[1].trim().replace(/\s+#.*$/, "").replace(/^["']|["']$/g, "");
+    const v = m[1].trim().replace(/\s+#.*$/, "").replace(/^["']|["']$/g, "");
     return v ? (v.startsWith("0x") ? v : "0x" + v) : null;
   } catch {
     return null;
   }
 }
+
+// Extract the 4-byte revert selector from a viem error, walking the cause chain and
+// preferring structured fields over the message string.
+function revertSelector(err) {
+  const seen = new Set();
+  for (let e = err; e && !seen.has(e); e = e.cause) {
+    seen.add(e);
+    for (const v of [e.signature, e.raw, typeof e.data === "string" ? e.data : undefined]) {
+      if (typeof v === "string") {
+        const m = v.match(/^0x[0-9a-fA-F]{8}/);
+        if (m) return m[0].toLowerCase();
+      }
+    }
+  }
+  const m = (err.message ?? "").match(/reverted with the following signature:\s*(0x[0-9a-fA-F]{8})/);
+  return m ? m[1].toLowerCase() : null;
+}
+
+const popcount = n => {
+  let c = 0n;
+  for (let x = n; x > 0n; x >>= 1n) c += x & 1n;
+  return c;
+};
 
 const RPC_URL =
   process.env.RPC_URL || fromEnvFile("SEPOLIA_RPC_URL") || "https://ethereum-sepolia-rpc.publicnode.com";
@@ -75,49 +106,67 @@ const send = async (wallet, fn, args = []) => {
   return hash;
 };
 
+const fail = (checks, msg) => {
+  checks.pass = false;
+  console.log(`   ✗ ${msg}`);
+};
+
 (async () => {
   console.log(`Account ${ACCOUNT}\nGuardian1 ${g1.address}  Guardian2 ${g2.address}\nNewOwner ${NEW_OWNER}\n`);
-  let pass = true;
+  const checks = { pass: true };
 
-  console.log("0. activeRecovery() should be empty:");
+  console.log("0. activeRecovery() must start empty (2-of-N cancel any stale proposal):");
   let a = await readActive();
   console.log(`   newOwner=${a[0]} proposedAt=${a[1]}`);
   if (a[1] !== 0n) {
-    console.log("   ⚠ a recovery is already active — cancelling first.");
-    await send(w1, "cancelRecovery").catch(e => console.log("   (cancel failed: " + e.shortMessage + ")"));
+    console.log("   stale recovery active — casting both guardians' cancel votes …");
+    await send(w1, "cancelRecovery");
+    await send(w2, "cancelRecovery");
+    a = await readActive();
+    if (a[1] !== 0n) {
+      console.error("   ✗ could not clear a pre-existing recovery — aborting.");
+      process.exit(1);
+    }
   }
+  console.log("   ✓ clean start");
 
   console.log("1. guardian1 proposeRecovery:");
   await send(w1, "proposeRecovery", [NEW_OWNER]);
   a = await readActive();
-  if (getAddress(a[0]) !== NEW_OWNER || a[1] === 0n) {
-    pass = false;
-    console.log(`   ✗ proposal not recorded (newOwner=${a[0]}, proposedAt=${a[1]})`);
-  } else console.log(`   ✓ proposed (proposedAt=${a[1]})`);
+  if (getAddress(a[0]) !== NEW_OWNER || a[1] === 0n)
+    fail(checks, `proposal not recorded (newOwner=${a[0]}, proposedAt=${a[1]})`);
+  else console.log(`   ✓ proposed (proposedAt=${a[1]}, approvals=${popcount(a[2])})`);
 
-  console.log("2. guardian2 approveRecovery (reach quorum):");
+  console.log("2. guardian2 approveRecovery — must reach quorum (assert approvalBitmap):");
   await send(w2, "approveRecovery");
+  a = await readActive();
+  const approvals = popcount(a[2]);
+  if (a[1] === 0n || approvals < QUORUM)
+    fail(checks, `quorum NOT reached before execute (proposedAt=${a[1]}, approvals=${approvals}/${QUORUM})`);
+  else console.log(`   ✓ quorum reached (approvals=${approvals} ≥ ${QUORUM})`);
 
-  console.log("3. executeRecovery BEFORE timelock — MUST revert:");
+  console.log(`3. executeRecovery BEFORE timelock — MUST revert with ${TIMELOCK_SELECTOR}:`);
   try {
     await send(w1, "executeRecovery");
-    pass = false;
-    console.log("   ✗ execute SUCCEEDED before the 48h timelock — SECURITY FAILURE");
+    fail(checks, "execute SUCCEEDED before the 48h timelock — SECURITY FAILURE");
   } catch (e) {
-    console.log(`   ✓ reverted as expected: ${e.shortMessage || e.message.split("\n")[0]}`);
+    const sel = revertSelector(e);
+    if (sel === TIMELOCK_SELECTOR) console.log(`   ✓ reverted with timelock selector ${sel}`);
+    else fail(checks, `reverted, but selector was ${sel ?? "unknown"} (expected ${TIMELOCK_SELECTOR}) — not proven to be the timelock`);
   }
 
-  console.log("4. cancelRecovery — a 2-of-N quorum VOTE, so BOTH guardians must cancel:");
+  console.log("4. cancelRecovery is a 2-of-N quorum VOTE:");
   await send(w1, "cancelRecovery");
+  a = await readActive();
+  if (a[1] === 0n) fail(checks, "single-guardian cancel cleared the proposal (expected a quorum VOTE)");
+  else console.log(`   ✓ after guardian1 cancel, still active (proposedAt=${a[1]}, cancels=${popcount(a[3])}) — one vote is not enough`);
   await send(w2, "cancelRecovery");
   a = await readActive();
-  if (a[1] !== 0n) {
-    pass = false;
-    console.log(`   ✗ proposal not cleared after quorum cancel (proposedAt=${a[1]})`);
-  } else console.log("   ✓ cleared");
+  if (a[1] !== 0n) fail(checks, `proposal not cleared after 2-of-N cancel (proposedAt=${a[1]})`);
+  else console.log("   ✓ cleared after both guardians cancelled");
 
-  console.log(`\n${pass ? "PASS" : "FAIL"} — recovery timelock ${pass ? "enforced" : "NOT enforced"}.`);
-  process.exit(pass ? 0 : 1);
+  console.log(`\n${checks.pass ? "PASS" : "FAIL"} — recovery timelock ${checks.pass ? "enforced" : "NOT enforced"}.`);
+  process.exit(checks.pass ? 0 : 1);
 })().catch(e => {
   console.error("ERROR:", e.shortMessage || e.message);
   process.exit(1);
