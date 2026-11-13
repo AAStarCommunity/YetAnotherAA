@@ -51,7 +51,8 @@
 - **Passkey 只有一把，域名是 `aastar.io`。** 注册、登录、给交易签名时，系统对话框都在 `account.aastar.io` 弹出（弹窗或该域的框架）。对方网站只负责按钮和自己的会话，和「用 Google 登录」一样，拿到的是验证结果，不是 Passkey。不把仪式嵌进客户自己的域名，否则每个网站会各有一把 Passkey。
 - **Passkey 在用户设备上，链上钥匙在 KMS TEE 里。** iCloud / Google 同步的是 Passkey。`kms.aastar.io` 里封存的是账户的签名钥匙，只有带对得上的 Passkey 断言才签。用户担心的是这把链上钥匙放在 AAStar 的 TEE 里，不是 Passkey 本身存在我们这儿。
 - **KMS 地址决定链上钥匙生在哪一台机器，不决定 Passkey 属于哪个网站。** 插件配置里留空，创建账户时用 `https://kms.aastar.io`。社区把自己的服务写进去，例如 `https://kms.aaa.com`，则通过这个社区站点第一次创建的账户，钥匙生成在社区那台 TEE 里。别的社区留空，就仍用 AAStar 的。用户本人也可以在创建之前改这个地址，改的是自己的账户，不是整个社区。
-- **创建时选定，并写在账户上。** 账户记录记下 `kmsEndpoint` 和 `kmsKeyId`。以后无论从哪个网站进来，签名都送回这台 KMS。Passkey 仍是 `aastar.io` 那一把：浏览器在 `account.aastar.io` 上出断言，断言交给账户记录里的那台 KMS，由它核对 rpId 再让 TEE 签名。所以社区的 KMS 必须允许源 `https://account.aastar.io`、rpId `aastar.io`，否则断言对不上。
+- **创建时选定，并写在账户上。** `beginRegistration` 打到当时选定的那台 KMS。浏览器在 `account.aastar.io` 上创建 Passkey，rpId 是 `aastar.io`。`completeRegistration` 把这把 Passkey 的公钥和凭据 ID 交回这台 KMS，TEE 再生成链上私钥并与之绑定。账户记录记下 `kmsEndpoint` 和 `kmsKeyId`。以后签名仍在 `account.aastar.io` 上出断言，但验证和签名只找这台 KMS，因为只有它保存了这对绑定。社区的 KMS 必须允许源 `https://account.aastar.io`、rpId `aastar.io`。
+- **一把 Passkey 只绑定一台 KMS。** rpId 相同不表示注册记录可以共用。另一台 KMS 没有这个凭据的公钥，就不能验证这把 Passkey，也不能把已有的 TEE 私钥「改绑」过去。一个人若在两台自建 KMS 上各创建一次账户，会得到两把 rpId 都是 `aastar.io` 的 Passkey。只部署一台 KMS 的社区，成员仍然只有一把。
 - **已经创建过的账户不能只改配置就搬走。** TEE 里的钥匙出不来。要换到另一台 KMS，得在新 TEE 里生成新钥匙，再走 `rotate-signer` 或 2-of-3 恢复更换链上 owner。
 - **限额和多签是钥匙在我们这边时的约束。** 档位日限额缩小单日损失。Tier 3 还要 guardian 签名，单把 TEE 钥匙不够转走资产。这不能写成「任何情况下资产都动不了」：只开了 Tier 1 时，通过 Passkey 断言的签名就是支出路径，限额是那时的边界。
 - **创建账户要一笔代发。** 今天后端用 `ETH_PRIVATE_KEY` 把 `submit-create-with-passkey` 送到链上。账户页不能把这把私钥带到站点。创建必须走已经规划的中继（`docs/RELAY_SERVICE_PROPOSAL.md`），否则封装只在「已经有账户」时成立。
