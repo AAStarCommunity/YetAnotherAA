@@ -3,7 +3,7 @@
 > 状态：规划，未实现。日期：2026-11-13。
 > 分支：`docs/cos72-auth-provider`。
 > 摸底时的代码：`feat/cc115-b5-sdk-rc2` 的 `c0b4788`（比 `origin/master` 只多这一笔链上只读复核脚本）。工作区当时是干净的。
-> 本文先记录仓库现状，再定边界和顺序。登录 Provider 的代码落在 `@aastar/sdk`，本仓库的页面以后只做调用 SDK 的样板。
+> 本文记录仓库现状和凭证模型。最终发布物和倒推顺序在 [COS72_SDK_COMPONENT.md](./COS72_SDK_COMPONENT.md)。依赖如何锁定在 [COS72_DEPENDENCY_BASELINE.md](./COS72_DEPENDENCY_BASELINE.md)。Better Auth 上的开发任务在 [COS72_BETTER_AUTH_PROVIDER_TASK.md](./COS72_BETTER_AUTH_PROVIDER_TASK.md)。
 
 ## 仓库摸底
 
