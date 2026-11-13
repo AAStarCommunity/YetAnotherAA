@@ -8,7 +8,7 @@
 
 在 `@aastar/sdk` 里新增子路径 `@aastar/sdk/auth`。它依赖 Better Auth 的一个锁定 commit，不修改 Better Auth 的上游仓库，也不把 Better Auth 的源码拷进 AAStar 的仓库。
 
-这个任务交付登录和注册。不交付转账、运营门户、合约 ABI，也不负责删本仓库的 `bcrypt`。那些残留在本仓库自己的清理里做。
+这个任务交付登录和注册。账户页（余额、Gasless、社区代币、转账、恢复）是 `@aastar/sdk/account` 的另一个任务，读本任务留下的会话，不写进 `cos72()` 插件。运营门户、合约 ABI、本仓库的 `bcrypt` 清理也不在这里。
 
 先决条件：依赖基线里 Better Auth 的候选 SHA 已在开工当天再对过 `main`，并写进 SDK 的 lock。候选记录是 `0a014aef61c83a293da224b5d926a0e43253b732`（2026-11-12 的 `main`）。对不上就改用当天确认的 SHA，并改依赖基线文档里的那一行。
 

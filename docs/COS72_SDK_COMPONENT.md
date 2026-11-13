@@ -16,6 +16,43 @@
 
 组件对站点只做身份证明：这个人是 Cos72 的哪个用户，邮箱是否已验证，绑定了 Passkey、Google 还是 GitHub。私钥、验证码、Google 和 GitHub 的 client secret 不进站点仓库。
 
+登录完成之后，站点还要能打开一块**账户页**。没有这块页面，用户登录了也转不了账、开不了 Gasless、选不了社区的代币。所以发布物是两个一起装的部分，都在 `@aastar/sdk` 里：
+
+| 部分 | 子路径 | 站点怎么用 |
+|---|---|---|
+| 登录 | `@aastar/sdk/auth` | Better Auth 插件。只负责认出人 |
+| 账户页 | `@aastar/sdk/account` 的页面组件 | 登录后挂在站点自己的一个路由上，例如 `/account`。这就是用户的后台 |
+
+账户页不放进 `cos72()` 插件。插件没有页面。页面是另一份导出，读插件已经建立的会话。
+
+## 账户页里有什么
+
+只封装现在这个仓库里**账户持有人**用的能力。导航上 Organizations 那一组（Community 管理、Operator、Protocol、Sale）不是账户，不进这个包。`/data-tools`、营销页、角色选择也不进。
+
+账户页默认要能做这些事。数据从 SDK 读，不从本仓库的 Nest 接口读。否则每个站点都还要部署 YetAnotherAA 后端，封装就没有完成。
+
+| 能力 | 现在落在哪 | 账户页里要看到什么 |
+|---|---|---|
+| 还没有链上账户 | `CreateAccountDialog`，`POST /account/prepare-create-with-passkey` 与 `submit-create-with-passkey` | 空状态和创建。登录成功不等于已经有钱包 |
+| 地址、余额 | `/dashboard`，`GET /account/address`、`/balance` | 账户地址、ETH 余额 |
+| 社区代币 | `/tokens`，`GET /token/balances` | 这个站点所属社区的代币余额。代币地址由站点配置传入，不写死成某一个社区 |
+| 收款、转账、记录 | `/receive`、`/transfer`、`GET /transfer/history` | 收款码、发起一笔、最近记录 |
+| Gasless | `/paymaster`，`GET /paymaster/available`、`/presets` | 当前用哪个 Paymaster、积分够不够付这笔 Gas、这笔交易是否由 Paymaster 付款。这是设置，不是一个没有状态的开关 |
+| 额度 | `/tier-setup`、`/tier-raise`、`/guard` | 当前档位和限额。Gasless 转不出去时，页面要说明是档位不够，而不是只显示失败 |
+| 恢复 | `/recovery`，guardian 的 prepare / submit | 2-of-3 的状态：三把里丢了一把时从这里迁 signer。沿用 `docs/social-recovery.md` |
+
+地址簿、NFT 列表、任务页可以后加，不是「能用起来」的最低集。你是别人的 guardian 时要去签的 `/guardian-sign`，属于账户能力，但放在恢复流程里，不单独做首页。
+
+站点要传进账户页的配置只有社区这一侧：链、这个社区的代币、这个社区的 Paymaster。不传的话，页面无法知道「用哪个社区的 token」。这些地址仍从 SDK 的 canonical 解析，站点传的是社区 ID 或 SDK 已知道的社区记录，不是自己抄一份 ABI。
+
+## 这样封装时账户侧容易漏的点
+
+- **会话来源。** 账户页使用站点自己的登录态（Better Auth session 里的 `cos72` 账户），不读本仓库今天放在浏览器里的 JWT。
+- **页面挂在谁的域名下。** Passkey 的 RP ID 跟页面所在的源绑定。账户页作为组件跑在站点域名上时，注册和以后的签名必须是同一个源。不能登录在 Cos72 的域名、账户页再嵌到另一个域名，否则 Passkey 对不上。
+- **创建账户要一笔代发。** 今天后端用 `ETH_PRIVATE_KEY` 把 `submit-create-with-passkey` 送到链上。账户页不能把这把私钥带到站点。创建必须走已经规划的中继（`docs/RELAY_SERVICE_PROPOSAL.md`），否则封装只在「已经有账户」时成立。
+- **Gasless 失败要有原因。** 余额为 0、Paymaster 没存款、档位限额、社区代币没授权，是四种不同的空状态。只显示一个「Gasless 设置」开关，用户还是用不了。
+- **一个站点一个社区上下文。** 同一个 Cos72 用户可以在不同网站看到不同的社区代币和 Paymaster。账户地址是同一个人的，社区配置是站点的。页面不要假设全球只有一套代币。
+
 ## 数据库：哪些站不用改业务表
 
 口头上的假想是「像 Better Auth 那样正常用，站点根本不用改自己的数据库」。这句只对已经在用 Better Auth 的站成立，而且成立方式要说窄。
@@ -81,5 +118,7 @@ Passkey 的公钥和签名计数留在 Cos72 / KMS，不进站点的表。这样
 4. 站点会话里出现这个用户。Better Auth 的 `account` 表有一行 `providerId = cos72`。业务表没有为这次登录加列。
 5. 同一浏览器再打开：按钮是登录，不再创建第二个用户。
 6. 站点仓库里搜不到用户密码、私钥、验证码和 OAuth client secret。
+7. 登录后打开站点上的 `/account`（或说明里写的那个路由），看到账户页：没有链上账户时可以创建，已有账户时能看到地址、余额、该社区的代币、Gasless 所用的 Paymaster，并能发起一笔由 Paymaster 付款的转账。
+8. 创建账户的交易由中继送出，样板环境变量里没有部署私钥。
 
-这条链路绿了，组件才算可以发布。链上建账户、转账、2-of-3 恢复是下一条链路，用同一个已登录用户接着做，不作为 `@aastar/sdk/auth` 第一版的完成条件。恢复页只从登录后的设置里链出去，沿用 `docs/social-recovery.md`。
+`@aastar/sdk/auth` 只对第 1 到第 6 步负责。第 7、第 8 步由 `@aastar/sdk/account` 的账户页负责。两步都绿，这次封装才算发布完成。Operator、Admin、Community 管理后台不在这条链路里。
