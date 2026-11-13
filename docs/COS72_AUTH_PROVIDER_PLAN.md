@@ -2,7 +2,107 @@
 
 > 状态：规划，未实现。日期：2026-11-13。
 > 分支：`docs/cos72-auth-provider`。
-> 本文只定边界和顺序。代码落在 `@aastar/sdk`，本仓库的页面以后只做调用 SDK 的样板。
+> 摸底时的代码：`feat/cc115-b5-sdk-rc2` 的 `c0b4788`（比 `origin/master` 只多这一笔链上只读复核脚本）。工作区当时是干净的。
+> 本文先记录仓库现状，再定边界和顺序。登录 Provider 的代码落在 `@aastar/sdk`，本仓库的页面以后只做调用 SDK 的样板。
+
+## 仓库摸底
+
+YetAnotherAA 是 AAstar 的 ERC-4337 全栈应用，不是一套可嵌进别人网站的登录插件。用户用 Passkey（Face ID / Touch ID）登录并确认交易，NestJS 后端编排 UserOperation，远程 BLS 签名网络聚合签名，Paymaster 代付 Gas，用户自己不持有 ETH。
+
+它在 Mycelium 里属于 AAstar 这一层（Web3 基础设施）。对外能力在 Brood 名片里写成「日常加密账户」：指纹登录、免 ETH。Cos72 是社区产品名（`docs/COS72_LANDING_TOUR_PROPOSAL.md`）：会员账号 + 积分 + 兑换 + 声誉。本仓库今天实现的是账户和运营门户，还不是那颗可以插进任意网站的账号插件。
+
+合约和签名节点不在本仓库。Validator 在独立仓库 YetAnotherAA-Validator。BLS 是远程服务。本仓库消费 `@aastar/sdk`，链上地址以 SDK 的 canonical 为准，`.env` 只覆盖。
+
+### 目录和版本
+
+npm workspaces，权威锁文件是根目录 `package-lock.json`。安装用 npm。
+
+| 路径 | 角色 |
+|---|---|
+| `aastar/` | NestJS 后端，端口 3000，Swagger 在 `/api-docs` |
+| `aastar-frontend/` | Next.js 16 App Router。`package.json` 的 dev 脚本是 `next dev -p 5173`。README 仍写 8080，`WEBAUTHN_ORIGIN` 默认也是 `http://localhost:8080` |
+| `sdk/` | 仓库内一份很薄的 SDK 源码，运行时依赖的是 npm 上的 `@aastar/sdk` |
+| `7702/` | EIP-7702 实验，独立 `node_modules`，不在 workspace 里 |
+| `lib/forge-std` | Foundry 库 |
+| `docs/` | 演示、测试报告、SDK 升级、上线准备、社交恢复 |
+
+版本没有对齐：根 `package.json` 是 `0.4.0`，`CHANGELOG.md` 停在 `0.7.1`（2026-03-15），后端 `aastar/package.json` 是 `1.0.0`，前端是 `0.1.0`。README 的 Sepolia 演示仍写 `@aastar/sdk@0.34.0`、AirAccount `v0.23.0`。代码两边都是 `@aastar/sdk@^0.43.0`。远程是 `git@github.com:AAStarCommunity/YetAnotherAA.git`。README 徽章仍指向 `fanhousanbu/YetAnotherAA`。
+
+`origin/master` 上已经有的近期修复：Guardian 恢复后按爆炸半径排序数据库写入、`prepareCreateWithPasskey` 的 RPC 链预检、执行恢复前先核对链上 proposal。
+
+### 后端现在怎么接外部
+
+`AppConfigModule` 必须放在 `aastar/src/app.module.ts` 最前面。缺 `JWT_SECRET`、`USER_ENCRYPTION_KEY`（正好 32 字符）、`ETH_RPC_URL`、`BUNDLER_RPC_URL` 会起不来。至少要配一个 EntryPoint（v0.6 / v0.7 / v0.8）。本地可用 `DB_TYPE=json`、`KMS_ENABLED=false`。
+
+业务模块注入 `YAAA_SERVER_CLIENT`（来自 `@aastar/sdk/kms` 的 `AirAccountServerClient`），不自己拼链上调用。`app.module.ts` 里的模块是：Auth、Sdk、Account、Transfer、Bls、Ethereum、Paymaster、Token、UserToken、UserNFT、DataTools、Guardian、Registry、Community、Operator、Admin、Sale。
+
+安全分三档，这是转账签名，不是登录方式：Tier 1 只有 P-256，Tier 2 加 BLS，Tier 3 再加 Guardian ECDSA。
+
+### 前端现在是什么
+
+`/api/*` 反代到本机 3000，`/kms-api/*` 反代到 `https://kms1.aastar.io`。`next.config.ts` 开了 `typescript.ignoreBuildErrors`，构建不因类型错误失败，CI 另跑 `tsc --noEmit`。
+
+用户侧页面：`/auth/login`、`/auth/register`、`/dashboard`、`/transfer`、`/receive`、`/recovery`、`/guardian-sign`、`/tier-setup`、`/tier-raise`。门户侧：`/role`、`/admin`、`/operator`（deploy、manage、node-onboarding、dvt-register）、`/community`、`/paymaster`。状态在 `DashboardContext`、`TaskContext`、`WalletContext`，请求走 `lib/api.ts`。Playwright e2e 覆盖注册、转账、Tier-3、operator、community。
+
+这些页面是产品本身。目标里它们要降成样板：演示一个网站怎样只通过 SDK 嵌进 Cos72。
+
+### 登录现状
+
+控制器是 `aastar/src/auth/auth.controller.ts`，没有密码路由。
+
+| 路由 | 作用 |
+|---|---|
+| `POST /auth/otp/request`、`/otp/verify` | 邮箱 6 位验证码。第一次见到这个邮箱就创建用户（无密码），返回 JWT，并带 `isNewUser`、`needsWallet` |
+| `POST /auth/login/kms/begin`、`/complete` | KMS Passkey 登录，完成后签发 JWT |
+| `POST /auth/wallet/link` | 登录后把 KMS 钥匙和地址绑到用户 |
+| `GET /auth/profile`、`POST /auth/refresh` | JWT 会话 |
+
+用户表是 `aastar/src/entities/user.entity.ts`：`id`、`email`、`username`、`emailVerified`、`walletAddress`、`kmsKeyId`、`kmsCredentialId`。`passkeys` 表标了 `@deprecated`，凭据改存在 KMS，这张表只兼容旧数据。
+
+仓库里没有 Google 登录，也没有 GitHub 登录，也没有 Better Auth。`aastar/package.json` 有 `bcrypt`、`passport-local`，没有对应的用户密码接口。`about` 和 `privacy` 页面已经写了「不存密码」。`DATA_TOOLS_PASSWORD` 是 `/data-tools` 的管理员门，不是用户密码。
+
+邮箱验证码经 Resend（`@aastar/sdk/email` 的 `ResendMailer`），发件人默认 `hi@aastar.io`。验证码存在进程内的 `Map`，重启即丢。JWT 默认 7 天，由本仓库的 `JWT_SECRET` 签发。这正是以后要从站点侧拿掉的中心化会话：站点继续用自己的会话，Cos72 只证明「这个人是谁」。
+
+### 外部依赖
+
+下面按「跑起来必须有」排列。合约地址抄自 `aastar/env.sepolia.example`（2026-03 的 Sepolia 样例）。运行时以 SDK `getCanonicalAddresses(chainId)` 为准，样例地址会过期。更早的一份清单在 `docs/CONFIG_AND_DEPENDENCIES.md`（2026-07-02），那里把密钥分成「应从应用删掉 / 可由用户换成自己的端点 / 仅开发」。
+
+| 类别 | 依赖 | 默认地址或包 | 谁拿着密钥 | 嵌进网站时 |
+|---|---|---|---|---|
+| SDK | `@aastar/sdk` | npm `^0.43.0`。后端走 `/kms`、`/core`、`/email`；前端还走 `/operator`、`/tokens`、`/admin`、`/paymaster` | 无 | 站点只装这个 |
+| 浏览器 Passkey | `@simplewebauthn/browser` | `^13.3.0` | 设备安全模块 | 由 SDK 带上 |
+| 链 | Sepolia RPC | `ETH_RPC_URL` | RPC key | 用 AAStar 默认，或换站点自己的 |
+| Bundler | Pimlico | `BUNDLER_RPC_URL` | `PIMLICO_API_KEY` | 同上 |
+| KMS | 钥匙与 Passkey 仪式 | `https://kms1.aastar.io` | `KMS_API_KEY` | 默认用 AAStar 的。私钥和凭据不出 KMS |
+| BLS / DVT | 聚合签名 | `BLS_SEED_NODES` 样例是 `https://v1.aastar.io`；代码和文档里还出现 `dvt1/2/3.aastar.io`、`yetanotheraa-validator.onrender.com` | 节点自己的密钥 | 登录插件碰不到。转账才碰到 |
+| 邮件验证码 | Resend | `RESEND_API_KEY`，`EMAIL_FROM=hi@aastar.io` | API key | 留在 Cos72，站点不发信、不存验证码 |
+| 账户合约 | EntryPoint v0.7 | `0x0000000071727De22E5E9d8BAf0edAc6f37da032` | 无 | SDK 带地址 |
+| 账户工厂 / Validator | AirAccount | 工厂 `0x91E60482a2B343004dF29EB205C4F6916E864700`，validator `0xD9756c11686B59F7DDf39E6360230316710485af` | 无 | SDK 带地址 |
+| Gas | SuperPaymaster、Paymaster 工厂、aPNTs | `0x16cE0c7d846f9446bbBeb9C5a84A4D140fAeD94A`、`0xfDE4671581F21C9e54Cafa95FA6Da98678750F4d`、`0xDf669834F04988BcEE0E3B6013B6b867Bd38778d` | Paymaster 存款 | 登录插件碰不到 |
+| 注册与治理 | Registry、Staking、GToken、xPNTs Factory、MySBT、价格源 | Registry `0x7Ba70C5bFDb3A4d0cBd220534f3BE177fefc1788`，Staking `0x1118eAf2427a5B9e488e28D35338d22EaCBc37fC`，GToken `0x9ceDeC089921652D050819ca5BE53765fc05aa9E`，xPNTs Factory `0x6EafdA3477F3eec1F848505e1c06dFB5532395b6`，MySBT `0x677423f5Dad98D19cAE8661c36F094289cb6171a`，Chainlink ETH/USD `0x694AA1769357215DE4FAC081bf1f309aDC325306` | 无 | 门户功能才读，登录插件不读 |
+| 销售合约 | GTokenSale、aPNTsSale | `0xfb1D40C882aDe3402B41ACc3260FC59a3E18aA9b`、`0x7fcDab5970697B130eA87d0c500dC213f4ba499F` | 仅部署时的部署者私钥 | 登录插件碰不到 |
+| 本仓库会话 | NestJS JWT、AES | `JWT_SECRET`、`USER_ENCRYPTION_KEY` | 这台后端 | 目标里从站点消失 |
+| 数据库 | JSON 文件或 Postgres | `DB_TYPE`、`DATABASE_URL` | 本仓库 | 站点只留自己的那几列用户字段 |
+| 部署 / 恢复中继 | `ETH_PRIVATE_KEY` | 后端代发账户部署和 `executeRecovery` | 服务器私钥 | 目标里换成中继，不进网站。见 `docs/RELAY_SERVICE_PROPOSAL.md` |
+
+CI 门禁是根脚本 `npm run ci`（format、lint、build、test）。`CLAUDE.md` 记了 Security Audit 是已知失败项（上游 NestJS / webpack），其余要过。
+
+### 现状和插件目标的差距
+
+要做的是：本仓库的交互面变成样板，样板全部通过 SDK 集成；任意网站把 Cos72 当成登录插件嵌进去。已有 Better Auth 的站把这条流程嵌进现有会话。新建的站按「装 SDK → 放组件 → 注册或登录」接。
+
+| | 2026-11-13 的仓库 | 目标 |
+|---|---|---|
+| 页面 | `aastar-frontend` 自己就是产品：钱包、转账、恢复、运营门户都在里面 | 页面降成 demo，只演示别人怎么嵌 |
+| 登录 | 上面那几条 Nest 路由，会话是我们签发的 JWT | 站点调用 SDK 里的 `cos72` Provider。Google / GitHub 由 Cos72 在后面接好 |
+| Google / GitHub | 没有 | 默认打开，和 Passkey 并列 |
+| 密码 | 依赖残留，没有用户密码路由；产品文案已经说不存密码 | 明确删掉，不做开关 |
+| 会话 | `JWT_SECRET` 签发，默认 7 天 | 站点继续用自己的会话。Cos72 只交身份 |
+| 用户库 | `users` 加账户、转账、NFT、废弃的 `passkeys` | 站点只留「站点用户表」那几列 |
+| Better Auth | 未依赖 | SDK 锁定上游一个 commit，在其上加 Provider |
+| 恢复 | `docs/social-recovery.md` 已写 2-of-3，前端有 `/recovery` | 登录插件链接过去，不重写 |
+
+留给 AAStar、不对网站暴露的：KMS、BLS/DVT、Paymaster、Bundler、合约地址、邮件发送、部署和恢复用的私钥。放进样板、只通过 SDK 出现的：一个登录/注册按钮、邮箱验证码步骤、恢复入口、一份「表里至少这些列」的说明。
 
 ## 决定
 
